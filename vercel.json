@@ -1,0 +1,14 @@
+{
+  "buildCommand": "npx tsc",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/mcp", "destination": "/api/mcp" },
+    { "source": "/health", "destination": "/api/health" }
+  ],
+  "crons": [
+    {
+      "path": "/api/reset-usage",
+      "schedule": "0 0 1 * *"
+    }
+  ]
+}
