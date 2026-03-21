@@ -33,15 +33,15 @@ export default function CheckoutModal({
 
           {/* Modal */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
             transition={{ duration: 0.25 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md"
+            className="fixed inset-x-0 bottom-0 sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 z-50 w-full sm:max-w-md"
           >
-            <div className="bg-ivory rounded-2xl border border-sand shadow-2xl shadow-charcoal/20 overflow-hidden mx-4">
+            <div className="bg-ivory rounded-t-2xl sm:rounded-2xl border border-sand shadow-2xl shadow-charcoal/20 overflow-hidden sm:mx-4 max-h-[90vh] overflow-y-auto">
               {/* Header */}
-              <div className="bg-charcoal px-6 py-5 flex items-center justify-between">
+              <div className="bg-charcoal px-5 sm:px-6 py-4 sm:py-5 flex items-center justify-between">
                 <div>
                   <p className="text-xs text-white/40 font-semibold tracking-widest uppercase">
                     Subscribe to SEER
@@ -59,7 +59,7 @@ export default function CheckoutModal({
               </div>
 
               {/* Content */}
-              <div className="p-6">
+              <div className="p-5 sm:p-6">
                 {/* Price display */}
                 <div className="flex items-center justify-between bg-cream-dark rounded-xl p-4 mb-6">
                   <div>

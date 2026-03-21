@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Check, ArrowRight, CreditCard, Receipt, Loader2, Download, Calendar, FileText } from "lucide-react";
 import { createClient } from "@/lib/supabase-browser";
@@ -68,12 +68,26 @@ export default function BillingPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [nextBillingDate, setNextBillingDate] = useState<string | null>(null);
   const [invoicesLoading, setInvoicesLoading] = useState(true);
+  const [razorpayLoaded, setRazorpayLoaded] = useState(false);
   const [modal, setModal] = useState<{
     open: boolean;
     plan: string;
     priceUsd: number;
     priceInr: number;
   }>({ open: false, plan: "", priceUsd: 0, priceInr: 0 });
+
+  // Load Razorpay script properly
+  useEffect(() => {
+    if (typeof window !== "undefined" && !window.Razorpay) {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      script.onload = () => setRazorpayLoaded(true);
+      document.body.appendChild(script);
+    } else if (typeof window !== "undefined" && window.Razorpay) {
+      setRazorpayLoaded(true);
+    }
+  }, []);
 
   useEffect(() => {
     async function fetchUser() {
@@ -147,6 +161,22 @@ export default function BillingPage() {
       if (data.provider === "dodo") {
         window.location.href = data.checkoutUrl;
       } else if (data.provider === "razorpay") {
+        // Wait for Razorpay script to load if not ready
+        if (!window.Razorpay) {
+          await new Promise<void>((resolve) => {
+            const check = setInterval(() => {
+              if (window.Razorpay) { clearInterval(check); resolve(); }
+            }, 200);
+            setTimeout(() => { clearInterval(check); resolve(); }, 5000);
+          });
+        }
+
+        if (!window.Razorpay) {
+          alert("Payment gateway failed to load. Please refresh and try again.");
+          setLoading(null);
+          return;
+        }
+
         const selectedPlan = planId;
         const selectedPrice = plans.find((p) => p.id === planId)?.price ?? 0;
         const options = {
@@ -154,6 +184,7 @@ export default function BillingPage() {
           subscription_id: data.subscriptionId,
           name: "SEER",
           description: `${data.planName} Plan — Monthly`,
+          prefill: { email: userEmail },
           handler: async function (response: { razorpay_payment_id: string; razorpay_subscription_id: string; razorpay_signature: string }) {
             const verifyRes = await fetch("/api/payment/verify", {
               method: "POST",
@@ -171,11 +202,21 @@ export default function BillingPage() {
               alert("Payment verification failed. Please contact support.");
             }
           },
-          modal: { ondismiss: () => setLoading(null) },
+          modal: {
+            ondismiss: () => setLoading(null),
+            escape: true,
+            animation: true,
+          },
           theme: { color: "#D97757" },
         };
-        const rzp = new window.Razorpay(options);
-        rzp.open();
+
+        try {
+          const rzp = new window.Razorpay(options);
+          rzp.open();
+        } catch {
+          alert("Could not open payment gateway. Please try again.");
+          setLoading(null);
+        }
       }
     } catch {
       alert("Network error. Please try again.");
@@ -201,7 +242,6 @@ export default function BillingPage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <script src="https://checkout.razorpay.com/v1/checkout.js" async />
 
       <div>
         <h1 className="font-display text-3xl md:text-4xl text-charcoal tracking-tight">
