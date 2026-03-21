@@ -18,6 +18,7 @@ import {
   Menu,
   X,
   PlayCircle,
+  HelpCircle,
 } from "lucide-react";
 
 const sidebarLinks = [
@@ -27,6 +28,7 @@ const sidebarLinks = [
   { label: "API Keys", href: "/dashboard/keys", icon: Key },
   { label: "Profile", href: "/dashboard/profile", icon: User },
   { label: "Billing", href: "/dashboard/billing", icon: CreditCard },
+  { label: "Help & Support", href: "/dashboard/help", icon: HelpCircle },
 ];
 
 const PLAN_LIMITS: Record<string, number> = {
