@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Terminal, Monitor, Code2, Globe, Copy, Check, Loader2, Sparkles } from "lucide-react";
+import { Terminal, Monitor, Code2, Globe, Copy, Check, Loader2, Sparkles, Play } from "lucide-react";
 import { createClient } from "@/lib/supabase-browser";
 
 function CopyBox({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
@@ -31,6 +31,44 @@ function QuickInstallBadge() {
     <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-terracotta/10 border border-terracotta/20 w-fit">
       <Sparkles size={13} className="text-terracotta" />
       <span className="text-xs font-semibold text-terracotta">One-click install — just paste & enter</span>
+    </div>
+  );
+}
+
+// YouTube video IDs per surface — replace with your actual video IDs
+const VIDEO_IDS: Record<string, string> = {
+  terminal: "",
+  desktop: "",
+  vscode: "",
+  web: "",
+};
+
+function VideoSection({ surface }: { surface: string }) {
+  const videoId = VIDEO_IDS[surface];
+  if (!videoId) {
+    return (
+      <div className="bg-ivory rounded-2xl border border-sand/60 p-6 flex flex-col items-center justify-center gap-3 min-h-[200px]">
+        <div className="w-12 h-12 rounded-full bg-terracotta/10 flex items-center justify-center">
+          <Play size={20} className="text-terracotta ml-0.5" />
+        </div>
+        <p className="text-sm font-medium text-charcoal">Video tutorial coming soon</p>
+        <p className="text-xs text-muted">Step-by-step walkthrough will be available here.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold tracking-widest uppercase text-muted">Video Tutorial</p>
+      <div className="rounded-2xl overflow-hidden border border-sand/60 bg-black aspect-video">
+        <iframe
+          src={`https://www.youtube.com/embed/${videoId}`}
+          title="Installation tutorial"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          className="w-full h-full"
+        />
+      </div>
     </div>
   );
 }
@@ -121,6 +159,7 @@ Config: {"seer":{"command":"FULL_PATH_TO_NODE","args":["FULL_PATH_FROM_NPM_ROOT_
                 <li>Type <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">seer status</code> to test the connection</li>
               </ol>
             </div>
+            <VideoSection surface="terminal" />
           </div>
         )}
 
@@ -142,6 +181,7 @@ Config: {"seer":{"command":"FULL_PATH_TO_NODE","args":["FULL_PATH_FROM_NPM_ROOT_
                 <li>Type <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">seer status</code> in Chat mode to verify</li>
               </ol>
             </div>
+            <VideoSection surface="desktop" />
           </div>
         )}
 
@@ -162,6 +202,7 @@ Config: {"seer":{"command":"FULL_PATH_TO_NODE","args":["FULL_PATH_FROM_NPM_ROOT_
                 <li>Type <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">seer status</code> in Copilot chat to verify</li>
               </ol>
             </div>
+            <VideoSection surface="vscode" />
           </div>
         )}
 
@@ -188,6 +229,7 @@ Config: {"seer":{"command":"FULL_PATH_TO_NODE","args":["FULL_PATH_FROM_NPM_ROOT_
                 <li>Click Save — Claude.ai connects immediately</li>
               </ol>
             </div>
+            <VideoSection surface="web" />
           </div>
         )}
       </motion.div>
