@@ -38,7 +38,7 @@ function QuickInstallBadge() {
 // YouTube video IDs per surface — replace with your actual video IDs
 const VIDEO_IDS: Record<string, string> = {
   terminal: "",
-  desktop: "",
+  desktop: "fVIV-L49eBs",
   vscode: "",
   web: "",
 };
