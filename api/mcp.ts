@@ -16,6 +16,26 @@ function extractApiKey(req: VercelRequest): string {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "POST, GET, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept");
+    res.status(204).end();
+    return;
+  }
+
+  // Only POST is needed for stateless MCP (no sessions)
+  if (req.method === "GET") {
+    res.status(405).json({ error: "Method not allowed. Use POST for MCP requests." });
+    return;
+  }
+
+  if (req.method === "DELETE") {
+    res.status(405).json({ error: "Session management not supported in stateless mode." });
+    return;
+  }
+
   const apiKey = extractApiKey(req);
   const surface = (req.headers["x-seer-surface"] as string) ?? "unknown";
   const server = new McpServer({ name: "seer", version: "1.0.0" });
@@ -67,6 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
+    enableJsonResponse: true,
   });
   await server.connect(transport);
   await transport.handleRequest(req, res);
