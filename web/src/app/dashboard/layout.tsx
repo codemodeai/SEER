@@ -297,7 +297,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
           )}
         </header>
 
-        <main className="p-6 md:p-8 lg:p-10 max-w-[1400px]">{children}</main>
+        <main className="p-4 sm:p-6 md:p-8 lg:p-10 max-w-[1400px]">{children}</main>
       </div>
     </div>
   );

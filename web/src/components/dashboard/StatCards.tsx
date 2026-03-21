@@ -61,20 +61,20 @@ export default function StatCards() {
   }, []);
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       {stats.map((stat, i) => {
         const c = colorMap[stat.color]!;
         return (
           <motion.div key={stat.label} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: i * 0.08 }}
-            className="bg-ivory rounded-2xl border border-sand/60 p-5 hover:shadow-md hover:shadow-charcoal/3 transition-shadow">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-muted tracking-wide">{stat.label}</p>
-              <div className={`w-8 h-8 rounded-lg ${c.bg} flex items-center justify-center`}>
-                <stat.icon size={16} className={c.icon} />
+            className="bg-ivory rounded-xl sm:rounded-2xl border border-sand/60 p-3 sm:p-5 hover:shadow-md hover:shadow-charcoal/3 transition-shadow">
+            <div className="flex items-center justify-between gap-1">
+              <p className="text-[10px] sm:text-xs font-medium text-muted tracking-wide truncate">{stat.label}</p>
+              <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-lg ${c.bg} flex items-center justify-center shrink-0`}>
+                <stat.icon size={12} className={`sm:w-4 sm:h-4 ${c.icon}`} />
               </div>
             </div>
-            <p className="mt-3 font-display text-2xl md:text-3xl text-charcoal tracking-tight">{stat.value}</p>
-            <p className={`mt-1 text-xs font-medium ${c.text}`}>{stat.change}</p>
+            <p className="mt-2 sm:mt-3 font-display text-lg sm:text-2xl md:text-3xl text-charcoal tracking-tight truncate">{stat.value}</p>
+            <p className={`mt-0.5 sm:mt-1 text-[10px] sm:text-xs font-medium ${c.text} truncate`}>{stat.change}</p>
           </motion.div>
         );
       })}

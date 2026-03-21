@@ -17,10 +17,10 @@ function CopyBox({ label, value, highlight }: { label: string; value: string; hi
       <p className="text-xs font-semibold tracking-widest uppercase text-muted mb-2">{label}</p>
       <div className={`relative rounded-xl overflow-hidden ${highlight ? "bg-charcoal ring-2 ring-terracotta/30" : "bg-charcoal"}`}>
         <button onClick={handleCopy}
-          className="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white/60 hover:text-white text-xs font-medium transition-all">
-          {copied ? (<><Check size={13} /> Copied!</>) : (<><Copy size={13} /> Copy</>)}
+          className="absolute top-2 right-2 sm:top-3 sm:right-3 flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white/60 hover:text-white text-[11px] sm:text-xs font-medium transition-all z-10">
+          {copied ? (<><Check size={12} /> Copied!</>) : (<><Copy size={12} /> Copy</>)}
         </button>
-        <pre className="p-5 pr-24 font-mono text-sm text-white/85 leading-relaxed overflow-x-auto whitespace-pre-wrap">{value}</pre>
+        <pre className="p-3 pr-20 sm:p-5 sm:pr-24 font-mono text-xs sm:text-sm text-white/85 leading-relaxed overflow-x-auto whitespace-pre-wrap break-words">{value}</pre>
       </div>
     </div>
   );
@@ -130,13 +130,13 @@ Config: {"seer":{"command":"FULL_PATH_TO_NODE","args":["FULL_PATH_FROM_NPM_ROOT_
       <CopyBox label="Your SEER API Key" value={key} />
 
       {/* Platform tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
         {tabs.map((tab) => (
           <button key={tab.id} onClick={() => setActive(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap transition-all shrink-0 ${
               active === tab.id ? "bg-terracotta text-white shadow-sm" : "bg-ivory border border-sand/60 text-warm-brown-light hover:bg-cream-dark"
             }`}>
-            <tab.icon size={16} />
+            <tab.icon size={14} className="sm:w-4 sm:h-4" />
             {tab.label}
           </button>
         ))}
@@ -152,7 +152,7 @@ Config: {"seer":{"command":"FULL_PATH_TO_NODE","args":["FULL_PATH_FROM_NPM_ROOT_
               value={`claude mcp add seer --transport http --url https://mcp.seermcp.com/mcp --header "Authorization: Bearer ${key}"`}
               highlight
             />
-            <div className="bg-ivory rounded-2xl border border-sand/60 p-5 space-y-3">
+            <div className="bg-ivory rounded-2xl border border-sand/60 p-4 sm:p-5 space-y-3">
               <p className="text-sm text-charcoal font-medium">After running:</p>
               <ol className="text-sm text-warm-brown-light space-y-2 list-decimal list-inside">
                 <li>Run <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">claude mcp list</code> to verify SEER is added</li>
@@ -172,7 +172,7 @@ Config: {"seer":{"command":"FULL_PATH_TO_NODE","args":["FULL_PATH_FROM_NPM_ROOT_
               value={desktopPrompt}
               highlight
             />
-            <div className="bg-ivory rounded-2xl border border-sand/60 p-5 space-y-3">
+            <div className="bg-ivory rounded-2xl border border-sand/60 p-4 sm:p-5 space-y-3">
               <p className="text-sm text-charcoal font-medium">What happens:</p>
               <ol className="text-sm text-warm-brown-light space-y-2 list-decimal list-inside">
                 <li>Claude installs the MCP bridge automatically</li>
@@ -194,7 +194,7 @@ Config: {"seer":{"command":"FULL_PATH_TO_NODE","args":["FULL_PATH_FROM_NPM_ROOT_
               value={vscodePrompt}
               highlight
             />
-            <div className="bg-ivory rounded-2xl border border-sand/60 p-5 space-y-3">
+            <div className="bg-ivory rounded-2xl border border-sand/60 p-4 sm:p-5 space-y-3">
               <p className="text-sm text-charcoal font-medium">What happens:</p>
               <ol className="text-sm text-warm-brown-light space-y-2 list-decimal list-inside">
                 <li>Claude creates or updates <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">.mcp.json</code> in your project</li>
@@ -217,7 +217,7 @@ Config: {"seer":{"command":"FULL_PATH_TO_NODE","args":["FULL_PATH_FROM_NPM_ROOT_
               label="Authorization Header Value"
               value={`Bearer ${key}`}
             />
-            <div className="bg-ivory rounded-2xl border border-sand/60 p-5 space-y-3">
+            <div className="bg-ivory rounded-2xl border border-sand/60 p-4 sm:p-5 space-y-3">
               <p className="text-sm text-charcoal font-medium">Steps:</p>
               <ol className="text-sm text-warm-brown-light space-y-2 list-decimal list-inside">
                 <li>Go to <strong>Claude.ai → Settings → Integrations</strong></li>

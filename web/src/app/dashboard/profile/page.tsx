@@ -145,30 +145,30 @@ export default function ProfilePage() {
       </div>
 
       {/* Profile card */}
-      <div className="bg-ivory rounded-2xl border border-sand/60 p-6 md:p-8">
-        <div className="flex items-center gap-5">
+      <div className="bg-ivory rounded-2xl border border-sand/60 p-4 sm:p-6 md:p-8">
+        <div className="flex items-center gap-3 sm:gap-5">
           {profile.avatar ? (
             <img
               src={profile.avatar}
               alt={profile.name}
-              className="w-16 h-16 rounded-full border-2 border-sand/60"
+              className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 border-sand/60 shrink-0"
             />
           ) : (
-            <div className="w-16 h-16 rounded-full bg-terracotta/15 flex items-center justify-center">
-              <span className="text-terracotta font-display font-bold text-2xl">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-terracotta/15 flex items-center justify-center shrink-0">
+              <span className="text-terracotta font-display font-bold text-xl sm:text-2xl">
                 {profile.name.charAt(0).toUpperCase()}
               </span>
             </div>
           )}
-          <div>
-            <h2 className="font-display text-2xl text-charcoal">{profile.name}</h2>
-            <p className="text-sm text-muted">{profile.email}</p>
+          <div className="min-w-0">
+            <h2 className="font-display text-xl sm:text-2xl text-charcoal truncate">{profile.name}</h2>
+            <p className="text-xs sm:text-sm text-muted truncate">{profile.email}</p>
           </div>
         </div>
       </div>
 
       {/* Details grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
         <DetailCard
           icon={<Mail size={18} />}
           label="Email"
@@ -192,23 +192,23 @@ export default function ProfilePage() {
       </div>
 
       {/* Usage summary */}
-      <div className="bg-ivory rounded-2xl border border-sand/60 p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <User size={18} className="text-terracotta" />
-          <h3 className="font-display text-lg text-charcoal">Usage This Month</h3>
+      <div className="bg-ivory rounded-2xl border border-sand/60 p-4 sm:p-6">
+        <div className="flex items-center gap-2 mb-3 sm:mb-4">
+          <User size={16} className="sm:w-[18px] sm:h-[18px] text-terracotta" />
+          <h3 className="font-display text-base sm:text-lg text-charcoal">Usage This Month</h3>
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="font-display text-4xl text-charcoal tracking-tight">
+          <span className="font-display text-3xl sm:text-4xl text-charcoal tracking-tight">
             {profile.usage}
           </span>
-          <span className="text-sm text-muted">API calls</span>
+          <span className="text-xs sm:text-sm text-muted">API calls</span>
         </div>
       </div>
 
       {/* Cancel plan */}
       {profile.plan !== "free" && (
-        <div className="bg-ivory rounded-2xl border border-red-200/60 p-6">
-          <div className="flex items-center justify-between">
+        <div className="bg-ivory rounded-2xl border border-red-200/60 p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h3 className="text-sm font-semibold text-charcoal">Cancel Subscription</h3>
               <p className="text-xs text-muted mt-0.5">
@@ -217,7 +217,7 @@ export default function ProfilePage() {
             </div>
             <button
               onClick={() => setShowCancelModal(true)}
-              className="px-4 py-2 rounded-xl border border-red-300 text-sm font-medium text-red-600 hover:bg-red-50 transition-all"
+              className="px-4 py-2 rounded-xl border border-red-300 text-sm font-medium text-red-600 hover:bg-red-50 transition-all shrink-0 w-full sm:w-auto text-center"
             >
               Cancel Plan
             </button>
@@ -227,8 +227,8 @@ export default function ProfilePage() {
 
       {/* Cancel Modal */}
       {showCancelModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-2xl border border-sand/60 w-full max-w-md mx-4 p-6 space-y-5">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl border border-sand/60 w-full sm:max-w-md sm:mx-4 p-5 sm:p-6 space-y-4 sm:space-y-5 max-h-[90vh] overflow-y-auto">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2">
                 <AlertTriangle size={20} className="text-red-500" />
@@ -251,12 +251,12 @@ export default function ProfilePage() {
               <label className="text-xs font-semibold text-charcoal block mb-1.5">
                 Why are you cancelling? <span className="text-red-500">*</span>
               </label>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1.5 sm:gap-2">
                 {CANCEL_REASONS.map((r) => (
                   <button
                     key={r}
                     onClick={() => setCancelReason(r)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                    className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-medium border transition-all ${
                       cancelReason === r
                         ? "bg-terracotta text-white border-terracotta"
                         : "bg-cream border-sand/60 text-warm-brown-light hover:border-terracotta/40"
@@ -286,7 +286,7 @@ export default function ProfilePage() {
               <p className="text-xs text-red-500">{cancelError}</p>
             )}
 
-            <div className="flex gap-3 pt-1">
+            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-1">
               <button
                 onClick={() => { setShowCancelModal(false); setCancelError(""); }}
                 className="flex-1 py-2.5 rounded-xl border border-sand/60 text-sm font-medium text-charcoal hover:bg-cream transition-all"
@@ -322,14 +322,14 @@ function DetailCard({
   value: string;
 }) {
   return (
-    <div className="bg-ivory rounded-2xl border border-sand/60 p-5">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-terracotta">{icon}</span>
-        <p className="text-xs font-semibold tracking-wider uppercase text-muted">
+    <div className="bg-ivory rounded-xl sm:rounded-2xl border border-sand/60 p-3 sm:p-5">
+      <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+        <span className="text-terracotta shrink-0">{icon}</span>
+        <p className="text-[10px] sm:text-xs font-semibold tracking-wider uppercase text-muted truncate">
           {label}
         </p>
       </div>
-      <p className="text-base font-medium text-charcoal">{value}</p>
+      <p className="text-sm sm:text-base font-medium text-charcoal truncate">{value}</p>
     </div>
   );
 }

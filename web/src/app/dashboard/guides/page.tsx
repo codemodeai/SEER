@@ -83,12 +83,12 @@ export default function GuidesPage() {
       </div>
 
       {/* Category filters */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
         {CATEGORIES.map((cat) => (
           <button
             key={cat.id}
             onClick={() => setActiveCategory(cat.id)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+            className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap transition-all shrink-0 ${
               activeCategory === cat.id
                 ? "bg-terracotta text-white shadow-sm"
                 : "bg-ivory border border-sand/60 text-warm-brown-light hover:bg-cream-dark"
@@ -101,20 +101,20 @@ export default function GuidesPage() {
 
       {/* Video grid */}
       {filtered.length === 0 ? (
-        <div className="bg-ivory rounded-2xl border border-sand/60 p-10 text-center space-y-3">
+        <div className="bg-ivory rounded-2xl border border-sand/60 p-6 sm:p-10 text-center space-y-3">
           <PlayCircle size={36} className="text-muted mx-auto" />
           <p className="text-sm text-muted">No videos in this category yet.</p>
           <p className="text-xs text-muted">Check back soon for new tutorials.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
           {filtered.map((video, i) => (
             <motion.div
               key={video.id}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.06 }}
-              className="bg-ivory rounded-2xl border border-sand/60 overflow-hidden hover:shadow-md hover:shadow-charcoal/4 transition-shadow"
+              className="bg-ivory rounded-xl sm:rounded-2xl border border-sand/60 overflow-hidden hover:shadow-md hover:shadow-charcoal/4 transition-shadow"
             >
               {/* Video player / Thumbnail */}
               <div className="aspect-video bg-black relative">
@@ -141,12 +141,12 @@ export default function GuidesPage() {
                       }}
                     />
                     <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-                      <div className="w-16 h-16 rounded-full bg-white/90 group-hover:bg-white group-hover:scale-110 transition-all flex items-center justify-center shadow-lg">
-                        <PlayCircle size={32} className="text-terracotta ml-0.5" />
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-white/90 group-hover:bg-white group-hover:scale-110 transition-all flex items-center justify-center shadow-lg">
+                        <PlayCircle size={24} className="sm:w-8 sm:h-8 text-terracotta ml-0.5" />
                       </div>
                     </div>
-                    <div className="absolute bottom-3 right-3 flex items-center gap-1 px-2 py-1 rounded-md bg-black/70 text-white text-xs font-medium">
-                      <Clock size={11} />
+                    <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md bg-black/70 text-white text-[10px] sm:text-xs font-medium">
+                      <Clock size={10} className="sm:w-[11px] sm:h-[11px]" />
                       {video.duration}
                     </div>
                   </button>
@@ -154,19 +154,19 @@ export default function GuidesPage() {
               </div>
 
               {/* Info */}
-              <div className="p-4 space-y-2">
-                <div className="flex items-start justify-between gap-3">
-                  <h3 className="font-display text-base text-charcoal leading-snug">
+              <div className="p-3 sm:p-4 space-y-1.5 sm:space-y-2">
+                <div className="flex items-start justify-between gap-2 sm:gap-3">
+                  <h3 className="font-display text-sm sm:text-base text-charcoal leading-snug">
                     {video.title}
                   </h3>
                   <span
-                    className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${categoryColor(video.category)}`}
+                    className={`shrink-0 inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-semibold border ${categoryColor(video.category)}`}
                   >
-                    <Tag size={9} />
+                    <Tag size={8} className="sm:w-[9px] sm:h-[9px]" />
                     {categoryLabel(video.category)}
                   </span>
                 </div>
-                <p className="text-xs text-muted leading-relaxed">
+                <p className="text-[11px] sm:text-xs text-muted leading-relaxed">
                   {video.description}
                 </p>
               </div>
