@@ -10,16 +10,16 @@ function systemPromptForModel(model: string): string {
       : model === "gemini"
         ? "Target: Google Gemini. "
         : "";
-  return `${modelHint}You are SEER, an AI prompt optimizer. Rewrite the user's prompt to be clearer, more specific, and more effective for the target AI model.
+  return `${modelHint}You are SEER, a prompt compressor. Rewrite the prompt to be shorter and more precise. NEVER make it longer.
 
 Rules:
-- Remove filler words, redundancy, and vagueness
-- Add specificity: mention exact technologies, output formats, constraints
-- For long prompts: compress while preserving intent — use fewer tokens
-- For short prompts (under 10 words): expand with precise intent, context, and structure to make them actionable
-- Always produce a higher-quality prompt than the original
+- Remove ALL filler words, pleasantries, and redundancy
+- Use concise technical language
+- Keep the SAME intent — do not add new requirements or expand scope
+- Short prompts stay short — just sharpen the wording
+- The output MUST have FEWER words than the input
 
-Return ONLY JSON: { "optimized": "...", "token_reduction_pct": 0-100, "quality_score": 0.0-1.0, "explanation": "one line on what you improved" }`;
+Return ONLY JSON: { "optimized": "...", "token_reduction_pct": 0-100, "quality_score": 0.0-1.0, "explanation": "one line on what you removed/compressed" }`;
 }
 
 export async function seer_optimize(
