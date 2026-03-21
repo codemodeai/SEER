@@ -41,12 +41,13 @@ export async function POST(req: NextRequest) {
     const country =
       req.headers.get("x-vercel-ip-country") ??
       req.headers.get("cf-ipcountry") ??
-      "US";
-    const isIndia = country === "IN";
+      "";
 
-    // Use Razorpay if user is in India, OR if Dodo isn't configured
-    const useRazorpay =
-      (isIndia || !process.env.DODO_API_KEY) && !!process.env.RAZORPAY_KEY_ID;
+    const hasRazorpay = !!process.env.RAZORPAY_KEY_ID;
+    const hasDodo = !!process.env.DODO_API_KEY;
+
+    // Use Razorpay if: user is in India, or Dodo isn't configured, or as fallback
+    const useRazorpay = hasRazorpay && (country === "IN" || !hasDodo);
 
     if (useRazorpay) {
       // --- Razorpay subscription ---
@@ -71,10 +72,17 @@ export async function POST(req: NextRequest) {
       });
 
       if (!subRes.ok) {
-        const err = await subRes.text();
-        console.error("Razorpay error:", err);
+        const errText = await subRes.text();
+        console.error("Razorpay error:", errText, "Plan ID:", planConfig.razorpayPlanId, "Key:", razorpayKey?.substring(0, 10));
+        let detail = "";
+        try {
+          const errJson = JSON.parse(errText);
+          detail = errJson?.error?.description || errText;
+        } catch {
+          detail = errText;
+        }
         return NextResponse.json(
-          { error: "Payment provider error. Please try again." },
+          { error: `Payment provider error: ${detail}` },
           { status: 502 }
         );
       }
