@@ -30,7 +30,7 @@ export async function GET() {
     : "empty";
 
   const secretCharCodes = razorpaySecret
-    ? `length=${razorpaySecret.length}, first5codes=${razorpaySecret.substring(0, 5).split("").map(c => c.charCodeAt(0)).join(",")}`
+    ? `length=${razorpaySecret.length}, allCodes=${razorpaySecret.split("").map((c, i) => `${i}:${c}(${c.charCodeAt(0)})`).join(" ")}`
     : "empty";
 
   return NextResponse.json({
