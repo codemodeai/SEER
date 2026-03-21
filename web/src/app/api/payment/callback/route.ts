@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
     if (!razorpay_payment_id || !razorpay_subscription_id || !razorpay_signature || !plan) {
-      return NextResponse.redirect(`${appUrl}/dashboard/billing?error=missing_payment_details`);
+      return NextResponse.redirect(`${appUrl}/dashboard/billing?error=missing_payment_details`, 303);
     }
 
     // Verify signature
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
       .digest("hex");
 
     if (generatedSig !== razorpay_signature) {
-      return NextResponse.redirect(`${appUrl}/dashboard/billing?error=invalid_signature`);
+      return NextResponse.redirect(`${appUrl}/dashboard/billing?error=invalid_signature`, 303);
     }
 
     // Get authenticated user
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.redirect(`${appUrl}/login?error=not_authenticated`);
+      return NextResponse.redirect(`${appUrl}/login?error=not_authenticated`, 303);
     }
 
     // Update user plan
@@ -95,10 +95,10 @@ export async function POST(req: NextRequest) {
       billing_period_end: periodEnd.toISOString(),
     });
 
-    return NextResponse.redirect(`${appUrl}/payment/success?plan=${plan}&price=${price}`);
+    return NextResponse.redirect(`${appUrl}/payment/success?plan=${plan}&price=${price}`, 303);
   } catch (err) {
     console.error("Payment callback error:", err);
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    return NextResponse.redirect(`${appUrl}/dashboard/billing?error=callback_failed`);
+    return NextResponse.redirect(`${appUrl}/dashboard/billing?error=callback_failed`, 303);
   }
 }
