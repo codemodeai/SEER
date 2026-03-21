@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
+import { ThemeProvider, useTheme } from "@/lib/theme";
 import {
   LayoutDashboard,
   Download,
@@ -11,6 +12,8 @@ import {
   CreditCard,
   LogOut,
   ChevronRight,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 const sidebarLinks = [
@@ -27,13 +30,10 @@ const PLAN_LIMITS: Record<string, number> = {
   agency: 99999,
 };
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function DashboardContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { theme, toggle } = useTheme();
   const [plan, setPlan] = useState("free");
   const [usage, setUsage] = useState(0);
 
@@ -43,7 +43,6 @@ export default function DashboardLayout({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Setup user record if needed
       await fetch("/api/auth/setup-user", { method: "POST" });
 
       const { data } = await supabase
@@ -73,14 +72,23 @@ export default function DashboardLayout({
     <div className="min-h-screen bg-cream flex">
       {/* Sidebar */}
       <aside className="hidden lg:flex flex-col w-64 bg-ivory border-r border-sand/60 fixed inset-y-0 left-0 z-40">
-        {/* Logo */}
-        <div className="h-16 flex items-center gap-2.5 px-6 border-b border-sand/60">
-          <div className="w-8 h-8 rounded-lg bg-terracotta flex items-center justify-center">
-            <span className="text-white font-display font-bold text-sm">S</span>
+        {/* Logo + Theme toggle */}
+        <div className="h-16 flex items-center justify-between px-6 border-b border-sand/60">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-terracotta flex items-center justify-center">
+              <span className="text-white font-display font-bold text-sm">S</span>
+            </div>
+            <span className="font-display text-xl text-charcoal tracking-tight">
+              SEER
+            </span>
           </div>
-          <span className="font-display text-xl text-charcoal tracking-tight">
-            SEER
-          </span>
+          <button
+            onClick={toggle}
+            className="w-8 h-8 rounded-lg bg-cream-dark border border-sand/60 flex items-center justify-center text-muted hover:text-terracotta hover:border-terracotta/30 transition-all"
+            title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+          >
+            {theme === "light" ? <Moon size={14} /> : <Sun size={14} />}
+          </button>
         </div>
 
         {/* Nav */}
@@ -142,15 +150,35 @@ export default function DashboardLayout({
       {/* Main content */}
       <div className="flex-1 lg:pl-64">
         {/* Top bar (mobile) */}
-        <header className="lg:hidden h-14 bg-ivory border-b border-sand/60 flex items-center px-4 gap-3 sticky top-0 z-30">
-          <div className="w-7 h-7 rounded-lg bg-terracotta flex items-center justify-center">
-            <span className="text-white font-display font-bold text-xs">S</span>
+        <header className="lg:hidden h-14 bg-ivory border-b border-sand/60 flex items-center justify-between px-4 sticky top-0 z-30">
+          <div className="flex items-center gap-3">
+            <div className="w-7 h-7 rounded-lg bg-terracotta flex items-center justify-center">
+              <span className="text-white font-display font-bold text-xs">S</span>
+            </div>
+            <span className="font-display text-lg text-charcoal">Dashboard</span>
           </div>
-          <span className="font-display text-lg text-charcoal">Dashboard</span>
+          <button
+            onClick={toggle}
+            className="w-8 h-8 rounded-lg bg-cream-dark border border-sand/60 flex items-center justify-center text-muted hover:text-terracotta transition-all"
+          >
+            {theme === "light" ? <Moon size={14} /> : <Sun size={14} />}
+          </button>
         </header>
 
         <main className="p-6 md:p-8 lg:p-10 max-w-[1400px]">{children}</main>
       </div>
     </div>
+  );
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <ThemeProvider>
+      <DashboardContent>{children}</DashboardContent>
+    </ThemeProvider>
   );
 }

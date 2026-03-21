@@ -17,6 +17,15 @@
   --color-accent-sage: #8FA68A;
   --color-muted: #9B9389;
 
+  /* Dark mode palette */
+  --color-d-bg: #1E1E1E;
+  --color-d-surface: #2A2A2A;
+  --color-d-surface-hover: #333333;
+  --color-d-border: #3D3D3D;
+  --color-d-text: #F0F0F0;
+  --color-d-text-secondary: #B0B0B0;
+  --color-d-text-muted: #808080;
+
   --font-display: "Instrument Serif", "Georgia", serif;
   --font-body: "DM Sans", "Helvetica Neue", sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", monospace;
@@ -33,6 +42,12 @@
     font-family: var(--font-body);
     background-color: var(--color-cream);
     color: var(--color-charcoal);
+  }
+
+  /* Dark mode overrides */
+  html[data-theme="dark"] body {
+    background-color: var(--color-d-bg);
+    color: var(--color-d-text);
   }
 
   ::selection {
@@ -60,4 +75,54 @@
     background-repeat: repeat;
     background-size: 256px 256px;
   }
+
+  /* ===== DARK MODE UTILITY OVERRIDES ===== */
+
+  /* Backgrounds */
+  html[data-theme="dark"] .bg-cream { background-color: var(--color-d-bg); }
+  html[data-theme="dark"] .bg-cream-dark { background-color: var(--color-d-surface); }
+  html[data-theme="dark"] .bg-ivory { background-color: var(--color-d-surface); }
+  html[data-theme="dark"] .bg-white { background-color: var(--color-d-surface); }
+
+  /* Text */
+  html[data-theme="dark"] .text-charcoal { color: var(--color-d-text); }
+  html[data-theme="dark"] .text-warm-brown-light { color: var(--color-d-text-secondary); }
+  html[data-theme="dark"] .text-warm-brown { color: var(--color-d-text-secondary); }
+  html[data-theme="dark"] .text-muted { color: var(--color-d-text-muted); }
+
+  /* Borders */
+  html[data-theme="dark"] .border-sand\/60 { border-color: var(--color-d-border); }
+  html[data-theme="dark"] .border-sand\/50 { border-color: var(--color-d-border); }
+  html[data-theme="dark"] .border-sand\/80 { border-color: var(--color-d-border); }
+  html[data-theme="dark"] .border-sand { border-color: var(--color-d-border); }
+  html[data-theme="dark"] .border-sand\/30 { border-color: color-mix(in srgb, var(--color-d-border) 50%, transparent); }
+
+  /* Hover states */
+  html[data-theme="dark"] .hover\:bg-cream-dark:hover { background-color: var(--color-d-surface-hover); }
+  html[data-theme="dark"] .hover\:bg-sand:hover { background-color: var(--color-d-surface-hover); }
+  html[data-theme="dark"] .hover\:text-charcoal:hover { color: var(--color-d-text); }
+
+  /* Specific component overrides */
+  html[data-theme="dark"] .bg-cream-dark\/50 { background-color: color-mix(in srgb, var(--color-d-surface-hover) 50%, transparent); }
+  html[data-theme="dark"] .hover\:bg-cream-dark\/50:hover { background-color: color-mix(in srgb, var(--color-d-surface-hover) 70%, transparent); }
+
+  /* Shadow overrides */
+  html[data-theme="dark"] .hover\:shadow-md:hover { --tw-shadow-color: rgba(0,0,0,0.3); }
+  html[data-theme="dark"] .shadow-charcoal\/3 { --tw-shadow-color: rgba(0,0,0,0.15); }
+
+  /* Form inputs */
+  html[data-theme="dark"] .bg-ivory input,
+  html[data-theme="dark"] .bg-cream-dark input,
+  html[data-theme="dark"] input.bg-ivory,
+  html[data-theme="dark"] code.bg-cream-dark {
+    background-color: var(--color-d-bg);
+    color: var(--color-d-text);
+    border-color: var(--color-d-border);
+  }
+
+  /* Code blocks */
+  html[data-theme="dark"] .bg-charcoal { background-color: #161616; }
+
+  /* Terracotta accents stay the same in dark mode - they pop nicely */
+  /* Accent sage and gold also stay the same */
 }
