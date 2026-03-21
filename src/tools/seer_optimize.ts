@@ -10,7 +10,16 @@ function systemPromptForModel(model: string): string {
       : model === "gemini"
         ? "Target: Google Gemini. "
         : "";
-  return `${modelHint}Optimize this prompt. Return ONLY JSON: { "optimized": "...", "token_reduction_pct": 0-100, "quality_score": 0.0-1.0, "explanation": "..." }`;
+  return `${modelHint}You are SEER, an AI prompt optimizer. Rewrite the user's prompt to be clearer, more specific, and more effective for the target AI model.
+
+Rules:
+- Remove filler words, redundancy, and vagueness
+- Add specificity: mention exact technologies, output formats, constraints
+- For long prompts: compress while preserving intent — use fewer tokens
+- For short prompts (under 10 words): expand with precise intent, context, and structure to make them actionable
+- Always produce a higher-quality prompt than the original
+
+Return ONLY JSON: { "optimized": "...", "token_reduction_pct": 0-100, "quality_score": 0.0-1.0, "explanation": "one line on what you improved" }`;
 }
 
 export async function seer_optimize(
@@ -65,9 +74,11 @@ export async function seer_optimize(
     // non-JSON response
   }
 
-  const tokensSaved = rawTokens - optimizedTokens;
+  const tokensSaved = Math.max(0, rawTokens - optimizedTokens);
   const pctSaved =
-    rawTokens > 0 ? Math.round((1 - optimizedTokens / rawTokens) * 100) : 0;
+    rawTokens > 0 && optimizedTokens < rawTokens
+      ? Math.round((1 - optimizedTokens / rawTokens) * 100)
+      : 0;
 
   // 6. Log
   await logSeerCall({

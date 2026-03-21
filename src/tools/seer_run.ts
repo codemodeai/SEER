@@ -4,11 +4,27 @@ import { callHaiku, estimateTokens } from "../lib/haiku.js";
 import { logSeerCall } from "../lib/logger.js";
 import { getEmbedding, searchMemory } from "../lib/embeddings.js";
 
-const SYSTEM_PROMPT =
-  "Optimize this prompt. Return ONLY JSON: { \"optimized\": \"...\", \"steps\": [\"step1\", \"step2\", ...], \"note\": \"...\" }";
+const SYSTEM_PROMPT = `You are SEER, an AI prompt optimizer. Your job is to rewrite the user's prompt to be clearer, more specific, and more effective for an AI model — while using FEWER tokens.
 
-const SYSTEM_PROMPT_WITH_CONTEXT =
-  "Optimize this prompt using the provided project context. Return ONLY JSON: { \"optimized\": \"...\", \"steps\": [\"step1\", \"step2\", ...], \"note\": \"...\", \"context_used\": true }";
+Rules:
+- Remove filler words, redundancy, and vagueness
+- Add specificity: mention exact technologies, formats, constraints
+- Structure with clear sections if the task is complex
+- The optimized prompt MUST be shorter in token count than the original when possible
+- For very short prompts (under 10 words), expand them with precise intent and context to make them actionable — this is optimization by clarity, not just compression
+
+Return ONLY JSON: { "optimized": "...", "steps": ["step1", "step2", ...], "note": "one line explaining what you improved" }`;
+
+const SYSTEM_PROMPT_WITH_CONTEXT = `You are SEER, an AI prompt optimizer with project context. Rewrite the user's prompt to be clearer, more specific, and more effective — using FEWER tokens where possible.
+
+Rules:
+- Remove filler words, redundancy, and vagueness
+- Leverage the provided project context to add relevant specifics
+- Structure with clear sections if the task is complex
+- The optimized prompt MUST be shorter in token count than the original when possible
+- For very short prompts, expand with precise intent using project context
+
+Return ONLY JSON: { "optimized": "...", "steps": ["step1", "step2", ...], "note": "...", "context_used": true }`;
 
 export async function seer_run(
   input: string,
@@ -83,18 +99,24 @@ export async function seer_run(
   // 5. Parse result and compute token savings
   const rawTokens = estimateTokens(input);
   let optimizedTokens = rawTokens;
+  let optimizedText = "";
   try {
     const parsed = JSON.parse(resultText);
     if (parsed.optimized) {
-      optimizedTokens = estimateTokens(parsed.optimized);
+      optimizedText = parsed.optimized;
+      optimizedTokens = estimateTokens(optimizedText);
     }
   } catch {
     // If Haiku returned non-JSON, use raw result
   }
 
-  const tokensSaved = rawTokens - optimizedTokens;
+  // For short prompts that get expanded for clarity, the savings are in quality not compression
+  // We measure effectiveness: if expanded, show the clarity improvement instead of negative savings
+  const tokensSaved = Math.max(0, rawTokens - optimizedTokens);
   const pctSaved =
-    rawTokens > 0 ? Math.round((1 - optimizedTokens / rawTokens) * 100) : 0;
+    rawTokens > 0 && optimizedTokens < rawTokens
+      ? Math.round((1 - optimizedTokens / rawTokens) * 100)
+      : 0;
 
   // 6. Log to dashboard DB
   await logSeerCall({
