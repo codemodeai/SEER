@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SEER MCP Server</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #1a1715;
+      color: #F0E9DD;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Ambient glow */
+    body::before {
+      content: '';
+      position: absolute;
+      top: -20%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 800px;
+      height: 800px;
+      background: radial-gradient(circle, rgba(217,119,87,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    body::after {
+      content: '';
+      position: absolute;
+      bottom: -30%;
+      right: -10%;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(196,154,108,0.05) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .container {
+      text-align: center;
+      position: relative;
+      z-index: 1;
+      max-width: 580px;
+      padding: 2rem;
+    }
+
+    /* Logo */
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 3rem;
+    }
+
+    .logo-icon {
+      width: 52px;
+      height: 52px;
+      background: #D97757;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Instrument Serif', serif;
+      font-size: 26px;
+      font-weight: 700;
+      color: white;
+      box-shadow: 0 8px 32px rgba(217,119,87,0.25);
+    }
+
+    .logo-text {
+      font-family: 'Instrument Serif', serif;
+      font-size: 32px;
+      color: #F0E9DD;
+      letter-spacing: -0.5px;
+    }
+
+    /* Title */
+    h1 {
+      font-family: 'Instrument Serif', serif;
+      font-size: clamp(2.5rem, 5vw, 3.5rem);
+      color: #FFFCF7;
+      line-height: 1.1;
+      letter-spacing: -1px;
+      margin-bottom: 1rem;
+    }
+
+    h1 span {
+      color: #D97757;
+    }
+
+    .subtitle {
+      font-size: 1.05rem;
+      color: #9B9389;
+      line-height: 1.6;
+      margin-bottom: 2.5rem;
+    }
+
+    /* Status badge */
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      background: rgba(143,166,138,0.1);
+      border: 1px solid rgba(143,166,138,0.2);
+      border-radius: 100px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #8FA68A;
+      margin-bottom: 3rem;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: #8FA68A;
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    /* Endpoint card */
+    .endpoint-card {
+      background: rgba(255,252,247,0.03);
+      border: 1px solid rgba(232,223,208,0.08);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      text-align: left;
+    }
+
+    .endpoint-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #D97757;
+      margin-bottom: 10px;
+    }
+
+    .endpoint-url {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      color: #F0E9DD;
+      background: rgba(0,0,0,0.3);
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid rgba(232,223,208,0.06);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .endpoint-url code {
+      overflow-x: auto;
+    }
+
+    .copy-btn {
+      background: none;
+      border: 1px solid rgba(232,223,208,0.15);
+      color: #9B9389;
+      padding: 6px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 11px;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 600;
+      transition: all 0.2s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .copy-btn:hover {
+      color: #D97757;
+      border-color: rgba(217,119,87,0.3);
+      background: rgba(217,119,87,0.05);
+    }
+
+    /* Tools grid */
+    .tools {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 2.5rem;
+    }
+
+    .tool {
+      background: rgba(255,252,247,0.03);
+      border: 1px solid rgba(232,223,208,0.06);
+      border-radius: 12px;
+      padding: 14px 16px;
+      text-align: left;
+      transition: all 0.25s;
+    }
+
+    .tool:hover {
+      border-color: rgba(217,119,87,0.2);
+      background: rgba(217,119,87,0.03);
+    }
+
+    .tool-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #D97757;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .tool-desc {
+      font-size: 11px;
+      color: #7A5C4F;
+      line-height: 1.4;
+    }
+
+    /* CTA */
+    .cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      background: #D97757;
+      color: white;
+      border-radius: 100px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.25s;
+      box-shadow: 0 4px 20px rgba(217,119,87,0.25);
+    }
+
+    .cta:hover {
+      background: #C4623F;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 28px rgba(217,119,87,0.35);
+    }
+
+    .cta svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* Footer */
+    .footer {
+      margin-top: 3rem;
+      font-size: 12px;
+      color: #4A4640;
+    }
+
+    .footer a {
+      color: #D97757;
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <div class="logo-icon">S</div>
+      <span class="logo-text">SEER</span>
+    </div>
+
+    <div class="status">
+      <span class="status-dot"></span>
+      MCP Server Online
+    </div>
+
+    <h1>AI Prompt<br><span>Intelligence</span> Server</h1>
+    <p class="subtitle">
+      The MCP server that optimizes prompts, generates workflows,
+      and injects project memory — before Claude starts thinking.
+    </p>
+
+    <div class="endpoint-card">
+      <div class="endpoint-label">MCP Endpoint</div>
+      <div class="endpoint-url">
+        <code>https://mcp.seermcp.com/mcp</code>
+        <button class="copy-btn" onclick="copyEndpoint(this)">Copy</button>
+      </div>
+    </div>
+
+    <div class="tools">
+      <div class="tool">
+        <div class="tool-name">seer_run</div>
+        <div class="tool-desc">Optimize + route any prompt</div>
+      </div>
+      <div class="tool">
+        <div class="tool-name">seer_optimize</div>
+        <div class="tool-desc">Standalone prompt optimizer</div>
+      </div>
+      <div class="tool">
+        <div class="tool-name">seer_workflow</div>
+        <div class="tool-desc">Goal to step decomposer</div>
+      </div>
+      <div class="tool">
+        <div class="tool-name">seer_memory</div>
+        <div class="tool-desc">Context memory search</div>
+      </div>
+    </div>
+
+    <a href="https://seermcp.com" class="cta">
+      Go to Dashboard
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+      </svg>
+    </a>
+
+    <div class="footer">
+      <p>SEER v1.0.0 &middot; <a href="https://seermcp.com">seermcp.com</a></p>
+    </div>
+  </div>
+
+  <script>
+    function copyEndpoint(btn) {
+      navigator.clipboard.writeText('https://mcp.seermcp.com/mcp');
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+    }
+  </script>
+</body>
+</html>
