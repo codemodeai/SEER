@@ -1,0 +1,33 @@
+{
+  "name": "seer",
+  "version": "1.0.0",
+  "description": "SEER - AI Prompt Intelligence Platform (MCP Server)",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node --esm src/server.ts",
+    "start": "node dist/server.js"
+  },
+  "keywords": [
+    "mcp",
+    "ai",
+    "prompt-optimization"
+  ],
+  "author": "SEER",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "@supabase/supabase-js": "^2.99.3",
+    "express": "^5.2.1",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.5.0",
+    "@vercel/node": "^5.6.18",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}
