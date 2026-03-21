@@ -10,7 +10,7 @@ import {
   Download,
   Key,
   CreditCard,
-  BarChart3,
+  User,
   LogOut,
   ChevronRight,
   Sun,
@@ -21,7 +21,7 @@ const sidebarLinks = [
   { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
   { label: "Install Guide", href: "/dashboard/install", icon: Download },
   { label: "API Keys", href: "/dashboard/keys", icon: Key },
-  { label: "Benchmark", href: "/dashboard/benchmark", icon: BarChart3 },
+  { label: "Profile", href: "/dashboard/profile", icon: User },
   { label: "Billing", href: "/dashboard/billing", icon: CreditCard },
 ];
 
@@ -38,12 +38,20 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   const { theme, toggle } = useTheme();
   const [plan, setPlan] = useState("free");
   const [usage, setUsage] = useState(0);
+  const [userName, setUserName] = useState("");
 
   useEffect(() => {
     async function fetchUser() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      const displayName =
+        user.user_metadata?.full_name ||
+        user.user_metadata?.name ||
+        user.email?.split("@")[0] ||
+        "User";
+      setUserName(displayName);
 
       await fetch("/api/auth/setup-user", { method: "POST" });
 
@@ -120,8 +128,21 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        {/* Plan badge + logout */}
+        {/* User + Plan badge + logout */}
         <div className="px-3 pb-4 flex flex-col gap-2">
+          {userName && (
+            <div className="px-4 py-2 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-terracotta/15 flex items-center justify-center">
+                <span className="text-terracotta font-semibold text-sm">
+                  {userName.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-charcoal truncate">{userName}</p>
+                <p className="text-[10px] text-muted capitalize">{plan} plan</p>
+              </div>
+            </div>
+          )}
           <div className="px-4 py-3 rounded-xl bg-cream-dark border border-sand/50">
             <p className="text-[10px] font-semibold tracking-widest uppercase text-muted">
               Current Plan
