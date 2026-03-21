@@ -12,19 +12,27 @@ export default function UsageGauge() {
   const [plan, setPlan] = useState("free");
 
   useEffect(() => {
-    async function fetch() {
+    async function fetchUsage() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const { data } = await supabase
-        .from("users").select("plan, usage_this_month").eq("id", user.id).single();
+        .from("users").select("plan").eq("id", user.id).single();
       if (data) {
         setPlan(data.plan);
-        setUsed(data.usage_this_month);
         setLimit(PLAN_LIMITS[data.plan] ?? 50);
       }
+      // Get real usage from seer_logs
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const { count } = await supabase
+        .from("seer_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .gte("timestamp", monthStart);
+      setUsed(count ?? 0);
     }
-    fetch();
+    fetchUsage();
   }, []);
 
   const pct = plan === "agency" ? 0 : Math.round((used / limit) * 100);

@@ -41,9 +41,18 @@ export default function ProfilePage() {
 
       const { data } = await supabase
         .from("users")
-        .select("plan, usage_this_month, seer_api_key, created_at")
+        .select("plan, seer_api_key, created_at")
         .eq("id", user.id)
         .single();
+
+      // Get real usage from seer_logs (current month)
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const { count } = await supabase
+        .from("seer_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .gte("timestamp", monthStart);
 
       const name =
         user.user_metadata?.full_name ||
@@ -58,7 +67,7 @@ export default function ProfilePage() {
         email: user.email || "",
         avatar: user.user_metadata?.avatar_url || "",
         plan: data?.plan || "free",
-        usage: data?.usage_this_month || 0,
+        usage: count ?? 0,
         apiKey: data?.seer_api_key || "",
         createdAt: data?.created_at || user.created_at || "",
         provider,

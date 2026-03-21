@@ -28,7 +28,7 @@ export default function StatCards() {
       if (!user) return;
 
       const { data: userData } = await supabase
-        .from("users").select("plan, usage_this_month").eq("id", user.id).single();
+        .from("users").select("plan").eq("id", user.id).single();
 
       const { data: logs } = await supabase
         .from("seer_logs").select("tokens_saved, pct_saved").eq("user_id", user.id);
@@ -38,8 +38,17 @@ export default function StatCards() {
       const avgPct = totalCalls > 0
         ? Math.round((logs?.reduce((s, l) => s + l.pct_saved, 0) ?? 0) / totalCalls) : 0;
       const plan = userData?.plan ?? "free";
-      const usage = userData?.usage_this_month ?? 0;
       const limit = PLAN_LIMITS[plan] ?? 50;
+
+      // Get real usage from seer_logs (current month)
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const { count } = await supabase
+        .from("seer_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .gte("timestamp", monthStart);
+      const usage = count ?? 0;
 
       setStats([
         { label: "Total Seer Calls", value: totalCalls.toLocaleString(), change: totalCalls > 0 ? `${plan} plan` : "No calls yet", icon: Zap, color: "terracotta" },

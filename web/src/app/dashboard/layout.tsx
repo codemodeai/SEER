@@ -57,14 +57,24 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
       const { data } = await supabase
         .from("users")
-        .select("plan, usage_this_month")
+        .select("plan")
         .eq("id", user.id)
         .single();
 
       if (data) {
         setPlan(data.plan);
-        setUsage(data.usage_this_month);
       }
+
+      // Get real usage from seer_logs (current month)
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const { count } = await supabase
+        .from("seer_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .gte("timestamp", monthStart);
+
+      setUsage(count ?? 0);
     }
     fetchUser();
   }, []);
