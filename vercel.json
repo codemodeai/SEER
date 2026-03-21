@@ -1,6 +1,4 @@
 {
-  "buildCommand": "npx tsc",
-  "outputDirectory": "dist",
   "rewrites": [
     { "source": "/mcp", "destination": "/api/mcp" },
     { "source": "/health", "destination": "/api/health" }
