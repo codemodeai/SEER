@@ -182,15 +182,12 @@ export default function BillingPage() {
 
         const selectedPlan = planId;
         const selectedPrice = plans.find((p) => p.id === planId)?.price ?? 0;
-        const appUrl = window.location.origin;
         const options: Record<string, unknown> = {
           key: data.razorpayKeyId,
           subscription_id: data.subscriptionId,
           name: "SEER",
           description: `${data.planName} Plan — Monthly`,
           prefill: { email: userEmail },
-          callback_url: `${appUrl}/api/payment/callback?plan=${selectedPlan}&price=${selectedPrice}`,
-          redirect: true,
           handler: async function (response: { razorpay_payment_id: string; razorpay_subscription_id: string; razorpay_signature: string }) {
             try {
               const verifyRes = await fetch("/api/payment/verify", {
@@ -207,20 +204,15 @@ export default function BillingPage() {
                 window.location.href = `/payment/success?plan=${selectedPlan}&price=${selectedPrice}`;
               } else {
                 alert("Payment verification failed. Please contact support.");
+                setLoading(null);
               }
             } catch {
               alert("Payment verification error. Please contact support.");
+              setLoading(null);
             }
           },
           modal: {
             ondismiss: () => setLoading(null),
-            confirm_close: true,
-            escape: true,
-            animation: true,
-          },
-          notes: {
-            plan: selectedPlan,
-            user_id: userId,
           },
           theme: { color: "#D97757" },
         };
@@ -237,12 +229,12 @@ export default function BillingPage() {
           alert(`Could not open payment gateway: ${e}`);
           setLoading(null);
         }
+        return; // Don't run finally block
       }
     } catch {
       alert("Network error. Please try again.");
-    } finally {
-      setLoading(null);
     }
+    setLoading(null);
   }
 
   function handleDownloadInvoice(invoiceId: string) {
