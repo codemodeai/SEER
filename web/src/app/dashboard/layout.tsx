@@ -15,6 +15,8 @@ import {
   ChevronRight,
   Sun,
   Moon,
+  Menu,
+  X,
 } from "lucide-react";
 
 const sidebarLinks = [
@@ -39,6 +41,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   const [plan, setPlan] = useState("free");
   const [usage, setUsage] = useState(0);
   const [userName, setUserName] = useState("");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     async function fetchUser() {
@@ -180,22 +183,116 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
+      {/* Mobile drawer overlay */}
+      {mobileMenuOpen && (
+        <div
+          className="lg:hidden fixed inset-0 z-40 bg-black/40"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Mobile drawer */}
+      <aside
+        className={`lg:hidden fixed inset-y-0 left-0 z-50 w-64 bg-ivory border-r border-sand/60 flex flex-col transition-transform duration-300 ${
+          mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        {/* Drawer header */}
+        <div className="h-14 flex items-center justify-between px-5 border-b border-sand/60">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-terracotta flex items-center justify-center">
+              <span className="text-white font-display font-bold text-xs">S</span>
+            </div>
+            <span className="font-display text-lg text-charcoal tracking-tight">SEER</span>
+          </div>
+          <button
+            onClick={() => setMobileMenuOpen(false)}
+            className="w-8 h-8 rounded-lg bg-cream-dark border border-sand/60 flex items-center justify-center text-muted"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Drawer nav */}
+        <nav className="flex-1 px-3 py-4 flex flex-col gap-1">
+          {sidebarLinks.map((link) => {
+            const isActive =
+              link.href === "/dashboard"
+                ? pathname === "/dashboard"
+                : pathname.startsWith(link.href);
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  isActive
+                    ? "bg-terracotta/10 text-terracotta"
+                    : "text-warm-brown-light hover:bg-cream-dark hover:text-charcoal"
+                }`}
+              >
+                <link.icon size={18} />
+                {link.label}
+                {isActive && (
+                  <ChevronRight size={14} className="ml-auto opacity-50" />
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Drawer footer */}
+        <div className="px-3 pb-4 flex flex-col gap-2">
+          {userName && (
+            <div className="px-4 py-2 flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-full bg-terracotta/15 flex items-center justify-center">
+                <span className="text-terracotta font-semibold text-xs">
+                  {userName.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-charcoal truncate">{userName}</p>
+                <p className="text-[10px] text-muted capitalize">{plan} plan</p>
+              </div>
+            </div>
+          )}
+          <button
+            onClick={toggle}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-muted hover:text-charcoal transition-colors"
+          >
+            {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
+            {theme === "light" ? "Dark mode" : "Light mode"}
+          </button>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-muted hover:text-charcoal transition-colors"
+          >
+            <LogOut size={16} />
+            Log out
+          </button>
+        </div>
+      </aside>
+
       {/* Main content */}
       <div className="flex-1 lg:pl-64">
         {/* Top bar (mobile) */}
         <header className="lg:hidden h-14 bg-ivory border-b border-sand/60 flex items-center justify-between px-4 sticky top-0 z-30">
           <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-lg bg-terracotta flex items-center justify-center">
-              <span className="text-white font-display font-bold text-xs">S</span>
-            </div>
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="w-8 h-8 rounded-lg bg-cream-dark border border-sand/60 flex items-center justify-center text-muted"
+            >
+              <Menu size={16} />
+            </button>
             <span className="font-display text-lg text-charcoal">Dashboard</span>
           </div>
-          <button
-            onClick={toggle}
-            className="w-8 h-8 rounded-lg bg-cream-dark border border-sand/60 flex items-center justify-center text-muted hover:text-terracotta transition-all"
-          >
-            {theme === "light" ? <Moon size={14} /> : <Sun size={14} />}
-          </button>
+          {userName && (
+            <div className="w-8 h-8 rounded-full bg-terracotta/15 flex items-center justify-center">
+              <span className="text-terracotta font-semibold text-xs">
+                {userName.charAt(0).toUpperCase()}
+              </span>
+            </div>
+          )}
         </header>
 
         <main className="p-6 md:p-8 lg:p-10 max-w-[1400px]">{children}</main>
