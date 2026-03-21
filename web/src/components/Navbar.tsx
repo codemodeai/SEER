@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Menu, X, User } from "lucide-react";
+import { createClient } from "@/lib/supabase-browser";
 
 const navLinks = [
   { label: "Features", href: "#features" },
@@ -12,6 +13,32 @@ const navLinks = [
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const [user, setUser] = useState<{
+    name: string;
+    email: string;
+  } | null>(null);
+
+  useEffect(() => {
+    async function checkAuth() {
+      const supabase = createClient();
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser();
+      if (authUser) {
+        setUser({
+          name:
+            authUser.user_metadata?.full_name ||
+            authUser.user_metadata?.name ||
+            authUser.email?.split("@")[0] ||
+            "User",
+          email: authUser.email ?? "",
+        });
+      }
+    }
+    checkAuth();
+  }, []);
+
+  const initial = user?.name?.charAt(0)?.toUpperCase() ?? "";
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-cream/80 backdrop-blur-xl border-b border-sand/60">
@@ -41,20 +68,36 @@ export default function Navbar() {
           ))}
         </div>
 
-        {/* CTA */}
+        {/* CTA / User */}
         <div className="hidden md:flex items-center gap-3">
-          <a
-            href="/login"
-            className="text-sm font-medium text-warm-brown-light hover:text-charcoal transition-colors px-4 py-2"
-          >
-            Log in
-          </a>
-          <a
-            href="/signup"
-            className="text-sm font-semibold text-white bg-terracotta hover:bg-terracotta-dark px-5 py-2.5 rounded-full transition-all shadow-sm hover:shadow-md"
-          >
-            Get started free
-          </a>
+          {user ? (
+            <a
+              href="/dashboard"
+              className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-charcoal hover:bg-charcoal/90 transition-colors"
+            >
+              <div className="w-6 h-6 rounded-full bg-terracotta flex items-center justify-center">
+                <span className="text-white text-xs font-bold">{initial}</span>
+              </div>
+              <span className="text-sm font-medium text-white">
+                {user.name}
+              </span>
+            </a>
+          ) : (
+            <>
+              <a
+                href="/login"
+                className="text-sm font-medium text-warm-brown-light hover:text-charcoal transition-colors px-4 py-2"
+              >
+                Log in
+              </a>
+              <a
+                href="/signup"
+                className="text-sm font-semibold text-white bg-terracotta hover:bg-terracotta-dark px-5 py-2.5 rounded-full transition-all shadow-sm hover:shadow-md"
+              >
+                Get started free
+              </a>
+            </>
+          )}
         </div>
 
         {/* Mobile toggle */}
@@ -87,12 +130,39 @@ export default function Navbar() {
                 </a>
               ))}
               <hr className="border-sand" />
-              <a
-                href="/signup"
-                className="text-sm font-semibold text-white bg-terracotta text-center px-5 py-2.5 rounded-full mt-1"
-              >
-                Get started free
-              </a>
+              {user ? (
+                <a
+                  href="/dashboard"
+                  className="flex items-center gap-3 py-2"
+                >
+                  <div className="w-8 h-8 rounded-full bg-terracotta flex items-center justify-center">
+                    <span className="text-white text-sm font-bold">
+                      {initial}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-charcoal">
+                      {user.name}
+                    </p>
+                    <p className="text-xs text-muted">Go to Dashboard</p>
+                  </div>
+                </a>
+              ) : (
+                <>
+                  <a
+                    href="/login"
+                    className="text-sm font-medium text-warm-brown-light py-2"
+                  >
+                    Log in
+                  </a>
+                  <a
+                    href="/signup"
+                    className="text-sm font-semibold text-white bg-terracotta text-center px-5 py-2.5 rounded-full mt-1"
+                  >
+                    Get started free
+                  </a>
+                </>
+              )}
             </div>
           </motion.div>
         )}
