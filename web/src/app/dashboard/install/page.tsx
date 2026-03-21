@@ -62,11 +62,12 @@ function VideoSection({ surface }: { surface: string }) {
       <p className="text-xs font-semibold tracking-widest uppercase text-muted">Video Tutorial</p>
       <div className="rounded-2xl overflow-hidden border border-sand/60 bg-black aspect-video">
         <iframe
-          src={`https://www.youtube.com/embed/${videoId}`}
+          src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1`}
           title="Installation tutorial"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          referrerPolicy="strict-origin-when-cross-origin"
           allowFullScreen
-          className="w-full h-full"
+          className="w-full h-full border-0"
         />
       </div>
     </div>
