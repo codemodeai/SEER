@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase-browser";
-import { User, Mail, Calendar, Shield, Zap } from "lucide-react";
+import { User, Mail, Calendar, Shield, Zap, AlertTriangle, X, Loader2 } from "lucide-react";
 
 interface UserProfile {
   name: string;
@@ -15,9 +15,23 @@ interface UserProfile {
   provider: string;
 }
 
+const CANCEL_REASONS = [
+  "Too expensive",
+  "Not enough value",
+  "Switching to another tool",
+  "No longer needed",
+  "Missing features",
+  "Other",
+];
+
 export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelFeedback, setCancelFeedback] = useState("");
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState("");
 
   useEffect(() => {
     async function fetchProfile() {
@@ -53,6 +67,40 @@ export default function ProfilePage() {
     }
     fetchProfile();
   }, []);
+
+  async function handleCancelPlan() {
+    if (!cancelReason || !cancelFeedback.trim()) {
+      setCancelError("Please select a reason and provide your feedback.");
+      return;
+    }
+
+    setCancelling(true);
+    setCancelError("");
+
+    try {
+      const res = await fetch("/api/cancel-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: cancelReason, feedback: cancelFeedback }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setCancelError(data.error || "Something went wrong.");
+        setCancelling(false);
+        return;
+      }
+
+      setProfile((prev) => prev ? { ...prev, plan: "free" } : prev);
+      setShowCancelModal(false);
+      setCancelReason("");
+      setCancelFeedback("");
+    } catch {
+      setCancelError("Network error. Please try again.");
+    }
+    setCancelling(false);
+  }
 
   if (loading) {
     return (
@@ -147,6 +195,110 @@ export default function ProfilePage() {
           <span className="text-sm text-muted">API calls</span>
         </div>
       </div>
+
+      {/* Cancel plan */}
+      {profile.plan !== "free" && (
+        <div className="bg-ivory rounded-2xl border border-red-200/60 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-charcoal">Cancel Subscription</h3>
+              <p className="text-xs text-muted mt-0.5">
+                Downgrade to the Free plan. You&apos;ll lose access to paid features.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowCancelModal(true)}
+              className="px-4 py-2 rounded-xl border border-red-300 text-sm font-medium text-red-600 hover:bg-red-50 transition-all"
+            >
+              Cancel Plan
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl border border-sand/60 w-full max-w-md mx-4 p-6 space-y-5">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2">
+                <AlertTriangle size={20} className="text-red-500" />
+                <h3 className="font-display text-xl text-charcoal">Cancel Your Plan</h3>
+              </div>
+              <button
+                onClick={() => { setShowCancelModal(false); setCancelError(""); }}
+                className="text-muted hover:text-charcoal transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p className="text-sm text-muted">
+              We&apos;re sorry to see you go. Your feedback helps us improve SEER for everyone.
+            </p>
+
+            {/* Reason select */}
+            <div>
+              <label className="text-xs font-semibold text-charcoal block mb-1.5">
+                Why are you cancelling? <span className="text-red-500">*</span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {CANCEL_REASONS.map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => setCancelReason(r)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                      cancelReason === r
+                        ? "bg-terracotta text-white border-terracotta"
+                        : "bg-cream border-sand/60 text-warm-brown-light hover:border-terracotta/40"
+                    }`}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Feedback text */}
+            <div>
+              <label className="text-xs font-semibold text-charcoal block mb-1.5">
+                Tell us more <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={cancelFeedback}
+                onChange={(e) => setCancelFeedback(e.target.value)}
+                placeholder="What could we have done better?"
+                rows={3}
+                className="w-full px-3 py-2.5 rounded-xl border border-sand/60 text-sm text-charcoal bg-cream placeholder:text-muted/50 focus:outline-none focus:border-terracotta/40 resize-none"
+              />
+            </div>
+
+            {cancelError && (
+              <p className="text-xs text-red-500">{cancelError}</p>
+            )}
+
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => { setShowCancelModal(false); setCancelError(""); }}
+                className="flex-1 py-2.5 rounded-xl border border-sand/60 text-sm font-medium text-charcoal hover:bg-cream transition-all"
+              >
+                Keep My Plan
+              </button>
+              <button
+                onClick={handleCancelPlan}
+                disabled={cancelling || !cancelReason || !cancelFeedback.trim()}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+              >
+                {cancelling ? (
+                  <><Loader2 size={14} className="animate-spin" /> Cancelling...</>
+                ) : (
+                  "Confirm Cancellation"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
