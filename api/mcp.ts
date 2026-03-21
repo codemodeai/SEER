@@ -36,6 +36,12 @@ function detectSurface(req: VercelRequest): string {
   if (ua.includes("claude-code") || ua.includes("claude code")) return "claude-code";
   if (ua.includes("vscode") || ua.includes("vs code")) return "vscode";
 
+  // mcp-remote (used by Claude Desktop) sends node-fetch or undici UA
+  if (ua.includes("node") || ua.includes("undici")) return "claude-desktop";
+
+  // Browser-based clients (Claude.ai web, direct API calls from browser)
+  if (ua.includes("mozilla") || ua.includes("chrome") || ua.includes("safari")) return "claude-web";
+
   return "api";
 }
 
