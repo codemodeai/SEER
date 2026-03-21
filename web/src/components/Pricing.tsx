@@ -106,6 +106,14 @@ export default function Pricing() {
       }
     }
     fetchUser();
+
+    // Load Razorpay script
+    if (typeof window !== "undefined" && !window.Razorpay) {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      document.body.appendChild(script);
+    }
   }, []);
 
   async function handleCheckout(planId: string) {
@@ -157,43 +165,76 @@ export default function Pricing() {
         // Redirect to Dodo hosted checkout
         window.location.href = data.checkoutUrl;
       } else if (data.provider === "razorpay") {
-        // Open Razorpay modal
+        // Wait for Razorpay script to load
+        if (!window.Razorpay) {
+          await new Promise<void>((resolve) => {
+            const check = setInterval(() => {
+              if (window.Razorpay) { clearInterval(check); resolve(); }
+            }, 200);
+            setTimeout(() => { clearInterval(check); resolve(); }, 5000);
+          });
+        }
+
+        if (!window.Razorpay) {
+          alert("Payment gateway failed to load. Please refresh and try again.");
+          setLoading(null);
+          return;
+        }
+
         const selectedPlan = planId;
         const selectedPrice = plans.find((p) => p.id === planId)?.price ?? 0;
-        const options = {
+        const appUrl = window.location.origin;
+        const options: Record<string, unknown> = {
           key: data.razorpayKeyId,
           subscription_id: data.subscriptionId,
           name: "SEER",
           description: `${data.planName} Plan — Monthly`,
+          prefill: { email: userEmail },
+          callback_url: `${appUrl}/api/payment/callback?plan=${selectedPlan}&price=${selectedPrice}`,
+          redirect: true,
           handler: async function (response: { razorpay_payment_id: string; razorpay_subscription_id: string; razorpay_signature: string }) {
-            // Verify payment and update plan
-            const verifyRes = await fetch("/api/payment/verify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_subscription_id: response.razorpay_subscription_id,
-                razorpay_signature: response.razorpay_signature,
-                plan: selectedPlan,
-              }),
-            });
-            if (verifyRes.ok) {
-              window.location.href = `/payment/success?plan=${selectedPlan}&price=${selectedPrice}`;
-            } else {
-              alert("Payment verification failed. Please contact support.");
+            try {
+              const verifyRes = await fetch("/api/payment/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_subscription_id: response.razorpay_subscription_id,
+                  razorpay_signature: response.razorpay_signature,
+                  plan: selectedPlan,
+                }),
+              });
+              if (verifyRes.ok) {
+                window.location.href = `/payment/success?plan=${selectedPlan}&price=${selectedPrice}`;
+              } else {
+                alert("Payment verification failed. Please contact support.");
+              }
+            } catch {
+              alert("Payment verification error. Please contact support.");
             }
           },
           modal: {
-            ondismiss: function () {
-              setLoading(null);
-            },
+            ondismiss: () => setLoading(null),
+            confirm_close: true,
+            escape: true,
+            animation: true,
           },
-          theme: {
-            color: "#D97757",
-          },
+          notes: { plan: selectedPlan, user_id: userId },
+          theme: { color: "#D97757" },
         };
-        const rzp = new window.Razorpay(options);
-        rzp.open();
+
+        try {
+          const rzp = new window.Razorpay(options);
+          rzp.on("payment.failed", function (response: Record<string, unknown>) {
+            const err = response.error as Record<string, string> | undefined;
+            alert(`Payment failed: ${err?.description ?? "Unknown error"}`);
+            setLoading(null);
+          });
+          rzp.open();
+        } catch (e) {
+          alert(`Could not open payment gateway: ${e}`);
+          setLoading(null);
+        }
       }
     } catch {
       alert("Network error. Please try again.");
@@ -204,9 +245,6 @@ export default function Pricing() {
 
   return (
     <section id="pricing" className="py-28 md:py-36 relative bg-ivory grain">
-      {/* Razorpay script for Indian users */}
-      <script src="https://checkout.razorpay.com/v1/checkout.js" async />
-
       <div className="relative z-10 max-w-7xl mx-auto px-6">
         {/* Header */}
         <motion.div
