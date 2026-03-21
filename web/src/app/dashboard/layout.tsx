@@ -17,11 +17,13 @@ import {
   Moon,
   Menu,
   X,
+  PlayCircle,
 } from "lucide-react";
 
 const sidebarLinks = [
   { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
   { label: "Install Guide", href: "/dashboard/install", icon: Download },
+  { label: "Guides", href: "/dashboard/guides", icon: PlayCircle },
   { label: "API Keys", href: "/dashboard/keys", icon: Key },
   { label: "Profile", href: "/dashboard/profile", icon: User },
   { label: "Billing", href: "/dashboard/billing", icon: CreditCard },
