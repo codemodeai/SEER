@@ -79,6 +79,25 @@ export async function POST(req: NextRequest) {
       { onConflict: "user_id,provider" }
     );
 
+    // Create invoice for this payment
+    const USD_PRICES: Record<string, number> = { starter: 19, pro: 49, agency: 99 };
+    const INR_PRICES: Record<string, number> = { starter: 1599, pro: 3999, agency: 7999 };
+    const now = new Date();
+    const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    await admin.from("invoices").insert({
+      user_id: user.id,
+      plan,
+      amount_usd: USD_PRICES[plan] ?? 0,
+      amount_inr: INR_PRICES[plan] ?? 0,
+      status: "paid",
+      payment_id: razorpay_payment_id,
+      provider: "razorpay",
+      billing_period_start: periodStart.toISOString(),
+      billing_period_end: periodEnd.toISOString(),
+    });
+
     return NextResponse.json({ success: true, plan });
   } catch (err) {
     console.error("Payment verify error:", err);
