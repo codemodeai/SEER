@@ -1,147 +1,67 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Terminal, Monitor, Code2, Globe, Copy, Check, Loader2, Zap } from "lucide-react";
+import { motion } from "framer-motion";
+import { Terminal, Monitor, Code2, Globe, Copy, Check, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase-browser";
 
-function getTabs(key: string) {
-  const configJson = JSON.stringify({
-    mcpServers: {
-      seer: {
-        url: "https://mcp.seermcp.com/mcp",
-        headers: {
-          Authorization: `Bearer ${key}`,
-        },
-      },
-    },
-  }, null, 2);
-
-  return [
-    {
-      id: "terminal",
-      label: "Terminal CLI",
-      icon: Terminal,
-      quickCmd: `claude mcp add seer --transport http --url https://mcp.seermcp.com/mcp --header "Authorization: Bearer ${key}"`,
-      config: `claude mcp add seer \\
-  --transport http \\
-  --url https://mcp.seermcp.com/mcp \\
-  --header "Authorization: Bearer ${key}"
-
-# Verify:
-claude mcp list
-
-# Test:
-# Type 'seer status' in any Claude Code session`,
-    },
-    {
-      id: "desktop",
-      label: "Claude Desktop",
-      icon: Monitor,
-      quickCmdWin: `echo ${JSON.stringify(configJson).replace(/"/g, '\\"')} > "%APPDATA%\\Claude\\claude_desktop_config.json"`,
-      quickCmdMac: `cat > ~/Library/Application\\ Support/Claude/claude_desktop_config.json << 'EOF'\n${configJson}\nEOF`,
-      quickCmd: `# Windows (run in PowerShell):
-$config = @'
-${configJson}
-'@
-$config | Set-Content "$env:APPDATA\\Claude\\claude_desktop_config.json"
-
-# Mac/Linux (run in Terminal):
-cat > ~/Library/Application\\ Support/Claude/claude_desktop_config.json << 'EOF'
-${configJson}
-EOF`,
-      config: `// Config file locations:
-// Mac:     ~/Library/Application Support/Claude/claude_desktop_config.json
-// Windows: %APPDATA%\\Claude\\claude_desktop_config.json
-
-${configJson}
-
-// Restart Claude Desktop after saving`,
-    },
-    {
-      id: "vscode",
-      label: "VS Code",
-      icon: Code2,
-      quickCmd: `echo '${JSON.stringify({ mcpServers: { seer: { url: "https://mcp.seermcp.com/mcp", headers: { Authorization: "${env:SEER_API_KEY}" } } } }, null, 2)}' > .mcp.json && echo "Created .mcp.json — set SEER_API_KEY=${key}"`,
-      config: `// Option A: .mcp.json in project root (recommended)
-{
-  "mcpServers": {
-    "seer": {
-      "url": "https://mcp.seermcp.com/mcp",
-      "headers": {
-        "Authorization": "Bearer \${env:SEER_API_KEY}"
-      }
-    }
+function CopyBox({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false);
+  function handleCopy() {
+    navigator.clipboard.writeText(value);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
-}
-
-// Then set env var:
-// export SEER_API_KEY=${key}`,
-    },
-    {
-      id: "web",
-      label: "Claude.ai Web",
-      icon: Globe,
-      quickCmd: "",
-      config: `// Settings → Integrations → Add MCP Server
-
-Name:          SEER
-URL:           https://mcp.seermcp.com/mcp
-Auth type:     Header-based
-Header name:   Authorization
-Header value:  Bearer ${key}
-
-// Save → Claude.ai connects immediately`,
-    },
-  ];
+  return (
+    <div>
+      <p className="text-xs font-semibold tracking-widest uppercase text-muted mb-2">{label}</p>
+      <div className="relative bg-charcoal rounded-xl overflow-hidden">
+        <button onClick={handleCopy}
+          className="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white/60 hover:text-white text-xs font-medium transition-all">
+          {copied ? (<><Check size={13} /> Copied!</>) : (<><Copy size={13} /> Copy</>)}
+        </button>
+        <pre className="p-5 pr-24 font-mono text-sm text-white/85 leading-relaxed overflow-x-auto whitespace-pre-wrap">{value}</pre>
+      </div>
+    </div>
+  );
 }
 
 export default function InstallGuidePage() {
   const [active, setActive] = useState("terminal");
-  const [copied, setCopied] = useState(false);
-  const [quickCopied, setQuickCopied] = useState(false);
-  const [keyCopied, setKeyCopied] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [loading, setLoading] = useState(true);
-  const [showManual, setShowManual] = useState(false);
 
   useEffect(() => {
     async function fetchKey() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setLoading(false); return; }
-
       await fetch("/api/auth/setup-user", { method: "POST" });
-
       const { data } = await supabase
         .from("users").select("seer_api_key").eq("id", user.id).single();
-
       if (data) setApiKey(data.seer_api_key);
       setLoading(false);
     }
     fetchKey();
   }, []);
 
-  const tabs = getTabs(apiKey || "sk-seer-YOUR-KEY");
-  const activeTab = tabs.find((t) => t.id === active)!;
+  const key = apiKey || "sk-seer-YOUR-KEY";
 
-  function handleCopy() {
-    navigator.clipboard.writeText(activeTab.config);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
+  const configJson = JSON.stringify({
+    mcpServers: {
+      seer: {
+        url: "https://mcp.seermcp.com/mcp",
+        headers: { Authorization: `Bearer ${key}` },
+      },
+    },
+  }, null, 2);
 
-  function handleQuickCopy() {
-    navigator.clipboard.writeText(activeTab.quickCmd ?? "");
-    setQuickCopied(true);
-    setTimeout(() => setQuickCopied(false), 2000);
-  }
-
-  function handleKeyCopy() {
-    navigator.clipboard.writeText(apiKey);
-    setKeyCopied(true);
-    setTimeout(() => setKeyCopied(false), 2000);
-  }
+  const tabs = [
+    { id: "terminal", label: "Terminal CLI", icon: Terminal },
+    { id: "desktop", label: "Claude Desktop", icon: Monitor },
+    { id: "vscode", label: "VS Code", icon: Code2 },
+    { id: "web", label: "Claude.ai Web", icon: Globe },
+  ];
 
   if (loading) {
     return (
@@ -155,26 +75,16 @@ export default function InstallGuidePage() {
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-3xl md:text-4xl text-charcoal tracking-tight">Install Guide</h1>
-        <p className="mt-1 text-sm text-muted">One command — paste in your terminal and you&apos;re done.</p>
+        <p className="mt-1 text-sm text-muted">Choose your Claude surface and follow the steps.</p>
       </div>
 
-      <div className="bg-ivory rounded-2xl border border-sand/60 p-6">
-        <p className="text-xs font-semibold tracking-widest uppercase text-muted mb-3">Your SEER API Key</p>
-        <div className="flex items-center gap-3">
-          <code className="flex-1 bg-cream-dark px-4 py-3 rounded-xl font-mono text-sm text-charcoal border border-sand/50 select-all overflow-x-auto">
-            {apiKey || "Loading..."}
-          </code>
-          <button onClick={handleKeyCopy}
-            className="px-4 py-3 rounded-xl bg-cream-dark border border-sand/50 text-muted hover:text-charcoal transition-colors">
-            {keyCopied ? <Check size={16} className="text-accent-sage" /> : <Copy size={16} />}
-          </button>
-        </div>
-      </div>
+      {/* API Key */}
+      <CopyBox label="Your SEER API Key" value={key} />
 
       {/* Platform tabs */}
       <div className="flex gap-2 overflow-x-auto pb-1">
         {tabs.map((tab) => (
-          <button key={tab.id} onClick={() => { setActive(tab.id); setCopied(false); setQuickCopied(false); setShowManual(false); }}
+          <button key={tab.id} onClick={() => setActive(tab.id)}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
               active === tab.id ? "bg-terracotta text-white shadow-sm" : "bg-ivory border border-sand/60 text-warm-brown-light hover:bg-cream-dark"
             }`}>
@@ -184,65 +94,109 @@ export default function InstallGuidePage() {
         ))}
       </div>
 
-      {/* Quick install command */}
-      {activeTab.quickCmd && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-ivory rounded-2xl border-2 border-terracotta/20 p-6"
-        >
-          <div className="flex items-center gap-2 mb-3">
-            <Zap size={16} className="text-terracotta" />
-            <p className="text-xs font-semibold tracking-widest uppercase text-terracotta">
-              Quick Install — Just paste in terminal
-            </p>
-          </div>
-          <div className="relative bg-charcoal rounded-xl overflow-hidden">
-            <button onClick={handleQuickCopy}
-              className="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-terracotta/20 hover:bg-terracotta/30 text-terracotta-light text-xs font-medium transition-all">
-              {quickCopied ? (<><Check size={13} /> Copied!</>) : (<><Copy size={13} /> Copy</>)}
-            </button>
-            <pre className="p-5 pr-24 font-mono text-sm text-white/85 leading-relaxed overflow-x-auto whitespace-pre-wrap">
-              {active === "desktop" ? activeTab.quickCmd : activeTab.quickCmd}
-            </pre>
-          </div>
-          {active === "desktop" && (
-            <p className="mt-3 text-xs text-muted">
-              After running, restart Claude Desktop to connect.
-            </p>
-          )}
-        </motion.div>
-      )}
-
-      {/* Manual config toggle */}
-      <button
-        onClick={() => setShowManual(!showManual)}
-        className="text-xs font-medium text-muted hover:text-terracotta transition-colors"
-      >
-        {showManual ? "Hide manual config" : "Show manual config"} →
-      </button>
-
-      {/* Manual config (collapsed by default) */}
-      <AnimatePresence>
-        {showManual && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="relative bg-charcoal rounded-2xl overflow-hidden">
-              <button onClick={handleCopy}
-                className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white/60 hover:text-white text-xs font-medium transition-all">
-                {copied ? (<><Check size={13} /> Copied</>) : (<><Copy size={13} /> Copy</>)}
-              </button>
-              <pre className="p-6 pr-24 font-mono text-sm text-white/75 leading-relaxed overflow-x-auto">
-                {activeTab.config}
-              </pre>
+      {/* Content per tab */}
+      <motion.div key={active} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+        {active === "terminal" && (
+          <div className="space-y-5">
+            <CopyBox
+              label="Paste this in your terminal"
+              value={`claude mcp add seer --transport http --url https://mcp.seermcp.com/mcp --header "Authorization: Bearer ${key}"`}
+            />
+            <div className="bg-ivory rounded-2xl border border-sand/60 p-5 space-y-3">
+              <p className="text-sm text-charcoal font-medium">After running:</p>
+              <ol className="text-sm text-warm-brown-light space-y-2 list-decimal list-inside">
+                <li>Run <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">claude mcp list</code> to verify SEER is added</li>
+                <li>Start a new Claude Code session</li>
+                <li>Type <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">seer status</code> to test the connection</li>
+              </ol>
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
+
+        {active === "desktop" && (
+          <div className="space-y-5">
+            <CopyBox
+              label="Windows — Config file path"
+              value="%APPDATA%\\Claude\\claude_desktop_config.json"
+            />
+            <CopyBox
+              label="Mac — Config file path"
+              value="~/Library/Application Support/Claude/claude_desktop_config.json"
+            />
+            <CopyBox
+              label="Paste this config into the file"
+              value={configJson}
+            />
+            <div className="bg-ivory rounded-2xl border border-sand/60 p-5 space-y-3">
+              <p className="text-sm text-charcoal font-medium">Steps:</p>
+              <ol className="text-sm text-warm-brown-light space-y-2 list-decimal list-inside">
+                <li>Copy the file path above for your OS</li>
+                <li>Open that file in any text editor (create it if it doesn&apos;t exist)</li>
+                <li>Paste the config JSON above</li>
+                <li>Save the file</li>
+                <li>Restart Claude Desktop</li>
+                <li>Type <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">seer status</code> to verify</li>
+              </ol>
+            </div>
+          </div>
+        )}
+
+        {active === "vscode" && (
+          <div className="space-y-5">
+            <CopyBox
+              label="Create .mcp.json in your project root"
+              value={JSON.stringify({
+                mcpServers: {
+                  seer: {
+                    url: "https://mcp.seermcp.com/mcp",
+                    headers: { Authorization: "Bearer ${env:SEER_API_KEY}" },
+                  },
+                },
+              }, null, 2)}
+            />
+            <CopyBox
+              label="Set your environment variable"
+              value={`export SEER_API_KEY=${key}`}
+            />
+            <div className="bg-ivory rounded-2xl border border-sand/60 p-5 space-y-3">
+              <p className="text-sm text-charcoal font-medium">Steps:</p>
+              <ol className="text-sm text-warm-brown-light space-y-2 list-decimal list-inside">
+                <li>Create a <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">.mcp.json</code> file in your project root</li>
+                <li>Paste the config above</li>
+                <li>Add the environment variable to your shell profile (<code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">.bashrc</code>, <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">.zshrc</code>, etc.)</li>
+                <li>Restart VS Code</li>
+                <li>Type <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">seer status</code> in Copilot chat to verify</li>
+              </ol>
+            </div>
+          </div>
+        )}
+
+        {active === "web" && (
+          <div className="space-y-5">
+            <CopyBox
+              label="MCP Server URL"
+              value="https://mcp.seermcp.com/mcp"
+            />
+            <CopyBox
+              label="Authorization Header Value"
+              value={`Bearer ${key}`}
+            />
+            <div className="bg-ivory rounded-2xl border border-sand/60 p-5 space-y-3">
+              <p className="text-sm text-charcoal font-medium">Steps:</p>
+              <ol className="text-sm text-warm-brown-light space-y-2 list-decimal list-inside">
+                <li>Go to <strong>Claude.ai → Settings → Integrations</strong></li>
+                <li>Click <strong>Add MCP Server</strong></li>
+                <li>Set Name to <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">SEER</code></li>
+                <li>Paste the URL above</li>
+                <li>Set Auth type to <strong>Header-based</strong></li>
+                <li>Header name: <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">Authorization</code></li>
+                <li>Paste the header value above</li>
+                <li>Click Save — Claude.ai connects immediately</li>
+              </ol>
+            </div>
+          </div>
+        )}
+      </motion.div>
 
       <div className="bg-terracotta/5 border border-terracotta/15 rounded-2xl p-5">
         <p className="text-sm text-warm-brown">
