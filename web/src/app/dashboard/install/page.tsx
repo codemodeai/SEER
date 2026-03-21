@@ -56,17 +56,24 @@ export default function InstallGuidePage() {
 
   const key = apiKey || "sk-seer-YOUR-KEY";
 
-  const configJson = JSON.stringify({
+  // Claude Desktop requires stdio (command-based) config — use mcp-remote as bridge
+  const desktopConfigJson = JSON.stringify({
     mcpServers: {
       seer: {
-        url: "https://mcp.seermcp.com/mcp",
-        headers: { Authorization: `Bearer ${key}` },
+        command: "npx",
+        args: [
+          "-y",
+          "mcp-remote",
+          "https://mcp.seermcp.com/mcp",
+          "--header",
+          `Authorization: Bearer ${key}`,
+        ],
       },
     },
   }, null, 2);
 
   // Claude Code prompt that auto-installs for Claude Desktop
-  const desktopAutoPrompt = `Install the SEER MCP server in my Claude Desktop config. Find my claude_desktop_config.json file (on Windows it's at %APPDATA%\\Claude\\claude_desktop_config.json, on Mac it's at ~/Library/Application Support/Claude/claude_desktop_config.json). If the file doesn't exist, create it. If it already has content, merge the new MCP server into the existing mcpServers object without removing other servers. Add this config:\n\n${configJson}\n\nAfter saving, tell me to restart Claude Desktop.`;
+  const desktopAutoPrompt = `Install the SEER MCP server in my Claude Desktop config. Find my claude_desktop_config.json file (on Windows it's at %APPDATA%\\Claude\\claude_desktop_config.json, on Mac it's at ~/Library/Application Support/Claude/claude_desktop_config.json). If the file doesn't exist, create it. If it already has content, merge the new MCP server into the existing mcpServers object without removing other servers. Add this config:\n\n${desktopConfigJson}\n\nAfter saving, tell me to restart Claude Desktop.`;
 
   // Claude Code prompt that auto-installs for VS Code
   const vscodeAutoPrompt = `Set up the SEER MCP server for VS Code. Create or update the .mcp.json file in my current project root with this config:\n\n${JSON.stringify({
@@ -171,7 +178,7 @@ export default function InstallGuidePage() {
                 />
                 <CopyBox
                   label="Paste this config into the file"
-                  value={configJson}
+                  value={desktopConfigJson}
                 />
               </div>
             </details>
