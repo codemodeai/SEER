@@ -1,6 +1,6 @@
 import { authenticateUser, PLAN_LIMITS } from "../lib/auth.js";
 import { supabase } from "../lib/supabase.js";
-import { callHaiku, estimateTokens } from "../lib/haiku.js";
+import { callHaiku, estimateTokens, parseHaikuJson } from "../lib/haiku.js";
 import { logSeerCall } from "../lib/logger.js";
 
 function systemPromptForModel(model: string): string {
@@ -65,13 +65,10 @@ export async function seer_optimize(
   // 5. Compute token stats
   const rawTokens = estimateTokens(prompt);
   let optimizedTokens = rawTokens;
-  try {
-    const parsed = JSON.parse(resultText);
-    if (parsed.optimized) {
-      optimizedTokens = estimateTokens(parsed.optimized);
-    }
-  } catch {
-    // non-JSON response
+  const parsed = parseHaikuJson(resultText);
+
+  if (parsed?.optimized) {
+    optimizedTokens = estimateTokens(parsed.optimized as string);
   }
 
   const tokensSaved = Math.max(0, rawTokens - optimizedTokens);
@@ -93,8 +90,7 @@ export async function seer_optimize(
   });
 
   // 7. Return
-  try {
-    const parsed = JSON.parse(resultText);
+  if (parsed) {
     return JSON.stringify({
       ...parsed,
       target_model: model,
@@ -103,7 +99,6 @@ export async function seer_optimize(
       tokens_saved: tokensSaved,
       pct_saved: pctSaved,
     });
-  } catch {
-    return resultText;
   }
+  return resultText;
 }

@@ -1,6 +1,6 @@
 import { authenticateUser, PLAN_LIMITS } from "../lib/auth.js";
 import { supabase } from "../lib/supabase.js";
-import { callHaiku, estimateTokens } from "../lib/haiku.js";
+import { callHaiku, estimateTokens, parseHaikuJson } from "../lib/haiku.js";
 import { logSeerCall } from "../lib/logger.js";
 import { getEmbedding, searchMemory } from "../lib/embeddings.js";
 
@@ -99,19 +99,12 @@ export async function seer_run(
   // 5. Parse result and compute token savings
   const rawTokens = estimateTokens(input);
   let optimizedTokens = rawTokens;
-  let optimizedText = "";
-  try {
-    const parsed = JSON.parse(resultText);
-    if (parsed.optimized) {
-      optimizedText = parsed.optimized;
-      optimizedTokens = estimateTokens(optimizedText);
-    }
-  } catch {
-    // If Haiku returned non-JSON, use raw result
+  const parsed = parseHaikuJson(resultText);
+
+  if (parsed?.optimized) {
+    optimizedTokens = estimateTokens(parsed.optimized as string);
   }
 
-  // For short prompts that get expanded for clarity, the savings are in quality not compression
-  // We measure effectiveness: if expanded, show the clarity improvement instead of negative savings
   const tokensSaved = Math.max(0, rawTokens - optimizedTokens);
   const pctSaved =
     rawTokens > 0 && optimizedTokens < rawTokens
@@ -131,8 +124,7 @@ export async function seer_run(
   });
 
   // 7. Return enriched result
-  try {
-    const parsed = JSON.parse(resultText);
+  if (parsed) {
     return JSON.stringify({
       ...parsed,
       _meta: {
@@ -143,7 +135,6 @@ export async function seer_run(
         usage: `${user.usage_this_month + 1}/${limit === Infinity ? "unlimited" : limit}`,
       },
     });
-  } catch {
-    return resultText;
   }
+  return resultText;
 }

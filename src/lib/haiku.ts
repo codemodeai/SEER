@@ -31,3 +31,19 @@ export async function callHaiku({
 export function estimateTokens(text: string): number {
   return Math.ceil(text.split(/\s+/).filter(Boolean).length * 1.3);
 }
+
+/** Strip markdown code fences from Haiku response and parse JSON */
+export function parseHaikuJson(text: string): Record<string, unknown> | null {
+  // Remove ```json ... ``` or ``` ... ``` wrappers
+  const stripped = text.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+  try {
+    return JSON.parse(stripped);
+  } catch {
+    // Try parsing original text as fallback
+    try {
+      return JSON.parse(text);
+    } catch {
+      return null;
+    }
+  }
+}
