@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Terminal, Monitor, Code2, Globe, Copy, Check, Loader2, Sparkles, AlertCircle } from "lucide-react";
+import { Terminal, Monitor, Code2, Globe, Copy, Check, Loader2, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase-browser";
 
 function CopyBox({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
@@ -35,15 +35,6 @@ function QuickInstallBadge() {
   );
 }
 
-function PrerequisiteBadge({ text }: { text: string }) {
-  return (
-    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 w-fit">
-      <AlertCircle size={13} className="text-amber-600" />
-      <span className="text-xs font-medium text-amber-700">{text}</span>
-    </div>
-  );
-}
-
 export default function InstallGuidePage() {
   const [active, setActive] = useState("terminal");
   const [apiKey, setApiKey] = useState("");
@@ -65,15 +56,14 @@ export default function InstallGuidePage() {
 
   const key = apiKey || "sk-seer-YOUR-KEY";
 
-  // VS Code config (url-based works directly)
-  const vscodeConfig = JSON.stringify({
-    mcpServers: {
-      seer: {
-        url: "https://mcp.seermcp.com/mcp",
-        headers: { Authorization: `Bearer ${key}` },
-      },
-    },
-  }, null, 2);
+  // Short Claude Desktop prompt — minimal tokens, Claude figures out the rest
+  const desktopPrompt = `Run: npm install -g mcp-remote
+Then find my claude_desktop_config.json and add seer to mcpServers. Use FULL absolute paths (run "where node" and "npm root -g" to get them). Never use npx as command.
+Config: {"seer":{"command":"FULL_PATH_TO_NODE","args":["FULL_PATH_FROM_NPM_ROOT_G/mcp-remote/dist/proxy.js","https://mcp.seermcp.com/mcp","--header","Authorization: Bearer ${key}"]}}`;
+
+  // Short VS Code prompt
+  const vscodePrompt = `Create or update .mcp.json in my project root. Merge into existing mcpServers if any:
+{"mcpServers":{"seer":{"url":"https://mcp.seermcp.com/mcp","headers":{"Authorization":"Bearer ${key}"}}}}`;
 
   const tabs = [
     { id: "terminal", label: "Terminal CLI", icon: Terminal },
@@ -136,31 +126,19 @@ export default function InstallGuidePage() {
 
         {active === "desktop" && (
           <div className="space-y-5">
-            <PrerequisiteBadge text="Requires Node.js installed on your system" />
-
+            <QuickInstallBadge />
             <CopyBox
-              label="Step 1 — Run this in your terminal to install the bridge"
-              value="npm install -g mcp-remote"
+              label="Paste this into Claude Code or Claude Desktop — it does everything for you"
+              value={desktopPrompt}
+              highlight
             />
-
-            <CopyBox
-              label="Step 2 — Run this to generate your config (copy the output)"
-              value={`node -e "const p=require('path'),r=process.platform==='win32';const nm=p.join(process.env[r?'APPDATA':'HOME'],r?'npm/node_modules':'.npm/node_modules');console.log(JSON.stringify({seer:{command:process.execPath,args:[p.join(nm,'mcp-remote/dist/proxy.js'),'https://mcp.seermcp.com/mcp','--header','Authorization: Bearer ${key}']}},null,2))"`}
-            />
-
             <div className="bg-ivory rounded-2xl border border-sand/60 p-5 space-y-3">
-              <p className="text-sm text-charcoal font-medium">Step 3 — Add to your config file:</p>
+              <p className="text-sm text-charcoal font-medium">What happens:</p>
               <ol className="text-sm text-warm-brown-light space-y-2 list-decimal list-inside">
-                <li>Open your Claude Desktop config file:
-                  <ul className="mt-1 ml-4 space-y-1 list-disc">
-                    <li><strong>Windows Store:</strong> <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\claude_desktop_config.json</code></li>
-                    <li><strong>Windows:</strong> <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">%APPDATA%\Claude\claude_desktop_config.json</code></li>
-                    <li><strong>Mac:</strong> <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">~/Library/Application Support/Claude/claude_desktop_config.json</code></li>
-                  </ul>
-                </li>
-                <li>Paste the output from Step 2 inside the <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">mcpServers</code> object</li>
-                <li>Fully quit Claude Desktop from the <strong>system tray</strong> (not just close)</li>
-                <li>Reopen Claude Desktop</li>
+                <li>Claude installs the MCP bridge automatically</li>
+                <li>Finds and updates your config file (Windows, Mac, or Store app)</li>
+                <li>Preserves your existing MCP servers</li>
+                <li>After it&apos;s done, quit Claude Desktop from the <strong>system tray</strong> and reopen</li>
                 <li>Type <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">seer status</code> in Chat mode to verify</li>
               </ol>
             </div>
@@ -171,16 +149,16 @@ export default function InstallGuidePage() {
           <div className="space-y-5">
             <QuickInstallBadge />
             <CopyBox
-              label="Create .mcp.json in your project root with this config"
-              value={vscodeConfig}
+              label="Paste this into Claude Code — it sets up everything"
+              value={vscodePrompt}
               highlight
             />
             <div className="bg-ivory rounded-2xl border border-sand/60 p-5 space-y-3">
-              <p className="text-sm text-charcoal font-medium">Steps:</p>
+              <p className="text-sm text-charcoal font-medium">What happens:</p>
               <ol className="text-sm text-warm-brown-light space-y-2 list-decimal list-inside">
-                <li>Create a <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">.mcp.json</code> file in your project root</li>
-                <li>Paste the config above</li>
-                <li>Restart VS Code</li>
+                <li>Claude creates or updates <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">.mcp.json</code> in your project</li>
+                <li>Preserves any other MCP servers you already have</li>
+                <li>Restart VS Code after it&apos;s done</li>
                 <li>Type <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">seer status</code> in Copilot chat to verify</li>
               </ol>
             </div>
