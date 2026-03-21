@@ -51,8 +51,19 @@ export async function POST(req: NextRequest) {
 
     if (useRazorpay) {
       // --- Razorpay subscription ---
-      const razorpayKey = process.env.RAZORPAY_KEY_ID;
-      const razorpaySecret = process.env.RAZORPAY_KEY_SECRET ?? "";
+      const razorpayKey = process.env.RAZORPAY_KEY_ID?.trim();
+      const razorpaySecret = (process.env.RAZORPAY_KEY_SECRET ?? "").trim();
+
+      console.log("Razorpay debug:", {
+        keyPresent: !!razorpayKey,
+        keyLength: razorpayKey?.length,
+        keyPrefix: razorpayKey?.substring(0, 12),
+        secretPresent: !!razorpaySecret,
+        secretLength: razorpaySecret.length,
+        planId: planConfig.razorpayPlanId,
+        planIdPresent: !!planConfig.razorpayPlanId,
+      });
+
       const auth = Buffer.from(`${razorpayKey}:${razorpaySecret}`).toString(
         "base64"
       );
