@@ -66,21 +66,30 @@ export default function InstallGuidePage() {
   const key = apiKey || "sk-seer-YOUR-KEY";
 
   // Claude Desktop auto-install prompt — handles all edge cases
-  const desktopAutoPrompt = `Install the SEER MCP server in my Claude Desktop app. Follow these steps:
+  const desktopAutoPrompt = `Install the SEER MCP server in my Claude Desktop app. IMPORTANT: Follow these steps exactly.
 
-1. First, install mcp-remote globally: run "npm install -g mcp-remote"
-2. Find my claude_desktop_config.json file. Check these locations in order:
-   - Windows Store app: %LOCALAPPDATA%\\Packages\\Claude_pzs8sxrjxfjjc\\LocalCache\\Roaming\\Claude\\claude_desktop_config.json
-   - Windows regular install: %APPDATA%\\Claude\\claude_desktop_config.json
-   - Mac: ~/Library/Application Support/Claude/claude_desktop_config.json
-3. If the file doesn't exist, create it. If it has existing content, preserve all existing settings and merge.
-4. Add this to the mcpServers object (do NOT remove other servers):
+Step 1: Run these commands and note the output:
+- Run "npm install -g mcp-remote" to install the bridge
+- Run "npm root -g" to get the global node_modules path (e.g. C:\\Users\\me\\AppData\\Roaming\\npm\\node_modules)
+- On Windows run "where node", on Mac run "which node" to get the full path to node (e.g. C:\\Program Files\\nodejs\\node.exe)
 
+Step 2: Find my claude_desktop_config.json. Check ALL these locations and edit whichever exists:
+- Windows Store app: Look in %LOCALAPPDATA%\\Packages\\ for a folder starting with "Claude_" then go to LocalCache\\Roaming\\Claude\\claude_desktop_config.json
+- Windows regular install: %APPDATA%\\Claude\\claude_desktop_config.json
+- Mac: ~/Library/Application Support/Claude/claude_desktop_config.json
+If multiple exist, edit ALL of them.
+
+Step 3: Add the seer entry to mcpServers. Preserve all existing settings. CRITICAL RULES:
+- Do NOT use "npx" as the command — it does not work with the Windows Store version
+- The "command" MUST be the FULL ABSOLUTE path to node.exe (e.g. "C:\\\\Program Files\\\\nodejs\\\\node.exe")
+- The first arg MUST be the FULL ABSOLUTE path to proxy.js (e.g. "C:\\\\Users\\\\me\\\\AppData\\\\Roaming\\\\npm\\\\node_modules\\\\mcp-remote\\\\dist\\\\proxy.js")
+
+Example config to add to mcpServers:
 {
   "seer": {
-    "command": "node",
+    "command": "FULL_PATH_TO_NODE_EXE",
     "args": [
-      "<path-to-global-node_modules>/mcp-remote/dist/proxy.js",
+      "FULL_PATH_TO_NPM_GLOBAL/mcp-remote/dist/proxy.js",
       "https://mcp.seermcp.com/mcp",
       "--header",
       "Authorization: Bearer ${key}"
@@ -88,9 +97,9 @@ export default function InstallGuidePage() {
   }
 }
 
-For the args path, find where mcp-remote was installed by running "npm root -g" and use that path + "/mcp-remote/dist/proxy.js". Use the full absolute path to node.exe as the command (find it with "where node" on Windows or "which node" on Mac).
+Replace FULL_PATH_TO_NODE_EXE and FULL_PATH_TO_NPM_GLOBAL with the actual paths from Step 1.
 
-After saving, tell me to fully quit Claude Desktop from the system tray and reopen it.`;
+After saving, tell me to fully quit Claude Desktop from the system tray (not just close the window) and reopen it.`;
 
   // Claude Desktop manual config
   const desktopManualConfig = JSON.stringify({
