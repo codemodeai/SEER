@@ -1,0 +1,102 @@
+[
+  {
+    "id": "short-vague-1",
+    "category": "short-vague",
+    "prompt": "make a website"
+  },
+  {
+    "id": "short-vague-2",
+    "category": "short-vague",
+    "prompt": "fix the bug"
+  },
+  {
+    "id": "short-vague-3",
+    "category": "short-vague",
+    "prompt": "add dark mode"
+  },
+  {
+    "id": "short-specific-1",
+    "category": "short-specific",
+    "prompt": "create a React login form with email and password fields"
+  },
+  {
+    "id": "short-specific-2",
+    "category": "short-specific",
+    "prompt": "write a Python script to resize images to 800x600"
+  },
+  {
+    "id": "short-specific-3",
+    "category": "short-specific",
+    "prompt": "add a rate limiter middleware to Express.js API"
+  },
+  {
+    "id": "medium-redundant-1",
+    "category": "medium-redundant",
+    "prompt": "I want you to write me a function in JavaScript that will take an array of numbers as input and then go through each number one by one and check if that number is greater than 10 and if it is then add it to a new array and at the end return that new array with all the numbers that are greater than 10"
+  },
+  {
+    "id": "medium-redundant-2",
+    "category": "medium-redundant",
+    "prompt": "Can you please help me create a REST API endpoint that will allow users to submit their feedback through a form and then store that feedback in a database and also send an email notification to the admin when new feedback is submitted"
+  },
+  {
+    "id": "medium-redundant-3",
+    "category": "medium-redundant",
+    "prompt": "I need you to build a dashboard page that shows some charts and graphs displaying the user analytics data like how many users signed up each day and how many users are active and what pages they visit most frequently"
+  },
+  {
+    "id": "medium-complex-1",
+    "category": "medium-complex",
+    "prompt": "Build a file upload component in React that supports drag and drop, shows a progress bar, validates file types to only accept images and PDFs, limits file size to 5MB, and uploads to an S3 bucket using presigned URLs"
+  },
+  {
+    "id": "medium-complex-2",
+    "category": "medium-complex",
+    "prompt": "Create a caching layer for our API that uses Redis, implements cache invalidation when data is updated, has a TTL of 5 minutes for list endpoints and 1 hour for individual resources, and includes cache-hit metrics logging"
+  },
+  {
+    "id": "medium-complex-3",
+    "category": "medium-complex",
+    "prompt": "Implement a webhook system that receives events from Stripe, verifies the webhook signature, handles payment_intent.succeeded and customer.subscription.updated events, updates the user's plan in the database, and sends a confirmation email"
+  },
+  {
+    "id": "long-verbose-1",
+    "category": "long-verbose",
+    "prompt": "I would like you to help me build an authentication system for my Next.js application. The system should support multiple authentication methods including email and password login, Google OAuth, and GitHub OAuth. When a user signs up with email and password, we need to hash the password using bcrypt before storing it. For OAuth providers, we need to handle the callback URLs properly. After successful authentication, we should generate a JWT token that expires in 7 days and store it in an HTTP-only cookie. The system should also include middleware that checks for the JWT token on protected routes and redirects unauthenticated users to the login page. We also need password reset functionality where users can request a password reset link that gets sent to their email and expires after 1 hour."
+  },
+  {
+    "id": "long-verbose-2",
+    "category": "long-verbose",
+    "prompt": "I want to create a real-time chat application using WebSockets. The application should allow users to create chat rooms, join existing rooms, and send messages in real-time. Each message should show the sender's name, timestamp, and the message content. Users should be able to see who is currently online in each room. When a user joins a room, they should see the last 50 messages from the message history. The system should handle disconnections gracefully and notify other users when someone leaves. I also want to add support for typing indicators so users can see when someone else is typing a message. Messages should be stored in a PostgreSQL database for persistence."
+  },
+  {
+    "id": "long-verbose-3",
+    "category": "long-verbose",
+    "prompt": "Please help me set up a CI/CD pipeline for my Node.js project using GitHub Actions. The pipeline should run on every push to main and on pull requests. First, it should run the linting checks using ESLint. Then it should run the unit tests using Jest and generate a coverage report. If the tests pass, it should build the Docker image and tag it with the commit SHA. After building, it should push the image to AWS ECR. Finally, it should deploy the new image to our ECS cluster using a rolling update strategy. The pipeline should also send a Slack notification on failure. For pull requests, it should only run linting and tests without deploying."
+  },
+  {
+    "id": "code-review-1",
+    "category": "code-review",
+    "prompt": "Review this code for security vulnerabilities, performance issues, and best practices. Check for SQL injection, XSS, improper error handling, memory leaks, and race conditions. Suggest specific improvements with code examples."
+  },
+  {
+    "id": "debug-1",
+    "category": "debug",
+    "prompt": "My React app is rendering the component twice on every state update. I'm using useEffect with an empty dependency array but it still fires twice. The component fetches data from an API and sometimes shows stale data. I think there might be a race condition. Help me fix this."
+  },
+  {
+    "id": "refactor-1",
+    "category": "refactor",
+    "prompt": "Refactor this Express.js controller that has all the business logic, database queries, validation, and error handling mixed together in one 200-line function. Split it into proper layers following clean architecture principles with separate controllers, services, and repositories."
+  },
+  {
+    "id": "architecture-1",
+    "category": "architecture",
+    "prompt": "Design the database schema and API structure for a multi-tenant SaaS application where each tenant has their own users, projects, and billing. Tenants should be isolated from each other. Support role-based access control with admin, editor, and viewer roles. Include audit logging for all data changes."
+  },
+  {
+    "id": "explain-1",
+    "category": "explain",
+    "prompt": "Explain how the JavaScript event loop works, including the call stack, task queue, microtask queue, and how promises and setTimeout interact. Give examples showing the order of execution for nested promises and timeouts."
+  }
+]

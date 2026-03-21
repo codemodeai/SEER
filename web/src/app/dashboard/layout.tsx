@@ -10,6 +10,7 @@ import {
   Download,
   Key,
   CreditCard,
+  BarChart3,
   LogOut,
   ChevronRight,
   Sun,
@@ -20,6 +21,7 @@ const sidebarLinks = [
   { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
   { label: "Install Guide", href: "/dashboard/install", icon: Download },
   { label: "API Keys", href: "/dashboard/keys", icon: Key },
+  { label: "Benchmark", href: "/dashboard/benchmark", icon: BarChart3 },
   { label: "Billing", href: "/dashboard/billing", icon: CreditCard },
 ];
 
