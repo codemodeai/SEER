@@ -8,7 +8,10 @@ import CheckoutModal from "@/components/CheckoutModal";
 
 declare global {
   interface Window {
-    Razorpay: new (options: Record<string, unknown>) => { open: () => void };
+    Razorpay: new (options: Record<string, unknown>) => {
+      open: () => void;
+      on: (event: string, handler: (response: Record<string, unknown>) => void) => void;
+    };
   }
 }
 
@@ -224,8 +227,9 @@ export default function BillingPage() {
 
         try {
           const rzp = new window.Razorpay(options);
-          rzp.on("payment.failed", function (response: { error: { description: string } }) {
-            alert(`Payment failed: ${response.error.description}`);
+          rzp.on("payment.failed", function (response: Record<string, unknown>) {
+            const err = response.error as Record<string, string> | undefined;
+            alert(`Payment failed: ${err?.description ?? "Unknown error"}`);
             setLoading(null);
           });
           rzp.open();
