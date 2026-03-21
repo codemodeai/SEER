@@ -15,6 +15,30 @@ function extractApiKey(req: VercelRequest): string {
   return auth.replace("Bearer ", "");
 }
 
+function detectSurface(req: VercelRequest): string {
+  // Check explicit header first
+  const explicit = req.headers["x-seer-surface"] as string;
+  if (explicit) return explicit;
+
+  const ua = ((req.headers["user-agent"] as string) ?? "").toLowerCase();
+  const body = req.body;
+
+  // Detect from MCP client info in initialize request
+  const clientName = (body?.params?.clientInfo?.name ?? "").toLowerCase();
+  if (clientName.includes("claude-desktop") || clientName.includes("claude desktop")) return "claude-desktop";
+  if (clientName.includes("claude-code") || clientName.includes("claude code")) return "claude-code";
+  if (clientName.includes("vscode") || clientName.includes("vs code") || clientName.includes("copilot")) return "vscode";
+  if (clientName.includes("claude.ai") || clientName.includes("claude-ai")) return "claude-web";
+  if (clientName.includes("mcp-remote")) return "claude-desktop";
+
+  // Detect from User-Agent
+  if (ua.includes("claude-desktop") || ua.includes("electron")) return "claude-desktop";
+  if (ua.includes("claude-code") || ua.includes("claude code")) return "claude-code";
+  if (ua.includes("vscode") || ua.includes("vs code")) return "vscode";
+
+  return "api";
+}
+
 function createServer(apiKey: string, surface: string): McpServer {
   const server = new McpServer({ name: "seer", version: "1.0.0" });
 
@@ -88,7 +112,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const apiKey = extractApiKey(req);
-  const surface = (req.headers["x-seer-surface"] as string) ?? "unknown";
+  const surface = detectSurface(req);
   const server = createServer(apiKey, surface);
 
   const transport = new StreamableHTTPServerTransport({

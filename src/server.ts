@@ -18,9 +18,32 @@ function extractApiKey(req: express.Request): string {
   return auth.replace("Bearer ", "");
 }
 
+function detectSurface(req: express.Request): string {
+  const explicit = req.headers["x-seer-surface"] as string;
+  if (explicit) return explicit;
+
+  const ua = ((req.headers["user-agent"] as string) ?? "").toLowerCase();
+  const body = req.body as Record<string, unknown> | undefined;
+  const params = (body?.params ?? {}) as Record<string, unknown>;
+  const clientInfo = (params.clientInfo ?? {}) as Record<string, string>;
+  const clientName = (clientInfo.name ?? "").toLowerCase();
+
+  if (clientName.includes("claude-desktop") || clientName.includes("claude desktop")) return "claude-desktop";
+  if (clientName.includes("claude-code") || clientName.includes("claude code")) return "claude-code";
+  if (clientName.includes("vscode") || clientName.includes("vs code") || clientName.includes("copilot")) return "vscode";
+  if (clientName.includes("claude.ai") || clientName.includes("claude-ai")) return "claude-web";
+  if (clientName.includes("mcp-remote")) return "claude-desktop";
+
+  if (ua.includes("claude-desktop") || ua.includes("electron")) return "claude-desktop";
+  if (ua.includes("claude-code") || ua.includes("claude code")) return "claude-code";
+  if (ua.includes("vscode") || ua.includes("vs code")) return "vscode";
+
+  return "api";
+}
+
 app.all("/mcp", async (req, res) => {
   const apiKey = extractApiKey(req);
-  const surface = (req.headers["x-seer-surface"] as string) ?? "unknown";
+  const surface = detectSurface(req);
 
   const server = new McpServer({ name: "seer", version: "1.0.0" });
 
