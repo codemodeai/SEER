@@ -49,20 +49,24 @@ export function formatRunResult(parsed: SeerRunResult): string {
   const lines: string[] = [];
 
   if (parsed.optimized) {
-    lines.push(`Prompt: ${parsed.optimized}`);
+    lines.push(`EXECUTE THIS:\n${parsed.optimized}`);
   }
 
   if (parsed.steps && parsed.steps.length > 0) {
-    lines.push(`Steps: ${parsed.steps.join(" → ")}`);
+    lines.push("");
+    lines.push("FOLLOW THESE STEPS:");
+    parsed.steps.forEach((step, i) => {
+      lines.push(`${i + 1}. ${step}`);
+    });
   }
 
   if (parsed.note) {
-    lines.push(`Note: ${parsed.note}`);
+    lines.push(`\n(${parsed.note})`);
   }
 
   if (parsed._meta) {
     const m = parsed._meta;
-    lines.push(`[${m.raw_tokens}→${m.optimized_tokens} tokens | -${m.pct_saved}% | ${m.usage}]`);
+    lines.push(`\n[${m.raw_tokens}→${m.optimized_tokens} tokens | -${m.pct_saved}% | ${m.usage}]`);
   }
 
   return lines.join("\n");
@@ -72,19 +76,18 @@ export function formatOptimizeResult(parsed: SeerOptimizeResult): string {
   const lines: string[] = [];
 
   if (parsed.optimized) {
-    lines.push(`Prompt: ${parsed.optimized}`);
+    lines.push(`OPTIMIZED PROMPT:\n${parsed.optimized}`);
   }
 
   if (parsed.explanation) {
-    lines.push(`Note: ${parsed.explanation}`);
+    lines.push(`\n(${parsed.explanation})`);
   }
 
   const details: string[] = [];
   if (parsed.target_model) details.push(parsed.target_model);
   if (parsed.quality_score != null) details.push(`quality:${parsed.quality_score}`);
   if (parsed.tokens_before != null && parsed.tokens_after != null) {
-    details.push(`${parsed.tokens_before}→${parsed.tokens_after} tokens`);
-    details.push(`-${parsed.pct_saved ?? 0}%`);
+    details.push(`${parsed.tokens_before}→${parsed.tokens_after} tokens | -${parsed.pct_saved ?? 0}%`);
   }
 
   if (details.length > 0) {
@@ -98,17 +101,20 @@ export function formatWorkflowResult(parsed: SeerWorkflowResult): string {
   const lines: string[] = [];
 
   if (parsed.goal) {
-    lines.push(`Goal: ${parsed.goal}`);
+    lines.push(`GOAL: ${parsed.goal}\n`);
   }
 
   if (parsed.steps && parsed.steps.length > 0) {
+    lines.push("EXECUTE THESE STEPS IN ORDER:");
     parsed.steps.forEach((step) => {
-      lines.push(`${step.step}. ${step.title}: ${step.prompt ?? ""}`);
+      lines.push(`\nStep ${step.step}: ${step.title}`);
+      if (step.context) lines.push(step.context);
+      if (step.prompt) lines.push(`→ ${step.prompt}`);
     });
   }
 
   if (parsed._meta) {
-    lines.push(`[${parsed._meta.total_steps} steps | ${parsed._meta.usage}]`);
+    lines.push(`\n[${parsed._meta.total_steps} steps | ${parsed._meta.usage}]`);
   }
 
   return lines.join("\n");
