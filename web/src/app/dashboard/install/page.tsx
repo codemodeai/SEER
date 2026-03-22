@@ -255,8 +255,8 @@ Content: Call the seer_status MCP tool to show current plan, usage, and remainin
             <div className="bg-ivory rounded-2xl border border-sand/60 p-4 sm:p-5 space-y-3">
               <p className="text-sm text-charcoal font-medium">Steps:</p>
               <ol className="text-sm text-warm-brown-light space-y-2 list-decimal list-inside">
-                <li>Go to <strong>Claude.ai → Settings → Integrations</strong></li>
-                <li>Click <strong>Add MCP Server</strong></li>
+                <li>Go to <strong>Claude.ai → Settings → Connectors</strong></li>
+                <li>Click <strong>Add Connector</strong> or <strong>Add MCP Server</strong></li>
                 <li>Set Name to <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">SEER</code></li>
                 <li>Paste the URL above</li>
                 <li>Set Auth type to <strong>Header-based</strong></li>
