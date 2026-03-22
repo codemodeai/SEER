@@ -90,7 +90,8 @@ function detectSurface(req: express.Request, apiKey: string): string {
 
 app.all("/mcp", async (req, res) => {
   const apiKey = extractApiKey(req);
-  const surface = detectSurface(req, apiKey);
+  const isWebConnector = !!(req.query.key as string);
+  const surface = isWebConnector ? "claude-web" : detectSurface(req, apiKey);
 
   const server = new McpServer({
     name: "seer",

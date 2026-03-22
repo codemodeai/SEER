@@ -20,6 +20,10 @@ function extractApiKey(req: VercelRequest): string {
   const keyParam = url.searchParams.get("key") ?? "";
   if (keyParam) return keyParam;
 
+  // 3. Check body for API key (some clients send in request body)
+  const bodyKey = req.body?.params?.meta?.apiKey as string ?? "";
+  if (bodyKey) return bodyKey;
+
   return "";
 }
 
@@ -179,7 +183,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const apiKey = extractApiKey(req);
-  const surface = detectSurface(req, apiKey);
+  // If key came from URL param, it's Claude.ai web
+  const url = new URL(req.url ?? "", `https://${req.headers.host}`);
+  const isWebConnector = !!url.searchParams.get("key");
+  const surface = isWebConnector ? "claude-web" : detectSurface(req, apiKey);
   const server = createServer(apiKey, surface);
 
   const transport = new StreamableHTTPServerTransport({
