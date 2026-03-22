@@ -48,30 +48,21 @@ interface SeerWorkflowResult {
 export function formatRunResult(parsed: SeerRunResult): string {
   const lines: string[] = [];
 
-  lines.push("## ⚡ SEER Optimized Prompt\n");
-
   if (parsed.optimized) {
-    lines.push(parsed.optimized);
-    lines.push("");
+    lines.push(`Prompt: ${parsed.optimized}`);
   }
 
   if (parsed.steps && parsed.steps.length > 0) {
-    lines.push("### Steps");
-    parsed.steps.forEach((step, i) => {
-      lines.push(`${i + 1}. ${step}`);
-    });
-    lines.push("");
+    lines.push(`Steps: ${parsed.steps.join(" → ")}`);
   }
 
   if (parsed.note) {
-    lines.push(`> ${parsed.note}`);
-    lines.push("");
+    lines.push(`Note: ${parsed.note}`);
   }
 
   if (parsed._meta) {
     const m = parsed._meta;
-    lines.push(`---`);
-    lines.push(`Tokens: ${m.raw_tokens} → ${m.optimized_tokens} (saved ${m.tokens_saved}, -${m.pct_saved}%) | Usage: ${m.usage}`);
+    lines.push(`[${m.raw_tokens}→${m.optimized_tokens} tokens | -${m.pct_saved}% | ${m.usage}]`);
   }
 
   return lines.join("\n");
@@ -80,28 +71,24 @@ export function formatRunResult(parsed: SeerRunResult): string {
 export function formatOptimizeResult(parsed: SeerOptimizeResult): string {
   const lines: string[] = [];
 
-  lines.push("## ⚡ SEER Optimized Prompt\n");
-
   if (parsed.optimized) {
-    lines.push(parsed.optimized);
-    lines.push("");
+    lines.push(`Prompt: ${parsed.optimized}`);
   }
 
   if (parsed.explanation) {
-    lines.push(`> ${parsed.explanation}`);
-    lines.push("");
+    lines.push(`Note: ${parsed.explanation}`);
   }
 
   const details: string[] = [];
-  if (parsed.target_model) details.push(`Model: ${parsed.target_model}`);
-  if (parsed.quality_score != null) details.push(`Quality: ${parsed.quality_score}`);
+  if (parsed.target_model) details.push(parsed.target_model);
+  if (parsed.quality_score != null) details.push(`quality:${parsed.quality_score}`);
   if (parsed.tokens_before != null && parsed.tokens_after != null) {
-    details.push(`Tokens: ${parsed.tokens_before} → ${parsed.tokens_after} (saved ${parsed.tokens_saved ?? 0}, -${parsed.pct_saved ?? 0}%)`);
+    details.push(`${parsed.tokens_before}→${parsed.tokens_after} tokens`);
+    details.push(`-${parsed.pct_saved ?? 0}%`);
   }
 
   if (details.length > 0) {
-    lines.push("---");
-    lines.push(details.join(" | "));
+    lines.push(`[${details.join(" | ")}]`);
   }
 
   return lines.join("\n");
@@ -110,29 +97,18 @@ export function formatOptimizeResult(parsed: SeerOptimizeResult): string {
 export function formatWorkflowResult(parsed: SeerWorkflowResult): string {
   const lines: string[] = [];
 
-  lines.push("## ⚡ SEER Workflow\n");
-
   if (parsed.goal) {
-    lines.push(`**Goal:** ${parsed.goal}\n`);
+    lines.push(`Goal: ${parsed.goal}`);
   }
 
   if (parsed.steps && parsed.steps.length > 0) {
     parsed.steps.forEach((step) => {
-      lines.push(`### Step ${step.step ?? ""}: ${step.title ?? ""}`);
-      if (step.context) {
-        lines.push(`${step.context}\n`);
-      }
-      if (step.prompt) {
-        lines.push("```");
-        lines.push(step.prompt);
-        lines.push("```\n");
-      }
+      lines.push(`${step.step}. ${step.title}: ${step.prompt ?? ""}`);
     });
   }
 
   if (parsed._meta) {
-    lines.push("---");
-    lines.push(`${parsed._meta.total_steps} steps | Usage: ${parsed._meta.usage}`);
+    lines.push(`[${parsed._meta.total_steps} steps | ${parsed._meta.usage}]`);
   }
 
   return lines.join("\n");
@@ -141,21 +117,10 @@ export function formatWorkflowResult(parsed: SeerWorkflowResult): string {
 export function formatStatusResult(data: Record<string, unknown>): string {
   const lines: string[] = [];
 
-  lines.push("## SEER Status\n");
-  lines.push(`| Field | Value |`);
-  lines.push(`|-------|-------|`);
-  lines.push(`| Plan | ${String(data.plan ?? "—")} |`);
-  lines.push(`| Usage | ${data.usage_this_month} / ${data.limit} |`);
-  lines.push(`| Remaining | ${data.remaining} |`);
-  lines.push(`| AI Preference | ${String(data.ai_preference ?? "—")} |`);
-  lines.push(`| Version | ${String(data.version ?? "—")} |`);
-  lines.push("");
+  lines.push(`SEER v${data.version} | Plan: ${data.plan} | Usage: ${data.usage_this_month}/${data.limit} | Remaining: ${data.remaining} | AI: ${data.ai_preference}`);
 
   if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
-    lines.push("**Try:**");
-    (data.suggestions as string[]).forEach((s) => {
-      lines.push(`- ${s}`);
-    });
+    lines.push(`Try: ${(data.suggestions as string[]).join(" | ")}`);
   }
 
   return lines.join("\n");
