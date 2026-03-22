@@ -32,12 +32,16 @@ export async function POST(req: NextRequest) {
         const plan = sub.notes?.seer_plan ?? getPlanByRazorpayPlanId(sub.plan_id);
         if (!userId || !plan) break;
 
-        await supabase
+        const { error: planErr } = await supabase
           .from("users")
           .update({ plan, usage_this_month: 0 })
           .eq("id", userId);
 
-        await supabase.from("subscriptions").upsert(
+        if (planErr) {
+          console.error("Webhook: Failed to update user plan:", planErr);
+        }
+
+        const { error: subErr } = await supabase.from("subscriptions").upsert(
           {
             user_id: userId,
             provider: "razorpay",
@@ -50,6 +54,10 @@ export async function POST(req: NextRequest) {
           },
           { onConflict: "user_id,provider" }
         );
+
+        if (subErr) {
+          console.error("Webhook: Failed to upsert subscription:", subErr);
+        }
         break;
       }
 

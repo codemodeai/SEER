@@ -111,13 +111,25 @@ export default function BillingPage() {
         setCurrentPlan(data.plan);
       }
 
-      // Fetch invoices
+      // Fetch invoices (also triggers self-heal if plan is mismatched)
       try {
         const res = await fetch("/api/invoices");
         if (res.ok) {
           const invoiceData = await res.json();
           setInvoices(invoiceData.invoices ?? []);
           setNextBillingDate(invoiceData.nextBillingDate);
+
+          // Re-fetch plan in case it was self-healed
+          if (invoiceData.invoices?.length > 0) {
+            const { data: refreshed } = await supabase
+              .from("users")
+              .select("plan")
+              .eq("id", user.id)
+              .single();
+            if (refreshed && refreshed.plan !== data?.plan) {
+              setCurrentPlan(refreshed.plan);
+            }
+          }
         }
       } catch {
         // Silent fail

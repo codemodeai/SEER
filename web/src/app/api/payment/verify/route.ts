@@ -63,12 +63,17 @@ export async function POST(req: NextRequest) {
     // Update user plan
     const admin = getSupabaseAdmin();
 
-    await admin
+    const { error: updateError } = await admin
       .from("users")
       .update({ plan, usage_this_month: 0 })
       .eq("id", user.id);
 
-    await admin.from("subscriptions").upsert(
+    if (updateError) {
+      console.error("Failed to update user plan:", updateError);
+      return NextResponse.json({ error: "Failed to update plan" }, { status: 500 });
+    }
+
+    const { error: subError } = await admin.from("subscriptions").upsert(
       {
         user_id: user.id,
         provider: "razorpay",
@@ -79,6 +84,10 @@ export async function POST(req: NextRequest) {
       { onConflict: "user_id,provider" }
     );
 
+    if (subError) {
+      console.error("Failed to upsert subscription:", subError);
+    }
+
     // Create invoice for this payment
     const USD_PRICES: Record<string, number> = { starter: 19, pro: 49, agency: 99 };
     const INR_PRICES: Record<string, number> = { starter: 1599, pro: 3999, agency: 7999 };
@@ -86,7 +95,7 @@ export async function POST(req: NextRequest) {
     const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-    await admin.from("invoices").insert({
+    const { error: invoiceError } = await admin.from("invoices").insert({
       user_id: user.id,
       plan,
       amount_usd: USD_PRICES[plan] ?? 0,
@@ -97,6 +106,10 @@ export async function POST(req: NextRequest) {
       billing_period_start: periodStart.toISOString(),
       billing_period_end: periodEnd.toISOString(),
     });
+
+    if (invoiceError) {
+      console.error("Failed to create invoice:", invoiceError);
+    }
 
     return NextResponse.json({ success: true, plan });
   } catch (err) {

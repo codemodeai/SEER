@@ -39,6 +39,26 @@ export async function GET(req: NextRequest) {
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
+    // Self-heal: if user has a paid invoice but plan is still "free", fix it
+    if (invoices && invoices.length > 0) {
+      const latestPaidInvoice = invoices.find((inv: { status: string }) => inv.status === "paid");
+      if (latestPaidInvoice) {
+        const { data: userData } = await admin
+          .from("users")
+          .select("plan")
+          .eq("id", user.id)
+          .single();
+
+        if (userData && userData.plan === "free") {
+          console.warn(`Self-healing: User ${user.id} has paid invoice but plan is "free". Updating to "${latestPaidInvoice.plan}".`);
+          await admin
+            .from("users")
+            .update({ plan: latestPaidInvoice.plan, usage_this_month: 0 })
+            .eq("id", user.id);
+        }
+      }
+    }
+
     // Get subscription info for next billing date
     const { data: sub } = await admin
       .from("subscriptions")

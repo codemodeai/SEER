@@ -59,7 +59,8 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   provider_sub_id text NOT NULL,
   plan text NOT NULL CHECK (plan IN ('starter', 'pro', 'agency')),
   status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'cancelled', 'past_due')),
-  current_period_end timestamptz
+  current_period_end timestamptz,
+  UNIQUE(user_id, provider)
 );
 
 -- Indexes
