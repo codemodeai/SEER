@@ -100,9 +100,26 @@ export default function InstallGuidePage() {
 Then find my claude_desktop_config.json and add seer to mcpServers. Use FULL absolute paths (run "where node" and "npm root -g" to get them). Never use npx as command.
 Config: {"seer":{"command":"FULL_PATH_TO_NODE","args":["FULL_PATH_FROM_NPM_ROOT_G/mcp-remote/dist/proxy.js","https://mcp.seermcp.com/mcp","--header","Authorization: Bearer ${key}","--header","x-seer-surface: claude-desktop"]}}`;
 
-  // VS Code prompt — add to VS Code settings.json for reliable persistence
-  const vscodePrompt = `Add SEER MCP to my VS Code user settings (settings.json) so it works globally across all projects and persists after restart. Open my VS Code settings.json file and add this under "claudeCode.mcpServers" (merge with existing if any):
-{"seer":{"type":"http","url":"https://mcp.seermcp.com/mcp","headers":{"Authorization":"Bearer ${key}","x-seer-surface":"vscode"}}}`;
+  // VS Code prompt — add MCP server + global CLAUDE.md for reliable routing
+  const vscodePrompt = `Do these 2 steps to install SEER:
+
+Step 1: Run this command to add SEER MCP globally:
+claude mcp add seer https://mcp.seermcp.com/mcp -t http -s user -H "Authorization: Bearer ${key}" -H "x-seer-surface: vscode"
+
+Step 2: Create or update ~/.claude/CLAUDE.md (the global one, NOT project-level) and add this section (merge with existing content if any):
+
+## SEER MCP Integration
+
+When the user's message starts with the word "seer" (case-insensitive), ALWAYS call the appropriate SEER MCP tool. Never handle it directly.
+
+Routing rules:
+- "seer status" → call seer_status
+- "seer optimize ..." → call seer_optimize with the text after "optimize" as prompt
+- "seer workflow ..." → call seer_workflow with the text after "workflow" as goal
+- "seer memory ..." → call seer_memory with the text after "memory" as query
+- "seer <anything else>" → call seer_run with everything after "seer" as the input parameter, verbatim
+
+The word "seer" at the start of a message is ALWAYS a command prefix, never a noun. After receiving the SEER tool response, execute the optimized instructions returned by SEER.`;
 
   const tabs = [
     { id: "terminal", label: "Terminal CLI", icon: Terminal },
