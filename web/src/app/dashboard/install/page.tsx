@@ -100,9 +100,10 @@ export default function InstallGuidePage() {
 Then find my claude_desktop_config.json and add seer to mcpServers. Use FULL absolute paths (run "where node" and "npm root -g" to get them). Never use npx as command.
 Config: {"seer":{"command":"FULL_PATH_TO_NODE","args":["FULL_PATH_FROM_NPM_ROOT_G/mcp-remote/dist/proxy.js","https://mcp.seermcp.com/mcp","--header","Authorization: Bearer ${key}"]}}`;
 
-  // Short VS Code prompt
-  const vscodePrompt = `Create or update .mcp.json in my project root. Merge into existing mcpServers if any:
-{"mcpServers":{"seer":{"url":"https://mcp.seermcp.com/mcp","headers":{"Authorization":"Bearer ${key}"}}}}`;
+  // Short VS Code prompt — use command+args format for broad compatibility
+  const vscodePrompt = `Run: npm install -g mcp-remote
+Then create or update .mcp.json in my project root. Use FULL absolute paths (run "where node" and "npm root -g" to get them). Merge into existing mcpServers if any:
+{"mcpServers":{"seer":{"command":"FULL_PATH_TO_NODE","args":["FULL_PATH_FROM_NPM_ROOT_G/mcp-remote/dist/proxy.js","https://mcp.seermcp.com/mcp","--header","Authorization: Bearer ${key}"]}}}`;
 
   const tabs = [
     { id: "terminal", label: "Terminal CLI", icon: Terminal },
@@ -197,10 +198,11 @@ Config: {"seer":{"command":"FULL_PATH_TO_NODE","args":["FULL_PATH_FROM_NPM_ROOT_
             <div className="bg-ivory rounded-2xl border border-sand/60 p-4 sm:p-5 space-y-3">
               <p className="text-sm text-charcoal font-medium">What happens:</p>
               <ol className="text-sm text-warm-brown-light space-y-2 list-decimal list-inside">
-                <li>Claude creates or updates <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">.mcp.json</code> in your project</li>
+                <li>Claude installs <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">mcp-remote</code> bridge globally</li>
+                <li>Creates or updates <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">.mcp.json</code> in your project with full absolute paths</li>
                 <li>Preserves any other MCP servers you already have</li>
                 <li>Restart VS Code after it&apos;s done</li>
-                <li>Type <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">seer status</code> in Copilot chat to verify</li>
+                <li>Type <code className="bg-cream-dark px-1.5 py-0.5 rounded font-mono text-xs text-charcoal">seer status</code> in Claude Code to verify</li>
               </ol>
             </div>
             <VideoSection surface="vscode" />
