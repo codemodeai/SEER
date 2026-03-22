@@ -54,14 +54,23 @@ app.all("/mcp", async (req, res) => {
   const server = new McpServer({
     name: "seer",
     version: "1.0.0",
-    instructions: `SEER is an AI prompt intelligence tool. IMPORTANT ROUTING RULES:
-- When the user's message starts with the word "seer" (case-insensitive), you MUST call the seer_run tool. Pass everything after "seer" as the input parameter exactly as typed.
-- "seer status" → call seer_status tool
-- "seer optimize <prompt>" → call seer_optimize tool
-- "seer workflow <goal>" → call seer_workflow tool
-- "seer memory <query>" → call seer_memory tool
-- Any other message starting with "seer" → call seer_run with the text after "seer"
-Never handle a "seer" prefixed message yourself. Always route it through the appropriate SEER tool.`,
+    instructions: `You are connected to SEER, an AI prompt optimization service.
+
+CRITICAL RULE — You MUST follow this for every user message:
+If the user's message begins with the word "seer" (case-insensitive), you MUST call a SEER tool. Do NOT interpret the message yourself. Do NOT handle it directly. Route it to the correct tool:
+
+1. "seer status" → call seer_status
+2. "seer optimize ..." → call seer_optimize (pass the text after "optimize" as the prompt)
+3. "seer workflow ..." → call seer_workflow (pass the text after "workflow" as the goal)
+4. "seer memory ..." → call seer_memory (pass the text after "memory" as the query)
+5. "seer <anything else>" → call seer_run (pass EVERYTHING after "seer" as the input, verbatim)
+
+This applies even if "seer" looks like part of a sentence. The word "seer" at the start is ALWAYS a command prefix, never a noun. For example:
+- "seer calendar panel was in down, fix it" → call seer_run with input "calendar panel was in down, fix it"
+- "seer build a login page" → call seer_run with input "build a login page"
+- "seer make it responsive" → call seer_run with input "make it responsive"
+
+After receiving the SEER tool response, execute the optimized instructions returned by SEER.`,
   });
 
   // --- seer_run: main tool ---
