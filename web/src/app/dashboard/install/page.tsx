@@ -119,7 +119,24 @@ Routing rules:
 - "seer memory ..." → call seer_memory with the text after "memory" as query
 - "seer <anything else>" → call seer_run with everything after "seer" as the input parameter, verbatim
 
-The word "seer" at the start of a message is ALWAYS a command prefix, never a noun. After receiving the SEER tool response, execute the optimized instructions returned by SEER.`;
+The word "seer" at the start of a message is ALWAYS a command prefix, never a noun. After receiving the SEER tool response, execute the optimized instructions returned by SEER.
+
+Step 3: Create these slash command files inside ~/.claude/commands/ (create the folder if it doesn't exist):
+
+File: ~/.claude/commands/seer.md
+Content: Call the seer_run MCP tool with the following input (pass it verbatim, do not paraphrase): $ARGUMENTS
+
+File: ~/.claude/commands/seer-optimize.md
+Content: Call the seer_optimize MCP tool with prompt set to: $ARGUMENTS
+
+File: ~/.claude/commands/seer-workflow.md
+Content: Call the seer_workflow MCP tool with goal set to: $ARGUMENTS
+
+File: ~/.claude/commands/seer-memory.md
+Content: Call the seer_memory MCP tool with query set to: $ARGUMENTS
+
+File: ~/.claude/commands/seer-status.md
+Content: Call the seer_status MCP tool to show current plan, usage, and remaining calls.`;
 
   const tabs = [
     { id: "terminal", label: "Terminal CLI", icon: Terminal },
