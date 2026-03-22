@@ -14,8 +14,15 @@ const app = express();
 app.use(express.json());
 
 function extractApiKey(req: express.Request): string {
+  // 1. Check Authorization header (Terminal, Desktop, VS Code)
   const auth = req.headers.authorization ?? "";
-  return auth.replace("Bearer ", "");
+  if (auth) return auth.replace("Bearer ", "");
+
+  // 2. Check URL query parameter (Claude.ai web — no custom headers)
+  const keyParam = req.query.key as string ?? "";
+  if (keyParam) return keyParam;
+
+  return "";
 }
 
 // Cache surface per API key so tool calls (which lack clientInfo) use the

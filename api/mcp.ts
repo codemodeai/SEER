@@ -11,8 +11,16 @@ import {
 } from "../src/tools/index.js";
 
 function extractApiKey(req: VercelRequest): string {
+  // 1. Check Authorization header (Terminal, Desktop, VS Code)
   const auth = (req.headers.authorization as string) ?? "";
-  return auth.replace("Bearer ", "");
+  if (auth) return auth.replace("Bearer ", "");
+
+  // 2. Check URL query parameter (Claude.ai web — no custom headers)
+  const url = new URL(req.url ?? "", `https://${req.headers.host}`);
+  const keyParam = url.searchParams.get("key") ?? "";
+  if (keyParam) return keyParam;
+
+  return "";
 }
 
 // Cache surface per API key so tool calls (which lack clientInfo) use the
