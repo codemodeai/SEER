@@ -100,9 +100,9 @@ export default function InstallGuidePage() {
 Then find my claude_desktop_config.json and add seer to mcpServers. Use FULL absolute paths (run "where node" and "npm root -g" to get them). Never use npx as command.
 Config: {"seer":{"command":"FULL_PATH_TO_NODE","args":["FULL_PATH_FROM_NPM_ROOT_G/mcp-remote/dist/proxy.js","https://mcp.seermcp.com/mcp","--header","Authorization: Bearer ${key}","--header","x-seer-surface: claude-desktop"]}}`;
 
-  // VS Code prompt — use claude mcp add at user scope for global persistence
-  const vscodePrompt = `Run this command to add SEER globally (works across all projects and persists after restart):
-claude mcp add seer https://mcp.seermcp.com/mcp -t http -s user -H "Authorization: Bearer ${key}" -H "x-seer-surface: vscode"`;
+  // VS Code prompt — add to VS Code settings.json for reliable persistence
+  const vscodePrompt = `Add SEER MCP to my VS Code user settings (settings.json) so it works globally across all projects and persists after restart. Open my VS Code settings.json file and add this under "claudeCode.mcpServers" (merge with existing if any):
+{"seer":{"type":"http","url":"https://mcp.seermcp.com/mcp","headers":{"Authorization":"Bearer ${key}","x-seer-surface":"vscode"}}}`;
 
   const tabs = [
     { id: "terminal", label: "Terminal CLI", icon: Terminal },
