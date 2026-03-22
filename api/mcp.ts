@@ -15,32 +15,65 @@ function extractApiKey(req: VercelRequest): string {
   return auth.replace("Bearer ", "");
 }
 
-function detectSurface(req: VercelRequest): string {
-  // Check explicit header first
+// Cache surface per API key so tool calls (which lack clientInfo) use the
+// surface detected during the initialize handshake.
+const surfaceCache = new Map<string, { surface: string; ts: number }>();
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+function detectSurface(req: VercelRequest, apiKey: string): string {
+  // 1. Explicit header always wins
   const explicit = req.headers["x-seer-surface"] as string;
   if (explicit) return explicit;
 
   const ua = ((req.headers["user-agent"] as string) ?? "").toLowerCase();
   const body = req.body;
 
-  // Detect from MCP client info in initialize request
+  // 2. Detect from MCP client info (only present in initialize request)
   const clientName = (body?.params?.clientInfo?.name ?? "").toLowerCase();
-  if (clientName.includes("claude-desktop") || clientName.includes("claude desktop")) return "claude-desktop";
-  if (clientName.includes("claude-code") || clientName.includes("claude code")) return "claude-code";
-  if (clientName.includes("vscode") || clientName.includes("vs code") || clientName.includes("copilot")) return "vscode";
-  if (clientName.includes("claude.ai") || clientName.includes("claude-ai")) return "claude-web";
-  if (clientName.includes("mcp-remote")) return "claude-desktop";
+  let detected = "";
 
-  // Detect from User-Agent
+  if (clientName) {
+    if (clientName.includes("claude-desktop") || clientName.includes("claude desktop")) {
+      detected = "claude-desktop";
+    } else if (clientName.includes("claude-code") || clientName.includes("claude code")) {
+      // Claude Code can run in terminal or VS Code — check UA for specifics
+      if (ua.includes("vscode") || ua.includes("vs code") || ua.includes("electron")) {
+        detected = "vscode";
+      } else {
+        detected = "claude-code";
+      }
+    } else if (clientName.includes("vscode") || clientName.includes("vs code") || clientName.includes("copilot")) {
+      detected = "vscode";
+    } else if (clientName.includes("claude.ai") || clientName.includes("claude-ai")) {
+      detected = "claude-web";
+    }
+  }
+
+  // 3. If detected from clientInfo, cache it for this API key
+  if (detected && apiKey) {
+    surfaceCache.set(apiKey, { surface: detected, ts: Date.now() });
+    return detected;
+  }
+
+  // 4. For tool calls (no clientInfo), check cache from earlier initialize
+  if (!clientName && apiKey) {
+    const cached = surfaceCache.get(apiKey);
+    if (cached && Date.now() - cached.ts < CACHE_TTL) {
+      return cached.surface;
+    }
+  }
+
+  // 5. Fallback to User-Agent detection
   if (ua.includes("claude-desktop") || ua.includes("electron")) return "claude-desktop";
   if (ua.includes("claude-code") || ua.includes("claude code")) return "claude-code";
   if (ua.includes("vscode") || ua.includes("vs code")) return "vscode";
 
-  // mcp-remote (used by Claude Desktop) sends node-fetch or undici UA
-  if (ua.includes("node") || ua.includes("undici")) return "claude-desktop";
-
-  // Browser-based clients (Claude.ai web, direct API calls from browser)
+  // Browser-based clients (Claude.ai web)
   if (ua.includes("mozilla") || ua.includes("chrome") || ua.includes("safari")) return "claude-web";
+
+  // node/undici UA = mcp-remote proxy, but we can't tell which surface without cache
+  // Default to "api" instead of assuming claude-desktop
+  if (ua.includes("node") || ua.includes("undici")) return "api";
 
   return "api";
 }
@@ -138,7 +171,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const apiKey = extractApiKey(req);
-  const surface = detectSurface(req);
+  const surface = detectSurface(req, apiKey);
   const server = createServer(apiKey, surface);
 
   const transport = new StreamableHTTPServerTransport({
