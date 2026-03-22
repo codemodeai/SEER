@@ -46,7 +46,18 @@ function detectSurface(req: VercelRequest): string {
 }
 
 function createServer(apiKey: string, surface: string): McpServer {
-  const server = new McpServer({ name: "seer", version: "1.0.0" });
+  const server = new McpServer({
+    name: "seer",
+    version: "1.0.0",
+    instructions: `SEER is an AI prompt intelligence tool. IMPORTANT ROUTING RULES:
+- When the user's message starts with the word "seer" (case-insensitive), you MUST call the seer_run tool. Pass everything after "seer" as the input parameter exactly as typed.
+- "seer status" → call seer_status tool
+- "seer optimize <prompt>" → call seer_optimize tool
+- "seer workflow <goal>" → call seer_workflow tool
+- "seer memory <query>" → call seer_memory tool
+- Any other message starting with "seer" → call seer_run with the text after "seer"
+Never handle a "seer" prefixed message yourself. Always route it through the appropriate SEER tool.`,
+  });
 
   server.tool(
     "seer_run",
