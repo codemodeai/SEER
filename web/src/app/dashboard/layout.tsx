@@ -19,6 +19,7 @@ import {
   X,
   PlayCircle,
   HelpCircle,
+  Zap,
 } from "lucide-react";
 
 const sidebarLinks = [
@@ -28,6 +29,7 @@ const sidebarLinks = [
   { label: "API Keys", href: "/dashboard/keys", icon: Key },
   { label: "Profile", href: "/dashboard/profile", icon: User },
   { label: "Billing", href: "/dashboard/billing", icon: CreditCard },
+  { label: "Updates", href: "/dashboard/updates", icon: Zap },
   { label: "Help & Support", href: "/dashboard/help", icon: HelpCircle },
 ];
 
