@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase.js";
 import { callHaiku, estimateTokens, parseHaikuJson } from "../lib/haiku.js";
 import { logSeerCall } from "../lib/logger.js";
 import { getEmbedding, searchMemory } from "../lib/embeddings.js";
+import { formatRunResult } from "../lib/formatter.js";
 
 const SYSTEM_PROMPT = `You are SEER, a prompt compressor. Rewrite the prompt to be shorter and more precise. NEVER make it longer.
 
@@ -122,9 +123,9 @@ export async function seer_run(
     surface,
   });
 
-  // 7. Return enriched result
+  // 7. Return formatted result
   if (parsed) {
-    return JSON.stringify({
+    return formatRunResult({
       ...parsed,
       _meta: {
         raw_tokens: rawTokens,

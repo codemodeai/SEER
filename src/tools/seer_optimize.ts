@@ -2,6 +2,7 @@ import { authenticateUser, PLAN_LIMITS } from "../lib/auth.js";
 import { supabase } from "../lib/supabase.js";
 import { callHaiku, estimateTokens, parseHaikuJson } from "../lib/haiku.js";
 import { logSeerCall } from "../lib/logger.js";
+import { formatOptimizeResult } from "../lib/formatter.js";
 
 function systemPromptForModel(model: string): string {
   const modelHint =
@@ -89,9 +90,9 @@ export async function seer_optimize(
     surface,
   });
 
-  // 7. Return
+  // 7. Return formatted
   if (parsed) {
-    return JSON.stringify({
+    return formatOptimizeResult({
       ...parsed,
       target_model: model,
       tokens_before: rawTokens,

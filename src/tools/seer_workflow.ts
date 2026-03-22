@@ -2,6 +2,7 @@ import { authenticateUser, PLAN_LIMITS } from "../lib/auth.js";
 import { supabase } from "../lib/supabase.js";
 import { callHaiku, estimateTokens } from "../lib/haiku.js";
 import { logSeerCall } from "../lib/logger.js";
+import { formatWorkflowResult } from "../lib/formatter.js";
 
 const SYSTEM_PROMPT = `Decompose this goal into 3-7 sequential steps. Return ONLY JSON: { "goal": "...", "steps": [{ "step": 1, "title": "...", "context": "...", "prompt": "..." }] }. Each step's "prompt" should be a focused, executable instruction that Claude Code can run directly.`;
 
@@ -80,10 +81,10 @@ export async function seer_workflow(
     surface,
   });
 
-  // 8. Return
+  // 8. Return formatted
   try {
     const parsed = JSON.parse(resultText);
-    return JSON.stringify({
+    return formatWorkflowResult({
       ...parsed,
       _meta: {
         total_steps: Array.isArray(parsed.steps) ? parsed.steps.length : 0,
