@@ -9,8 +9,11 @@ import { checkNudge } from "../lib/nudge.js";
 import { detectReopen } from "../lib/reopen.js";
 import { appendMemoryLog } from "../lib/memory-log.js";
 import { appendSuggestInstruction } from "../lib/suggest.js";
+import { seer_tools } from "./seer_tools.js";
 
 // --- Pattern matchers for zero-cost features (no Haiku call) ---
+
+const TOOLS_PATTERN = /^(tools|show tools|list tools|features|show features|what can you do|help)$/i;
 
 const CONTINUE_PATTERNS = /^(continue|resume|pick up|where was i|where did i leave off|what's next|whats next)$/i;
 
@@ -121,7 +124,12 @@ export async function seer_run(
 
   const trimmedInput = input.trim();
 
-  // 1b. Route "seer continue" — zero Haiku cost
+  // 1b. Route "seer tools" — zero Haiku cost, no usage increment
+  if (TOOLS_PATTERN.test(trimmedInput)) {
+    return seer_tools(apiKey);
+  }
+
+  // 1d. Route "seer continue" — zero Haiku cost
   if (CONTINUE_PATTERNS.test(trimmedInput)) {
     await logSeerCall({
       user_id: user.id,
@@ -136,7 +144,7 @@ export async function seer_run(
     return appendSuggestInstruction(CONTINUE_INSTRUCTION, "seer_continue", trimmedInput);
   }
 
-  // 1c. Route callback memory recall — zero Haiku cost
+  // 1e. Route callback memory recall — zero Haiku cost
   if (CALLBACK_MEMORY_PATTERNS.test(trimmedInput)) {
     await logSeerCall({
       user_id: user.id,
