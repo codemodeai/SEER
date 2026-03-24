@@ -9,7 +9,12 @@ export function appendSuggestInstruction(toolResult: string, toolName: string, u
 ---
 SEER AUTO-SUGGEST — After you finish ALL work from the above instructions, present next-step suggestions.
 
-Based on what you just completed for "${toolName}" with input "${userInput.length > 100 ? userInput.slice(0, 100) + "…" : userInput}", generate 3-5 contextual suggestions for what the user might want to do next.
+STEP 1: Read .seer_memory.md from the project root (if it exists). Pay attention to:
+- "## 4. Open Tasks" — uncompleted [ ] tasks are high-priority suggestions
+- "## 2. Current Status" → next_action — this is the planned next step
+- "## 5. Session Log" — recent work, so you don't suggest what's already done
+
+STEP 2: Based on BOTH what you just completed AND the memory file context, generate 3-5 suggestions.
 
 Display them in this EXACT format:
 
@@ -26,13 +31,14 @@ Display them in this EXACT format:
 
 Rules for generating suggestions:
 - Each suggestion must start with "seer " so the user can copy-paste it directly
-- Make suggestions contextual — based on what was just built/changed/optimized
-- Include a mix: next logical step, testing, edge cases, related feature, cleanup/refactor
+- PRIORITIZE open tasks from .seer_memory.md — at least 1-2 suggestions should come from the open task list or next_action
+- Remaining suggestions should be contextual to what was just built/changed
 - Keep each suggestion under 12 words after "seer "
-- If the task was a build/feature: suggest testing, styling, error handling, related features
-- If the task was a fix: suggest verifying the fix, regression testing, related fixes
-- If the task was optimization: suggest further optimization, benchmarking, applying to similar code
-- Do NOT suggest "seer status" or "seer session read" — those are utility commands
+- If the task was a build/feature: suggest testing, related open tasks, edge cases
+- If the task was a fix: suggest verifying, regression testing, next open task
+- Do NOT suggest already-completed tasks (marked [x] in memory)
+- Do NOT suggest "seer status", "seer session read", or "seer memory run"
+- If .seer_memory.md doesn't exist, generate suggestions purely from what was just done
 - Present this AFTER all work is complete, not before`;
 
   return toolResult + instruction;
