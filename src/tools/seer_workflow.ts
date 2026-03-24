@@ -4,6 +4,7 @@ import { callHaiku, estimateTokens } from "../lib/haiku.js";
 import { logSeerCall } from "../lib/logger.js";
 import { formatWorkflowResult } from "../lib/formatter.js";
 import { SECURITY_ANCHOR, scanWorkflowStep, logSecurityIncident } from "../lib/security.js";
+import { appendMemoryLog } from "../lib/memory-log.js";
 
 const SYSTEM_PROMPT = `Decompose this goal into 3-7 sequential steps. Return ONLY JSON: { "goal": "...", "steps": [{ "step": 1, "title": "...", "context": "...", "prompt": "..." }] }. Each step's "prompt" should be a focused, executable instruction that Claude Code can run directly.
 ${SECURITY_ANCHOR}`;
@@ -100,14 +101,15 @@ export async function seer_workflow(
   // 8. Return formatted
   try {
     const parsed = JSON.parse(resultText);
-    return formatWorkflowResult({
+    const result = formatWorkflowResult({
       ...parsed,
       _meta: {
         total_steps: Array.isArray(parsed.steps) ? parsed.steps.length : 0,
         usage: `${user.usage_this_month + 1}/${limit === Infinity ? "unlimited" : limit}`,
       },
     });
+    return appendMemoryLog(result, "seer_workflow", goal);
   } catch {
-    return resultText;
+    return appendMemoryLog(resultText, "seer_workflow", goal);
   }
 }

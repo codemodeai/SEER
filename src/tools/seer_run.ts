@@ -7,6 +7,7 @@ import { formatRunResult } from "../lib/formatter.js";
 import { SECURITY_ANCHOR } from "../lib/security.js";
 import { checkNudge } from "../lib/nudge.js";
 import { detectReopen } from "../lib/reopen.js";
+import { appendMemoryLog } from "../lib/memory-log.js";
 
 const SYSTEM_PROMPT = `You are SEER, a prompt compressor. Rewrite the prompt to be shorter and more precise. NEVER make it longer.
 
@@ -174,5 +175,5 @@ export async function seer_run(
     // Nudge is best-effort
   }
 
-  return finalResult;
+  return appendMemoryLog(finalResult, "seer_run", input);
 }
