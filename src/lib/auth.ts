@@ -6,6 +6,8 @@ export interface SeerUser {
   plan: "free" | "starter" | "pro" | "agency";
   usage_this_month: number;
   ai_preference: string;
+  last_nudge_at: string | null;
+  auto_suggest: boolean;
 }
 
 export async function authenticateUser(
@@ -15,7 +17,7 @@ export async function authenticateUser(
 
   const { data, error } = await supabase
     .from("users")
-    .select("id, email, plan, usage_this_month, ai_preference")
+    .select("id, email, plan, usage_this_month, ai_preference, last_nudge_at, auto_suggest")
     .eq("seer_api_key", apiKey)
     .single();
 

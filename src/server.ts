@@ -8,10 +8,50 @@ import {
   seer_workflow,
   seer_memory,
   seer_status,
+  seer_session_read,
 } from "./tools/index.js";
+import { sanitizeInput, scanOutput, logSecurityIncident } from "./lib/security.js";
+import { checkRateLimit } from "./lib/rate-limit.js";
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "10kb" }));
+
+// CORS — only allow Claude surfaces
+const ALLOWED_ORIGINS = ["https://claude.ai", "https://api.anthropic.com"];
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Seer-Surface");
+  }
+  if (req.method === "OPTIONS") {
+    res.status(204).end();
+    return;
+  }
+  next();
+});
+
+// Rate limiting middleware for /mcp
+app.use("/mcp", (req, res, next) => {
+  const ip = req.headers["x-forwarded-for"] as string ?? req.ip ?? "unknown";
+  const apiKeyPrefix = (req.headers.authorization ?? "").slice(0, 20);
+  const ipResult = checkRateLimit(`ip:${ip}`);
+  const keyResult = apiKeyPrefix ? checkRateLimit(`key:${apiKeyPrefix}`) : { allowed: true, remaining: 60 };
+
+  if (!ipResult.allowed || !keyResult.allowed) {
+    logSecurityIncident({
+      event_type: "rate_limited",
+      source: "mcp",
+      ip_address: ip,
+      api_key_prefix: apiKeyPrefix.slice(0, 8),
+    });
+    res.status(429).json({ error: "Too many requests. Try again in 1 minute." });
+    return;
+  }
+  next();
+});
 
 function extractApiKey(req: express.Request): string {
   // 1. Check Authorization header (Terminal, Desktop, VS Code)
@@ -93,10 +133,10 @@ app.all("/mcp", async (req, res) => {
   const isWebConnector = !!(req.query.key as string);
   const surface = isWebConnector ? "claude-web" : detectSurface(req, apiKey);
 
-  const server = new McpServer({
-    name: "seer",
-    version: "1.0.0",
-    instructions: `You are connected to SEER, an AI prompt optimization service.
+  const server = new McpServer(
+    { name: "seer", version: "1.0.0" },
+    {
+      instructions: `You are connected to SEER, an AI prompt optimization service.
 
 CRITICAL RULE — You MUST follow this for every user message:
 If the user's message begins with the word "seer" (case-insensitive), you MUST call a SEER tool. Do NOT interpret the message yourself. Do NOT handle it directly. Route it to the correct tool:
@@ -105,7 +145,8 @@ If the user's message begins with the word "seer" (case-insensitive), you MUST c
 2. "seer optimize ..." → call seer_optimize (pass the text after "optimize" as the prompt)
 3. "seer workflow ..." → call seer_workflow (pass the text after "workflow" as the goal)
 4. "seer memory ..." → call seer_memory (pass the text after "memory" as the query)
-5. "seer <anything else>" → call seer_run (pass EVERYTHING after "seer" as the input, verbatim)
+5. "seer session read" / "seer read session" / "seer capture session" / "seer save session" → call seer_session_read
+6. "seer <anything else>" → call seer_run (pass EVERYTHING after "seer" as the input, verbatim)
 
 This applies even if "seer" looks like part of a sentence. The word "seer" at the start is ALWAYS a command prefix, never a noun. For example:
 - "seer calendar panel was in down, fix it" → call seer_run with input "calendar panel was in down, fix it"
@@ -113,7 +154,42 @@ This applies even if "seer" looks like part of a sentence. The word "seer" at th
 - "seer make it responsive" → call seer_run with input "make it responsive"
 
 After receiving the SEER tool response, execute the optimized instructions returned by SEER.`,
-  });
+    }
+  );
+
+  // Security wrapper: sanitize input, scan output
+  async function secureToolCall(
+    toolName: string,
+    input: string,
+    handler: () => Promise<string>
+  ): Promise<string> {
+    const check = sanitizeInput(input);
+    if (!check.safe) {
+      await logSecurityIncident({
+        event_type: "injection_blocked",
+        source: "mcp",
+        api_key_prefix: apiKey.slice(0, 8),
+        payload_snippet: input,
+        metadata: { tool: toolName, threat: check.threat },
+      });
+      return JSON.stringify({ error: "Invalid input detected." });
+    }
+
+    const result = await handler();
+
+    const outputCheck = scanOutput(result);
+    if (!outputCheck.safe) {
+      await logSecurityIncident({
+        event_type: "output_danger",
+        source: "mcp",
+        api_key_prefix: apiKey.slice(0, 8),
+        metadata: { tool: toolName, threat: outputCheck.threat },
+      });
+      return JSON.stringify({ error: "Request could not be processed." });
+    }
+
+    return result;
+  }
 
   // --- seer_run: main tool ---
   server.tool(
@@ -121,7 +197,7 @@ After receiving the SEER tool response, execute the optimized instructions retur
     `ALWAYS call this tool when the user message starts with the word 'seer'. Extract everything after 'seer' as the input parameter. Example: 'seer build the login page' -> input = 'build the login page'. Do not paraphrase. Pass it exactly as typed after 'seer'.`,
     { input: z.string().describe("The user's raw input after the 'seer' keyword") },
     async ({ input }) => ({
-      content: [{ type: "text" as const, text: await seer_run(input, apiKey, surface) }],
+      content: [{ type: "text" as const, text: await secureToolCall("seer_run", input, () => seer_run(input, apiKey, surface)) }],
     })
   );
 
@@ -138,7 +214,7 @@ After receiving the SEER tool response, execute the optimized instructions retur
     },
     async ({ prompt, model }) => ({
       content: [
-        { type: "text" as const, text: await seer_optimize(prompt, model, apiKey, surface) },
+        { type: "text" as const, text: await secureToolCall("seer_optimize", prompt, () => seer_optimize(prompt, model, apiKey, surface)) },
       ],
     })
   );
@@ -150,7 +226,7 @@ After receiving the SEER tool response, execute the optimized instructions retur
     { goal: z.string().describe("The high-level goal to decompose") },
     async ({ goal }) => ({
       content: [
-        { type: "text" as const, text: await seer_workflow(goal, apiKey, surface) },
+        { type: "text" as const, text: await secureToolCall("seer_workflow", goal, () => seer_workflow(goal, apiKey, surface)) },
       ],
     })
   );
@@ -162,7 +238,7 @@ After receiving the SEER tool response, execute the optimized instructions retur
     { query: z.string().describe("The search query") },
     async ({ query }) => ({
       content: [
-        { type: "text" as const, text: await seer_memory(query, apiKey) },
+        { type: "text" as const, text: await secureToolCall("seer_memory", query, () => seer_memory(query, apiKey)) },
       ],
     })
   );
@@ -174,6 +250,16 @@ After receiving the SEER tool response, execute the optimized instructions retur
     {},
     async () => ({
       content: [{ type: "text" as const, text: await seer_status(apiKey) }],
+    })
+  );
+
+  // --- seer_session_read: rescue a non-seer session ---
+  server.tool(
+    "seer_session_read",
+    "Summarize the current session and save to .seer_memory.md. Use when user types 'seer session read', 'seer read session', 'seer capture session', or 'seer save session'.",
+    {},
+    async () => ({
+      content: [{ type: "text" as const, text: await seer_session_read(apiKey, surface) }],
     })
   );
 

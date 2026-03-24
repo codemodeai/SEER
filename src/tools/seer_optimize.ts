@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase.js";
 import { callHaiku, estimateTokens, parseHaikuJson } from "../lib/haiku.js";
 import { logSeerCall } from "../lib/logger.js";
 import { formatOptimizeResult } from "../lib/formatter.js";
+import { SECURITY_ANCHOR } from "../lib/security.js";
 
 function systemPromptForModel(model: string): string {
   const modelHint =
@@ -20,7 +21,8 @@ Rules:
 - Short prompts stay short — just sharpen the wording
 - The output MUST have FEWER words than the input
 
-Return ONLY JSON: { "optimized": "...", "token_reduction_pct": 0-100, "quality_score": 0.0-1.0, "explanation": "one line on what you removed/compressed" }`;
+Return ONLY JSON: { "optimized": "...", "token_reduction_pct": 0-100, "quality_score": 0.0-1.0, "explanation": "one line on what you removed/compressed" }
+${SECURITY_ANCHOR}`;
 }
 
 export async function seer_optimize(

@@ -4,6 +4,9 @@ import { callHaiku, estimateTokens, parseHaikuJson } from "../lib/haiku.js";
 import { logSeerCall } from "../lib/logger.js";
 import { getEmbedding, searchMemory } from "../lib/embeddings.js";
 import { formatRunResult } from "../lib/formatter.js";
+import { SECURITY_ANCHOR } from "../lib/security.js";
+import { checkNudge } from "../lib/nudge.js";
+import { detectReopen } from "../lib/reopen.js";
 
 const SYSTEM_PROMPT = `You are SEER, a prompt compressor. Rewrite the prompt to be shorter and more precise. NEVER make it longer.
 
@@ -14,7 +17,8 @@ Rules:
 - Short prompts stay short — just make them more precise
 - The output MUST have FEWER words than the input
 
-Return ONLY JSON: { "optimized": "...", "steps": ["step1", "step2", ...], "note": "..." }`;
+Return ONLY JSON: { "optimized": "...", "steps": ["step1", "step2", ...], "note": "..." }
+${SECURITY_ANCHOR}`;
 
 const SYSTEM_PROMPT_WITH_CONTEXT = `You are SEER, a prompt compressor with project context. Rewrite the prompt to be shorter and more precise. NEVER make it longer.
 
@@ -24,7 +28,8 @@ Rules:
 - Keep the SAME intent — do not add new requirements
 - The output MUST have FEWER words than the input
 
-Return ONLY JSON: { "optimized": "...", "steps": ["step1", "step2", ...], "note": "...", "context_used": true }`;
+Return ONLY JSON: { "optimized": "...", "steps": ["step1", "step2", ...], "note": "...", "context_used": true }
+${SECURITY_ANCHOR}`;
 
 export async function seer_run(
   input: string,
@@ -55,6 +60,7 @@ export async function seer_run(
 
   // 4. Inject memory context for Pro+ users
   let contextSnippet = "";
+  let completedTasks: string[] = [];
   const hasPro = user.plan === "pro" || user.plan === "agency";
   if (hasPro) {
     try {
@@ -74,10 +80,28 @@ export async function seer_run(
           contextSnippet =
             "\n\nProject context:\n" +
             memories.map((m) => `- ${m.content}`).join("\n");
+
+          // Extract completed tasks for re-open detection
+          for (const m of memories) {
+            const matches = m.content.match(/- \[x\] (.+)/gi);
+            if (matches) {
+              completedTasks.push(
+                ...matches.map((match) => match.replace(/- \[x\] /i, "").trim())
+              );
+            }
+          }
         }
       }
     } catch {
       // Memory injection is best-effort — don't block the call
+    }
+  }
+
+  // 4b. Re-open detection — check if input touches a completed task
+  if (completedTasks.length > 0) {
+    const reopen = detectReopen(input, completedTasks);
+    if (reopen.shouldReopen) {
+      return reopen.reopenPrompt!;
     }
   }
 
@@ -124,8 +148,9 @@ export async function seer_run(
   });
 
   // 7. Return formatted result
+  let finalResult: string;
   if (parsed) {
-    return formatRunResult({
+    finalResult = formatRunResult({
       ...parsed,
       _meta: {
         raw_tokens: rawTokens,
@@ -135,6 +160,19 @@ export async function seer_run(
         usage: `${user.usage_this_month + 1}/${limit === Infinity ? "unlimited" : limit}`,
       },
     });
+  } else {
+    finalResult = resultText;
   }
-  return resultText;
+
+  // 8. Smart keyword nudge — suggest seer session read if not using seer
+  try {
+    const nudge = await checkNudge(input, user.id, user.last_nudge_at);
+    if (nudge.shouldNudge && nudge.nudgeText) {
+      finalResult += "\n\n" + nudge.nudgeText;
+    }
+  } catch {
+    // Nudge is best-effort
+  }
+
+  return finalResult;
 }

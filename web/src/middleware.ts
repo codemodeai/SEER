@@ -2,6 +2,15 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
+  // CSRF protection — validate Origin on state-changing requests
+  if (["POST", "PATCH", "PUT", "DELETE"].includes(request.method)) {
+    const origin = request.headers.get("origin");
+    const host = request.headers.get("host");
+    if (origin && host && !origin.includes(host)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -23,7 +32,12 @@ export async function middleware(request: NextRequest) {
         );
         supabaseResponse = NextResponse.next({ request });
         cookiesToSet.forEach(({ name, value, options }) =>
-          supabaseResponse.cookies.set(name, value, options)
+          supabaseResponse.cookies.set(name, value, {
+            ...options,
+            httpOnly: true,
+            secure: true,
+            sameSite: "strict",
+          })
         );
       },
     },
@@ -56,5 +70,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login", "/signup"],
+  matcher: ["/dashboard/:path*", "/login", "/signup", "/api/:path*"],
 };

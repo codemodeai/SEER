@@ -3,8 +3,10 @@ import { supabase } from "../lib/supabase.js";
 import { callHaiku, estimateTokens } from "../lib/haiku.js";
 import { logSeerCall } from "../lib/logger.js";
 import { formatWorkflowResult } from "../lib/formatter.js";
+import { SECURITY_ANCHOR, scanWorkflowStep, logSecurityIncident } from "../lib/security.js";
 
-const SYSTEM_PROMPT = `Decompose this goal into 3-7 sequential steps. Return ONLY JSON: { "goal": "...", "steps": [{ "step": 1, "title": "...", "context": "...", "prompt": "..." }] }. Each step's "prompt" should be a focused, executable instruction that Claude Code can run directly.`;
+const SYSTEM_PROMPT = `Decompose this goal into 3-7 sequential steps. Return ONLY JSON: { "goal": "...", "steps": [{ "step": 1, "title": "...", "context": "...", "prompt": "..." }] }. Each step's "prompt" should be a focused, executable instruction that Claude Code can run directly.
+${SECURITY_ANCHOR}`;
 
 export async function seer_workflow(
   goal: string,
@@ -52,12 +54,26 @@ export async function seer_workflow(
     });
   }
 
-  // 6. Token stats
+  // 6. Scan workflow steps for dangerous content + token stats
   const rawTokens = estimateTokens(goal);
   let optimizedTokens = 0;
   try {
     const parsed = JSON.parse(resultText);
     if (Array.isArray(parsed.steps)) {
+      // Check each step prompt for dangerous patterns
+      const hasDanger = parsed.steps.some(
+        (s: { prompt?: string }) => s.prompt && scanWorkflowStep(s.prompt)
+      );
+      if (hasDanger) {
+        await logSecurityIncident({
+          event_type: "workflow_danger",
+          source: "mcp",
+          user_id: user.id,
+          payload_snippet: goal,
+        });
+        return JSON.stringify({ error: "Processing failed." });
+      }
+
       // Sum tokens across all step prompts
       optimizedTokens = parsed.steps.reduce(
         (sum: number, s: { prompt?: string }) =>
