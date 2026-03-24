@@ -9,6 +9,7 @@ import {
   seer_memory,
   seer_status,
   seer_session_read,
+  seer_memory_run,
 } from "../tools/index.js";
 import { sanitizeInput, scanOutput, logSecurityIncident } from "../lib/security.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
@@ -136,6 +137,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     {},
     async () => ({
       content: [{ type: "text" as const, text: await seer_session_read(apiKey, surface) }],
+    })
+  );
+
+  server.tool(
+    "seer_memory_run",
+    "Initialize .seer_memory.md for the project. Scans project and creates memory file with all 6 sections.",
+    {},
+    async () => ({
+      content: [{ type: "text" as const, text: await seer_memory_run(apiKey, surface) }],
     })
   );
 

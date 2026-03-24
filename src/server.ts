@@ -9,6 +9,7 @@ import {
   seer_memory,
   seer_status,
   seer_session_read,
+  seer_memory_run,
 } from "./tools/index.js";
 import { sanitizeInput, scanOutput, logSecurityIncident } from "./lib/security.js";
 import { checkRateLimit } from "./lib/rate-limit.js";
@@ -146,7 +147,8 @@ If the user's message begins with the word "seer" (case-insensitive), you MUST c
 3. "seer workflow ..." → call seer_workflow (pass the text after "workflow" as the goal)
 4. "seer memory ..." → call seer_memory (pass the text after "memory" as the query)
 5. "seer session read" / "seer read session" / "seer capture session" / "seer save session" → call seer_session_read
-6. "seer <anything else>" → call seer_run (pass EVERYTHING after "seer" as the input, verbatim)
+6. "seer memory run" → call seer_memory_run (initializes .seer_memory.md for the project)
+7. "seer <anything else>" → call seer_run (pass EVERYTHING after "seer" as the input, verbatim)
 
 This applies even if "seer" looks like part of a sentence. The word "seer" at the start is ALWAYS a command prefix, never a noun. For example:
 - "seer calendar panel was in down, fix it" → call seer_run with input "calendar panel was in down, fix it"
@@ -260,6 +262,16 @@ After receiving the SEER tool response, execute the optimized instructions retur
     {},
     async () => ({
       content: [{ type: "text" as const, text: await seer_session_read(apiKey, surface) }],
+    })
+  );
+
+  // --- seer_memory_run: initialize project memory ---
+  server.tool(
+    "seer_memory_run",
+    "Initialize .seer_memory.md for the project. Use when user types 'seer memory run'. Scans the project and creates the memory file with all 6 sections.",
+    {},
+    async () => ({
+      content: [{ type: "text" as const, text: await seer_memory_run(apiKey, surface) }],
     })
   );
 
