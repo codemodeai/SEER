@@ -4,7 +4,7 @@ import { Suspense, useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Loader2, Mail, Lock, ArrowRight } from "lucide-react";
+import { Loader2, Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
   return (
@@ -21,6 +21,7 @@ function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(
     authError === "auth_failed" ? "Authentication failed. Please try again." : null
@@ -165,19 +166,34 @@ function LoginForm() {
               </div>
             </div>
             <div>
-              <label className="text-xs font-medium text-charcoal mb-1.5 block">
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-medium text-charcoal">
+                  Password
+                </label>
+                <Link
+                  href="/forgot-password"
+                  className="text-xs text-terracotta hover:text-terracotta-dark font-medium"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <div className="relative">
                 <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Your password"
                   required
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-sand bg-ivory text-sm text-charcoal placeholder:text-muted/60 focus:outline-none focus:border-terracotta focus:ring-2 focus:ring-terracotta/10 transition-all"
+                  className="w-full pl-10 pr-11 py-3 rounded-xl border border-sand bg-ivory text-sm text-charcoal placeholder:text-muted/60 focus:outline-none focus:border-terracotta focus:ring-2 focus:ring-terracotta/10 transition-all"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted hover:text-charcoal transition-colors"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
             </div>
 
