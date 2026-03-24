@@ -1,5 +1,6 @@
 import { authenticateUser, PLAN_LIMITS } from "../lib/auth.js";
 import { formatStatusResult } from "../lib/formatter.js";
+import { appendSuggestInstruction } from "../lib/suggest.js";
 
 export async function seer_status(apiKey: string): Promise<string> {
   const user = await authenticateUser(apiKey);
@@ -10,7 +11,7 @@ export async function seer_status(apiKey: string): Promise<string> {
   const limit = PLAN_LIMITS[user.plan] ?? 0;
   const remaining = Math.max(0, limit - user.usage_this_month);
 
-  return formatStatusResult({
+  const result = formatStatusResult({
     version: "1.2.0",
     plan: user.plan,
     usage_this_month: user.usage_this_month,
@@ -24,4 +25,6 @@ export async function seer_status(apiKey: string): Promise<string> {
       "seer workflow for setting up CI/CD",
     ],
   });
+
+  return appendSuggestInstruction(result, "seer_status", "status");
 }

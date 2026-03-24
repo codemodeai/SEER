@@ -1,5 +1,6 @@
 import { authenticateUser } from "../lib/auth.js";
 import { logSeerCall } from "../lib/logger.js";
+import { appendSuggestInstruction } from "../lib/suggest.js";
 
 const SESSION_READ_INSTRUCTION = `SEER INSTRUCTION — Read and capture this session to .seer_memory.md
 
@@ -58,5 +59,5 @@ export async function seer_session_read(
   // 3. Return the instruction for Claude to execute
   // Claude reads its own conversation and writes to .seer_memory.md
   // using the user's own API key — zero Haiku cost
-  return SESSION_READ_INSTRUCTION;
+  return appendSuggestInstruction(SESSION_READ_INSTRUCTION, "seer_session_read", "session read");
 }

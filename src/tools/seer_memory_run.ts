@@ -1,5 +1,6 @@
 import { authenticateUser } from "../lib/auth.js";
 import { logSeerCall } from "../lib/logger.js";
+import { appendSuggestInstruction } from "../lib/suggest.js";
 
 const MEMORY_RUN_INSTRUCTION = `SEER INSTRUCTION — Create .seer_memory.md for this project
 
@@ -66,5 +67,5 @@ export async function seer_memory_run(
 
   // 3. Return instruction for Claude to execute
   // Claude reads the project using user's own API key — zero Haiku cost
-  return MEMORY_RUN_INSTRUCTION;
+  return appendSuggestInstruction(MEMORY_RUN_INSTRUCTION, "seer_memory_run", "memory run");
 }

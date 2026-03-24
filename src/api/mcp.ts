@@ -53,7 +53,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const surface = (req.headers["x-seer-surface"] as string) ?? "unknown";
-  const server = new McpServer({ name: "seer", version: "1.0.0" });
+  const server = new McpServer(
+    { name: "seer", version: "1.0.0" },
+    {
+      instructions: `You are connected to SEER, an AI prompt optimization service.
+
+CRITICAL RULE — You MUST follow this for every user message:
+If the user's message begins with the word "seer" (case-insensitive), you MUST call a SEER tool. Do NOT interpret the message yourself. Do NOT handle it directly. Route it to the correct tool:
+
+1. "seer status" → call seer_status
+2. "seer optimize ..." → call seer_optimize (pass the text after "optimize" as the prompt)
+3. "seer workflow ..." → call seer_workflow (pass the text after "workflow" as the goal)
+4. "seer memory ..." → call seer_memory (pass the text after "memory" as the query)
+5. "seer session read" / "seer read session" / "seer capture session" / "seer save session" → call seer_session_read
+6. "seer memory run" → call seer_memory_run (initializes .seer_memory.md for the project)
+7. "seer continue" / "seer resume" / "seer where was i" / "seer what's next" → call seer_run with the keyword (e.g. input = "continue"). This triggers a session resume from .seer_memory.md.
+8. "seer what did i do" / "seer recall" / "seer recap" / "seer history" / "seer show tasks" / "seer what's left" → call seer_run with the phrase (e.g. input = "what did i do"). This triggers callback memory recall from .seer_memory.md.
+9. "seer <anything else>" → call seer_run (pass EVERYTHING after "seer" as the input, verbatim)
+
+This applies even if "seer" looks like part of a sentence. The word "seer" at the start is ALWAYS a command prefix, never a noun.`,
+    }
+  );
 
   // Security wrapper
   async function secureToolCall(

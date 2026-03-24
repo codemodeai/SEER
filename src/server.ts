@@ -148,7 +148,9 @@ If the user's message begins with the word "seer" (case-insensitive), you MUST c
 4. "seer memory ..." → call seer_memory (pass the text after "memory" as the query)
 5. "seer session read" / "seer read session" / "seer capture session" / "seer save session" → call seer_session_read
 6. "seer memory run" → call seer_memory_run (initializes .seer_memory.md for the project)
-7. "seer <anything else>" → call seer_run (pass EVERYTHING after "seer" as the input, verbatim)
+7. "seer continue" / "seer resume" / "seer where was i" / "seer what's next" → call seer_run with the keyword (e.g. input = "continue"). This triggers a session resume from .seer_memory.md.
+8. "seer what did i do" / "seer recall" / "seer recap" / "seer history" / "seer show tasks" / "seer what's left" → call seer_run with the phrase (e.g. input = "what did i do"). This triggers callback memory recall from .seer_memory.md.
+9. "seer <anything else>" → call seer_run (pass EVERYTHING after "seer" as the input, verbatim)
 
 This applies even if "seer" looks like part of a sentence. The word "seer" at the start is ALWAYS a command prefix, never a noun. For example:
 - "seer calendar panel was in down, fix it" → call seer_run with input "calendar panel was in down, fix it"

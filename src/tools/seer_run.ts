@@ -8,6 +8,82 @@ import { SECURITY_ANCHOR } from "../lib/security.js";
 import { checkNudge } from "../lib/nudge.js";
 import { detectReopen } from "../lib/reopen.js";
 import { appendMemoryLog } from "../lib/memory-log.js";
+import { appendSuggestInstruction } from "../lib/suggest.js";
+
+// --- Pattern matchers for zero-cost features (no Haiku call) ---
+
+const CONTINUE_PATTERNS = /^(continue|resume|pick up|where was i|where did i leave off|what's next|whats next)$/i;
+
+const CALLBACK_MEMORY_PATTERNS = /^(what did i do|what have i done|recall|recap|history|show memory|show session|what was my last task|what happened|summary|what did we do|what was i working on|last session|previous session|show progress|what's done|whats done|show tasks|open tasks|what's left|whats left|remaining tasks)$/i;
+
+const CONTINUE_INSTRUCTION = `SEER INSTRUCTION — Resume from where you left off
+
+Read .seer_memory.md from the project root. Then present a concise resume brief:
+
+1. **Last session:** What was last completed (from "## 2. Current Status" → last_completed)
+2. **Next action:** The planned next step (from "## 2. Current Status" → next_action)
+3. **Open tasks:** List uncompleted [ ] tasks from "## 4. Open Tasks" (max 5)
+4. **Recent log:** Last 3 entries from "## 5. Session Log"
+
+Format your response as:
+
+---
+**SEER — Session Resume**
+
+**Last completed:** [last_completed value]
+**Planned next:** [next_action value]
+
+**Open tasks:**
+- [ ] task 1
+- [ ] task 2
+...
+
+**Recent activity:**
+- [log entry 1]
+- [log entry 2]
+- [log entry 3]
+
+Ready to continue. What would you like to work on?
+
+---
+
+Rules:
+- If .seer_memory.md does NOT exist, respond: "No memory file found. Run \`seer memory run\` first to initialize project memory."
+- Be concise — this is a quick resume, not a full report
+- After presenting the brief, wait for the user's next instruction`;
+
+function buildCallbackInstruction(query: string): string {
+  const timestamp = new Date().toISOString().slice(0, 16) + "Z";
+  return `SEER INSTRUCTION — Answer from project memory (callback recall)
+
+The user asked: "${query}"
+
+Read .seer_memory.md from the project root. Search ALL sections to answer the user's question:
+
+- "## 2. Current Status" — for last completed work, next planned action, current phase
+- "## 4. Open Tasks" — for completed [x] and pending [ ] tasks
+- "## 5. Session Log" — for chronological history of what was done and when
+- "## 1. Project Overview" — for project name, goal, stack
+- "## 3. Architecture Decisions" — for technical decisions
+
+Respond naturally and concisely based on what the memory file contains. Examples:
+- "what did I do" → summarize recent Session Log entries
+- "recall" / "recap" → give a full status overview
+- "what's left" / "open tasks" → list uncompleted [ ] tasks
+- "last session" → summarize the most recent Session Log entry
+- "show progress" → show completed [x] vs remaining [ ] tasks
+
+Rules:
+- If .seer_memory.md does NOT exist, respond: "No memory file found. Run \`seer memory run\` first to initialize project memory."
+- Answer ONLY from what's in the memory file — do not guess or infer beyond its contents
+- Be concise and direct
+
+After answering, also update .seer_memory.md:
+1. Append under "## 5. Session Log": [${timestamp}] seer_callback_memory — ${query}
+2. Update "## 2. Current Status" → last_updated to ${timestamp}`;
+}
+
+// --- System prompts for Haiku compression ---
 
 const SYSTEM_PROMPT = `You are SEER, a prompt compressor. Rewrite the prompt to be shorter and more precise. NEVER make it longer.
 
@@ -41,6 +117,39 @@ export async function seer_run(
   const user = await authenticateUser(apiKey);
   if (!user) {
     return JSON.stringify({ error: "Invalid SEER key. Visit seer.ai" });
+  }
+
+  const trimmedInput = input.trim();
+
+  // 1b. Route "seer continue" — zero Haiku cost
+  if (CONTINUE_PATTERNS.test(trimmedInput)) {
+    await logSeerCall({
+      user_id: user.id,
+      raw_input: trimmedInput,
+      raw_tokens: 0,
+      optimized_tokens: 0,
+      tokens_saved: 0,
+      pct_saved: 0,
+      tool_used: "seer_continue",
+      surface,
+    });
+    return appendSuggestInstruction(CONTINUE_INSTRUCTION, "seer_continue", trimmedInput);
+  }
+
+  // 1c. Route callback memory recall — zero Haiku cost
+  if (CALLBACK_MEMORY_PATTERNS.test(trimmedInput)) {
+    await logSeerCall({
+      user_id: user.id,
+      raw_input: trimmedInput,
+      raw_tokens: 0,
+      optimized_tokens: 0,
+      tokens_saved: 0,
+      pct_saved: 0,
+      tool_used: "seer_callback_memory",
+      surface,
+    });
+    const instruction = buildCallbackInstruction(trimmedInput);
+    return appendSuggestInstruction(instruction, "seer_callback_memory", trimmedInput);
   }
 
   // 2. Check plan limit
