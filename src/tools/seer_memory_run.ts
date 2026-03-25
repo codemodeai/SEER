@@ -86,6 +86,6 @@ export async function seer_memory_run(
   });
 
   // 5. Return instruction for Claude to execute
-  const result = appendSuggestInstruction(MEMORY_RUN_INSTRUCTION, "seer_memory_run", "memory run", user.suggestion_skin ?? "default");
+  const result = appendSuggestInstruction(MEMORY_RUN_INSTRUCTION, "seer_memory_run", "memory run", user.suggestion_skin ?? "default", user.auto_suggest);
   return mfa.nudge ? result + mfa.nudge : result;
 }

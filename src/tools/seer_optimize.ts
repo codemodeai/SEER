@@ -111,7 +111,7 @@ export async function seer_optimize(
       pct_saved: pctSaved,
     });
     const finalResult = mfa.nudge ? result + mfa.nudge : result;
-    return appendMemoryLog(finalResult, "seer_optimize", prompt, user.suggestion_skin);
+    return appendMemoryLog(finalResult, "seer_optimize", prompt, user.suggestion_skin, user.auto_suggest);
   }
   const finalResult = mfa.nudge ? resultText + mfa.nudge : resultText;
   return appendMemoryLog(finalResult, "seer_optimize", prompt);

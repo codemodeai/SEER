@@ -116,9 +116,9 @@ export async function seer_workflow(
       },
     });
     const finalResult = mfa.nudge ? result + mfa.nudge : result;
-    return appendMemoryLog(finalResult, "seer_workflow", goal, user.suggestion_skin);
+    return appendMemoryLog(finalResult, "seer_workflow", goal, user.suggestion_skin, user.auto_suggest);
   } catch {
     const finalResult = mfa.nudge ? resultText + mfa.nudge : resultText;
-    return appendMemoryLog(finalResult, "seer_workflow", goal, user.suggestion_skin);
+    return appendMemoryLog(finalResult, "seer_workflow", goal, user.suggestion_skin, user.auto_suggest);
   }
 }

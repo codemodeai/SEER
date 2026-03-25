@@ -88,8 +88,14 @@ export function appendSuggestInstruction(
   toolResult: string,
   toolName: string,
   userInput: string,
-  skin: SuggestionSkin = "default"
+  skin: SuggestionSkin = "default",
+  autoSuggest: boolean = true
 ): string {
+  // Skip suggestions entirely when user has disabled auto-suggest
+  if (!autoSuggest) {
+    return toolResult;
+  }
+
   let instruction: string;
   switch (skin) {
     case "compact":
