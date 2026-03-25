@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import QRCode from "qrcode";
 
 export async function POST() {
   try {
@@ -21,9 +22,18 @@ export async function POST() {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
+    // Generate a proper PNG QR code from the otpauth:// URI
+    // Supabase returns an SVG data URI which some scanners can't read
+    const qrCodeDataUrl = await QRCode.toDataURL(data.totp.uri, {
+      width: 280,
+      margin: 2,
+      color: { dark: "#000000", light: "#ffffff" },
+      errorCorrectionLevel: "M",
+    });
+
     return NextResponse.json({
       factorId: data.id,
-      qrCode: data.totp.qr_code,
+      qrCode: qrCodeDataUrl,
       secret: data.totp.secret,
       uri: data.totp.uri,
     });

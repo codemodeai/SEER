@@ -195,13 +195,14 @@ export default function SecurityPage() {
             </p>
             {qrCode && (
               <div className="flex justify-center">
-                <div className="bg-white rounded-xl p-4 border border-sand/40 inline-block">
+                <div className="bg-white rounded-xl p-5 border border-sand/40 inline-block">
                   <img
                     src={qrCode}
                     alt="TOTP QR Code"
-                    width={200}
-                    height={200}
+                    width={250}
+                    height={250}
                     className="block"
+                    style={{ imageRendering: "pixelated" }}
                   />
                 </div>
               </div>
