@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase-browser";
+import { useDashboard } from "@/lib/dashboard-context";
 
 interface DayData { day: string; saved: number }
 
@@ -13,17 +14,17 @@ const ranges = [
 ] as const;
 
 export default function SavingsTrend() {
+  const { userId } = useDashboard();
   const [activeRange, setActiveRange] = useState<number>(30);
   const [data, setData] = useState<DayData[]>([]);
 
   useEffect(() => {
+    if (!userId) return;
+
     async function fetchData() {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
       const { data: result } = await supabase.rpc("daily_savings", {
-        uid: user.id,
+        uid: userId,
         days: activeRange,
       });
 
@@ -37,7 +38,7 @@ export default function SavingsTrend() {
       }
     }
     fetchData();
-  }, [activeRange]);
+  }, [userId, activeRange]);
 
   const maxVal = data.length > 0 ? Math.max(...data.map((d) => d.saved)) : 0;
   const totalSaved = data.reduce((s, d) => s + d.saved, 0);

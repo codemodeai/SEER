@@ -1,36 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase-browser";
+import { useDashboard } from "@/lib/dashboard-context";
 import { ShieldAlert, ArrowRight, X } from "lucide-react";
 
 export default function MfaBanner() {
-  const [show, setShow] = useState(false);
-  const [promptCount, setPromptCount] = useState(0);
+  const { mfaVerified, promptCount, loading } = useDashboard();
   const [dismissed, setDismissed] = useState(false);
 
-  useEffect(() => {
-    async function checkMfa() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data } = await supabase
-        .from("users")
-        .select("mfa_verified, prompt_count")
-        .eq("id", user.id)
-        .single();
-
-      if (data && !data.mfa_verified) {
-        setShow(true);
-        setPromptCount(data.prompt_count ?? 0);
-      }
-    }
-    checkMfa();
-  }, []);
-
-  if (!show || dismissed) return null;
+  if (loading || mfaVerified || dismissed) return null;
 
   const remaining = Math.max(0, 20 - promptCount);
   const urgent = remaining <= 5;

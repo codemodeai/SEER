@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase-browser";
+import { useDashboard } from "@/lib/dashboard-context";
 
 const TOOL_COLORS: Record<string, string> = {
   seer_run: "bg-terracotta",
@@ -14,16 +15,16 @@ const TOOL_COLORS: Record<string, string> = {
 interface ToolStat { name: string; calls: number; color: string }
 
 export default function FeatureBreakdown() {
+  const { userId } = useDashboard();
   const [tools, setTools] = useState<ToolStat[]>([]);
 
   useEffect(() => {
+    if (!userId) return;
+
     async function fetchData() {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
       const { data: logs } = await supabase
-        .from("seer_logs").select("tool_used").eq("user_id", user.id);
+        .from("seer_logs").select("tool_used").eq("user_id", userId);
 
       if (!logs || logs.length === 0) return;
 
@@ -41,7 +42,7 @@ export default function FeatureBreakdown() {
       setTools(sorted);
     }
     fetchData();
-  }, []);
+  }, [userId]);
 
   const total = tools.reduce((s, t) => s + t.calls, 0);
 

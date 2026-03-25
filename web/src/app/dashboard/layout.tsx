@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
 import { ThemeProvider, useTheme } from "@/lib/theme";
+import { DashboardProvider, useDashboard } from "@/lib/dashboard-context";
 import {
   LayoutDashboard,
   Download,
@@ -21,11 +22,13 @@ import {
   HelpCircle,
   Zap,
   ShieldCheck,
+  FileText,
 } from "lucide-react";
 
 const sidebarLinks = [
   { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
   { label: "Install Guide", href: "/dashboard/install", icon: Download },
+  { label: "Docs", href: "/dashboard/docs", icon: FileText },
   { label: "Guides", href: "/dashboard/guides", icon: PlayCircle },
   { label: "API Keys", href: "/dashboard/keys", icon: Key },
   { label: "Profile", href: "/dashboard/profile", icon: User },
@@ -46,49 +49,8 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, toggle } = useTheme();
-  const [plan, setPlan] = useState("free");
-  const [usage, setUsage] = useState(0);
-  const [userName, setUserName] = useState("");
+  const { userName, plan, usage } = useDashboard();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  useEffect(() => {
-    async function fetchUser() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const displayName =
-        user.user_metadata?.full_name ||
-        user.user_metadata?.name ||
-        user.email?.split("@")[0] ||
-        "User";
-      setUserName(displayName);
-
-      await fetch("/api/auth/setup-user", { method: "POST" });
-
-      const { data } = await supabase
-        .from("users")
-        .select("plan")
-        .eq("id", user.id)
-        .single();
-
-      if (data) {
-        setPlan(data.plan);
-      }
-
-      // Get real usage from seer_logs (current month)
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const { count } = await supabase
-        .from("seer_logs")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .gte("timestamp", monthStart);
-
-      setUsage(count ?? 0);
-    }
-    fetchUser();
-  }, []);
 
   async function handleLogout() {
     const supabase = createClient();
@@ -316,7 +278,9 @@ export default function DashboardLayout({
 }) {
   return (
     <ThemeProvider>
-      <DashboardContent>{children}</DashboardContent>
+      <DashboardProvider>
+        <DashboardContent>{children}</DashboardContent>
+      </DashboardProvider>
     </ThemeProvider>
   );
 }

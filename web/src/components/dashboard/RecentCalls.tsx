@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase-browser";
+import { useDashboard } from "@/lib/dashboard-context";
 
 interface LogEntry {
   id: string;
@@ -34,25 +35,25 @@ function timeAgo(timestamp: string): string {
 }
 
 export default function RecentCalls() {
+  const { userId } = useDashboard();
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
   useEffect(() => {
+    if (!userId) return;
+
     async function fetchLogs() {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
       const { data } = await supabase
         .from("seer_logs")
         .select("id, timestamp, raw_input, surface, raw_tokens, optimized_tokens, pct_saved")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .order("timestamp", { ascending: false })
         .limit(10);
 
       if (data) setLogs(data);
     }
     fetchLogs();
-  }, []);
+  }, [userId]);
 
   return (
     <div className="bg-ivory rounded-2xl border border-sand/60 p-6 overflow-hidden">

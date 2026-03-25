@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Zap, TrendingDown, Percent, Activity } from "lucide-react";
 import { createClient } from "@/lib/supabase-browser";
+import { useDashboard } from "@/lib/dashboard-context";
 
 const colorMap: Record<string, { bg: string; text: string; icon: string }> = {
   terracotta: { bg: "bg-terracotta/10", text: "text-terracotta", icon: "text-terracotta" },
@@ -14,6 +15,7 @@ const colorMap: Record<string, { bg: string; text: string; icon: string }> = {
 const PLAN_LIMITS: Record<string, number> = { free: 50, starter: 200, pro: 1000, agency: 99999 };
 
 export default function StatCards() {
+  const { userId, plan, usage } = useDashboard();
   const [stats, setStats] = useState([
     { label: "Total Seer Calls", value: "0", change: "No calls yet", icon: Zap, color: "terracotta" },
     { label: "Tokens Saved", value: "0", change: "Start using SEER", icon: TrendingDown, color: "accent-sage" },
@@ -22,33 +24,18 @@ export default function StatCards() {
   ]);
 
   useEffect(() => {
+    if (!userId) return;
+
     async function fetchStats() {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: userData } = await supabase
-        .from("users").select("plan").eq("id", user.id).single();
-
       const { data: logs } = await supabase
-        .from("seer_logs").select("tokens_saved, pct_saved").eq("user_id", user.id);
+        .from("seer_logs").select("tokens_saved, pct_saved").eq("user_id", userId);
 
       const totalCalls = logs?.length ?? 0;
       const totalSaved = logs?.reduce((s, l) => s + l.tokens_saved, 0) ?? 0;
       const avgPct = totalCalls > 0
         ? Math.round((logs?.reduce((s, l) => s + l.pct_saved, 0) ?? 0) / totalCalls) : 0;
-      const plan = userData?.plan ?? "free";
       const limit = PLAN_LIMITS[plan] ?? 50;
-
-      // Get real usage from seer_logs (current month)
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const { count } = await supabase
-        .from("seer_logs")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .gte("timestamp", monthStart);
-      const usage = count ?? 0;
 
       setStats([
         { label: "Total Seer Calls", value: totalCalls.toLocaleString(), change: totalCalls > 0 ? `${plan} plan` : "No calls yet", icon: Zap, color: "terracotta" },
@@ -58,7 +45,7 @@ export default function StatCards() {
       ]);
     }
     fetchStats();
-  }, []);
+  }, [userId, plan, usage]);
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

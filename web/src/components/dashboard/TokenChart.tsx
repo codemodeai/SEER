@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase-browser";
+import { useDashboard } from "@/lib/dashboard-context";
 
 interface CallData {
   id: string;
@@ -12,23 +13,24 @@ interface CallData {
 }
 
 export default function TokenChart() {
+  const { userId } = useDashboard();
   const [calls, setCalls] = useState<CallData[]>([]);
 
   useEffect(() => {
+    if (!userId) return;
+
     async function fetchCalls() {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
       const { data } = await supabase
         .from("seer_logs")
         .select("id, raw_tokens, optimized_tokens, raw_input")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .order("timestamp", { ascending: false })
         .limit(10);
       if (data) setCalls(data);
     }
     fetchCalls();
-  }, []);
+  }, [userId]);
 
   if (calls.length === 0) {
     return (

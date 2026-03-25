@@ -1,39 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { createClient } from "@/lib/supabase-browser";
+import { useDashboard } from "@/lib/dashboard-context";
 
 const PLAN_LIMITS: Record<string, number> = { free: 50, starter: 200, pro: 1000, agency: 99999 };
 
 export default function UsageGauge() {
-  const [used, setUsed] = useState(0);
-  const [limit, setLimit] = useState(50);
-  const [plan, setPlan] = useState("free");
-
-  useEffect(() => {
-    async function fetchUsage() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase
-        .from("users").select("plan").eq("id", user.id).single();
-      if (data) {
-        setPlan(data.plan);
-        setLimit(PLAN_LIMITS[data.plan] ?? 50);
-      }
-      // Get real usage from seer_logs
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const { count } = await supabase
-        .from("seer_logs")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .gte("timestamp", monthStart);
-      setUsed(count ?? 0);
-    }
-    fetchUsage();
-  }, []);
+  const { plan, usage: used } = useDashboard();
+  const limit = PLAN_LIMITS[plan] ?? 50;
 
   const pct = plan === "agency" ? 0 : Math.round((used / limit) * 100);
   const circumference = 2 * Math.PI * 70;
