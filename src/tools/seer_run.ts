@@ -9,6 +9,7 @@ import { checkNudge } from "../lib/nudge.js";
 import { detectReopen } from "../lib/reopen.js";
 import { appendMemoryLog } from "../lib/memory-log.js";
 import { appendSuggestInstruction } from "../lib/suggest.js";
+import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
 import { seer_tools } from "./seer_tools.js";
 
 // --- Pattern matchers for zero-cost features (no Haiku call) ---
@@ -129,8 +130,19 @@ export async function seer_run(
     return seer_tools(apiKey);
   }
 
-  // 1d. Route "seer continue" — zero Haiku cost
+  // 1c. MFA enforcement — one-time auth, soft nudge every 5, hard block at 20
+  const mfa = await checkMfa(user);
+  if (mfa.blocked) {
+    return getMfaBlockMessage();
+  }
+
+  // 1d. Route "seer continue" — 1 call, no Haiku cost
   if (CONTINUE_PATTERNS.test(trimmedInput)) {
+    const limit = PLAN_LIMITS[user.plan] ?? 0;
+    if (user.usage_this_month >= limit) {
+      return JSON.stringify({ error: `Limit reached (${user.usage_this_month}/${limit}). Upgrade at seer.ai/upgrade` });
+    }
+    await supabase.from("users").update({ usage_this_month: user.usage_this_month + 1 }).eq("id", user.id);
     await logSeerCall({
       user_id: user.id,
       raw_input: trimmedInput,
@@ -141,11 +153,17 @@ export async function seer_run(
       tool_used: "seer_continue",
       surface,
     });
-    return appendSuggestInstruction(CONTINUE_INSTRUCTION, "seer_continue", trimmedInput);
+    const continueResult = appendSuggestInstruction(CONTINUE_INSTRUCTION, "seer_continue", trimmedInput);
+    return mfa.nudge ? continueResult + mfa.nudge : continueResult;
   }
 
-  // 1e. Route callback memory recall — zero Haiku cost
+  // 1e. Route callback memory recall — 1 call, no Haiku cost
   if (CALLBACK_MEMORY_PATTERNS.test(trimmedInput)) {
+    const limit = PLAN_LIMITS[user.plan] ?? 0;
+    if (user.usage_this_month >= limit) {
+      return JSON.stringify({ error: `Limit reached (${user.usage_this_month}/${limit}). Upgrade at seer.ai/upgrade` });
+    }
+    await supabase.from("users").update({ usage_this_month: user.usage_this_month + 1 }).eq("id", user.id);
     await logSeerCall({
       user_id: user.id,
       raw_input: trimmedInput,
@@ -157,7 +175,8 @@ export async function seer_run(
       surface,
     });
     const instruction = buildCallbackInstruction(trimmedInput);
-    return appendSuggestInstruction(instruction, "seer_callback_memory", trimmedInput);
+    const callbackResult = appendSuggestInstruction(instruction, "seer_callback_memory", trimmedInput);
+    return mfa.nudge ? callbackResult + mfa.nudge : callbackResult;
   }
 
   // 2. Check plan limit
@@ -290,6 +309,11 @@ export async function seer_run(
     }
   } catch {
     // Nudge is best-effort
+  }
+
+  // 9. Append MFA nudge if applicable
+  if (mfa.nudge) {
+    finalResult += mfa.nudge;
   }
 
   return appendMemoryLog(finalResult, "seer_run", input);

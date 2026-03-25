@@ -1,6 +1,7 @@
 import { authenticateUser, PLAN_LIMITS } from "../lib/auth.js";
 import { supabase } from "../lib/supabase.js";
 import { getEmbedding, searchMemory } from "../lib/embeddings.js";
+import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
 
 export async function seer_memory(
   query: string,
@@ -11,6 +12,12 @@ export async function seer_memory(
   const user = await authenticateUser(apiKey);
   if (!user) {
     return JSON.stringify({ error: "Invalid SEER key. Visit seer.ai" });
+  }
+
+  // 1b. MFA enforcement
+  const mfa = await checkMfa(user);
+  if (mfa.blocked) {
+    return getMfaBlockMessage();
   }
 
   // 2. Plan gate — memory requires Pro+
@@ -54,7 +61,7 @@ export async function seer_memory(
   try {
     const results = await searchMemory(resolvedProjectId, embedding, 5);
 
-    return JSON.stringify({
+    const result = JSON.stringify({
       query,
       project_id: resolvedProjectId,
       results: results.map((r) => ({
@@ -64,6 +71,7 @@ export async function seer_memory(
       })),
       count: results.length,
     });
+    return mfa.nudge ? result + mfa.nudge : result;
   } catch (err) {
     return JSON.stringify({
       error: "Memory search failed.",

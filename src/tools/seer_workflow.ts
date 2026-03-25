@@ -5,6 +5,7 @@ import { logSeerCall } from "../lib/logger.js";
 import { formatWorkflowResult } from "../lib/formatter.js";
 import { SECURITY_ANCHOR, scanWorkflowStep, logSecurityIncident } from "../lib/security.js";
 import { appendMemoryLog } from "../lib/memory-log.js";
+import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
 
 const SYSTEM_PROMPT = `Decompose this goal into 3-7 sequential steps. Return ONLY JSON: { "goal": "...", "steps": [{ "step": 1, "title": "...", "context": "...", "prompt": "..." }] }. Each step's "prompt" should be a focused, executable instruction that Claude Code can run directly.
 ${SECURITY_ANCHOR}`;
@@ -18,6 +19,12 @@ export async function seer_workflow(
   const user = await authenticateUser(apiKey);
   if (!user) {
     return JSON.stringify({ error: "Invalid SEER key. Visit seer.ai" });
+  }
+
+  // 1b. MFA enforcement
+  const mfa = await checkMfa(user);
+  if (mfa.blocked) {
+    return getMfaBlockMessage();
   }
 
   // 2. Plan check — workflow requires starter+
@@ -108,8 +115,10 @@ export async function seer_workflow(
         usage: `${user.usage_this_month + 1}/${limit === Infinity ? "unlimited" : limit}`,
       },
     });
-    return appendMemoryLog(result, "seer_workflow", goal);
+    const finalResult = mfa.nudge ? result + mfa.nudge : result;
+    return appendMemoryLog(finalResult, "seer_workflow", goal);
   } catch {
-    return appendMemoryLog(resultText, "seer_workflow", goal);
+    const finalResult = mfa.nudge ? resultText + mfa.nudge : resultText;
+    return appendMemoryLog(finalResult, "seer_workflow", goal);
   }
 }

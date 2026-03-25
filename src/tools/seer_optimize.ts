@@ -5,6 +5,7 @@ import { logSeerCall } from "../lib/logger.js";
 import { formatOptimizeResult } from "../lib/formatter.js";
 import { SECURITY_ANCHOR } from "../lib/security.js";
 import { appendMemoryLog } from "../lib/memory-log.js";
+import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
 
 function systemPromptForModel(model: string): string {
   const modelHint =
@@ -36,6 +37,12 @@ export async function seer_optimize(
   const user = await authenticateUser(apiKey);
   if (!user) {
     return JSON.stringify({ error: "Invalid SEER key. Visit seer.ai" });
+  }
+
+  // 1b. MFA enforcement
+  const mfa = await checkMfa(user);
+  if (mfa.blocked) {
+    return getMfaBlockMessage();
   }
 
   // 2. Check limit
@@ -103,7 +110,9 @@ export async function seer_optimize(
       tokens_saved: tokensSaved,
       pct_saved: pctSaved,
     });
-    return appendMemoryLog(result, "seer_optimize", prompt);
+    const finalResult = mfa.nudge ? result + mfa.nudge : result;
+    return appendMemoryLog(finalResult, "seer_optimize", prompt);
   }
-  return appendMemoryLog(resultText, "seer_optimize", prompt);
+  const finalResult = mfa.nudge ? resultText + mfa.nudge : resultText;
+  return appendMemoryLog(finalResult, "seer_optimize", prompt);
 }

@@ -183,7 +183,7 @@ Content: Call the seer_status MCP tool to show current plan, usage, and remainin
             <QuickInstallBadge />
             <CopyBox
               label="Paste this in your terminal"
-              value={`claude mcp add seer --transport http --url https://mcp.seermcp.com/mcp --header "Authorization: Bearer ${key}" --header "x-seer-surface: claude-code"`}
+              value={`claude mcp add seer --transport http https://mcp.seermcp.com/mcp --header "Authorization: Bearer ${key}" --header "x-seer-surface: claude-code"`}
               highlight
             />
             <div className="bg-ivory rounded-2xl border border-sand/60 p-4 sm:p-5 space-y-3">
