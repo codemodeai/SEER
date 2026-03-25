@@ -9,7 +9,10 @@ export interface MfaCheckResult {
 const MFA_NUDGE_INTERVAL = 5;
 const MFA_HARD_BLOCK_AT = 20;
 
-const SOFT_NUDGE = `\n\n---\n**Secure your account** — Set up two-factor authentication in your [Dashboard → Security](https://seer.sh/dashboard/security) settings. It only takes 30 seconds.\n---`;
+function softNudge(count: number): string {
+  const remaining = MFA_HARD_BLOCK_AT - count;
+  return `\n\n---\n**Secure your account** (${count}/${MFA_HARD_BLOCK_AT} calls used) — Set up two-factor authentication in your [Dashboard → Security](https://seer.sh/dashboard/security) settings. ${remaining <= 5 ? `**Only ${remaining} calls left before SEER is blocked.**` : "It only takes 30 seconds."}\n---`;
+}
 
 const HARD_BLOCK = JSON.stringify({
   error: "MFA required",
@@ -21,7 +24,7 @@ const HARD_BLOCK = JSON.stringify({
 /**
  * Check MFA status and increment prompt_count.
  * - mfa_verified = true → always pass, no nudges, no blocks
- * - prompt_count 5/10/15 → soft nudge appended to result
+ * - prompt_count >= 5 and < 20 → soft nudge on every call
  * - prompt_count >= 20 → hard block
  */
 export async function checkMfa(user: SeerUser): Promise<MfaCheckResult> {
@@ -30,7 +33,7 @@ export async function checkMfa(user: SeerUser): Promise<MfaCheckResult> {
     return { blocked: false, nudge: null };
   }
 
-  const newCount = user.prompt_count + 1;
+  const newCount = (user.prompt_count ?? 0) + 1;
 
   // Increment prompt_count in DB
   await supabase
@@ -43,9 +46,9 @@ export async function checkMfa(user: SeerUser): Promise<MfaCheckResult> {
     return { blocked: true, nudge: null };
   }
 
-  // Soft nudge every 5 prompts (5, 10, 15)
-  if (newCount % MFA_NUDGE_INTERVAL === 0) {
-    return { blocked: false, nudge: SOFT_NUDGE };
+  // Soft nudge on every call from 5 onwards (5, 6, 7, ... 19)
+  if (newCount >= MFA_NUDGE_INTERVAL) {
+    return { blocked: false, nudge: softNudge(newCount) };
   }
 
   return { blocked: false, nudge: null };
