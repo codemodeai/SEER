@@ -30,13 +30,18 @@ export default function Footer() {
               Product
             </h4>
             <ul className="flex flex-col gap-2.5">
-              {["Features", "Pricing", "Dashboard", "Docs"].map((item) => (
-                <li key={item}>
+              {[
+                { label: "Features", href: "/#features" },
+                { label: "Pricing", href: "/#pricing" },
+                { label: "Dashboard", href: "/dashboard" },
+                { label: "Docs", href: "/docs" },
+              ].map((item) => (
+                <li key={item.label}>
                   <a
-                    href={`#${item.toLowerCase()}`}
+                    href={item.href}
                     className="text-sm hover:text-white transition-colors"
                   >
-                    {item}
+                    {item.label}
                   </a>
                 </li>
               ))}
