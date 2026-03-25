@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase-browser";
-import { User, Mail, Calendar, Shield, Zap, AlertTriangle, X, Loader2 } from "lucide-react";
+import { User, Mail, Calendar, Shield, Zap, AlertTriangle, X, Loader2, Sparkles } from "lucide-react";
 
 interface UserProfile {
   name: string;
@@ -13,6 +13,8 @@ interface UserProfile {
   apiKey: string;
   createdAt: string;
   provider: string;
+  suggestionSkin: "default" | "compact" | "focused";
+  autoSuggest: boolean;
 }
 
 const CANCEL_REASONS = [
@@ -41,7 +43,7 @@ export default function ProfilePage() {
 
       const { data } = await supabase
         .from("users")
-        .select("plan, seer_api_key, created_at")
+        .select("plan, seer_api_key, created_at, suggestion_skin, auto_suggest")
         .eq("id", user.id)
         .single();
 
@@ -71,6 +73,8 @@ export default function ProfilePage() {
         apiKey: data?.seer_api_key || "",
         createdAt: data?.created_at || user.created_at || "",
         provider,
+        suggestionSkin: data?.suggestion_skin || "default",
+        autoSuggest: data?.auto_suggest ?? true,
       });
       setLoading(false);
     }
@@ -109,6 +113,27 @@ export default function ProfilePage() {
       setCancelError("Network error. Please try again.");
     }
     setCancelling(false);
+  }
+
+  async function handleSkinChange(skin: "default" | "compact" | "focused") {
+    if (!profile || profile.suggestionSkin === skin) return;
+    setProfile({ ...profile, suggestionSkin: skin });
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from("users").update({ suggestion_skin: skin }).eq("id", user.id);
+    }
+  }
+
+  async function handleToggleAutoSuggest() {
+    if (!profile) return;
+    const newValue = !profile.autoSuggest;
+    setProfile({ ...profile, autoSuggest: newValue });
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from("users").update({ auto_suggest: newValue }).eq("id", user.id);
+    }
   }
 
   if (loading) {
@@ -202,6 +227,72 @@ export default function ProfilePage() {
             {profile.usage}
           </span>
           <span className="text-xs sm:text-sm text-muted">API calls</span>
+        </div>
+      </div>
+
+      {/* SEER Preferences */}
+      <div className="bg-ivory rounded-2xl border border-sand/60 p-4 sm:p-6 space-y-5">
+        <div className="flex items-center gap-2 mb-1">
+          <Sparkles size={16} className="sm:w-[18px] sm:h-[18px] text-terracotta" />
+          <h3 className="font-display text-base sm:text-lg text-charcoal">SEER Preferences</h3>
+        </div>
+
+        {/* Suggestion Skin */}
+        <div>
+          <label className="text-xs font-semibold text-charcoal block mb-1.5">
+            Suggestion Style
+          </label>
+          <p className="text-[11px] text-muted mb-2.5">
+            Controls how SEER shows next-step suggestions after each command.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {([
+              { key: "default" as const, label: "Default", desc: "3-5 suggestions" },
+              { key: "compact" as const, label: "Compact", desc: "3 inline" },
+              { key: "focused" as const, label: "Focused", desc: "1 top pick" },
+            ]).map((skin) => (
+              <button
+                key={skin.key}
+                onClick={() => handleSkinChange(skin.key)}
+                className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium border transition-all ${
+                  profile.suggestionSkin === skin.key
+                    ? "bg-terracotta text-white border-terracotta"
+                    : "bg-cream border-sand/60 text-warm-brown-light hover:border-terracotta/40"
+                }`}
+              >
+                <span className="block">{skin.label}</span>
+                <span className={`block text-[10px] mt-0.5 ${
+                  profile.suggestionSkin === skin.key ? "text-white/70" : "text-muted"
+                }`}>
+                  {skin.desc}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Auto-suggest toggle */}
+        <div className="flex items-center justify-between">
+          <div>
+            <label className="text-xs font-semibold text-charcoal block">
+              Auto-Suggest
+            </label>
+            <p className="text-[11px] text-muted mt-0.5">
+              Show suggestions after every SEER command.
+            </p>
+          </div>
+          <button
+            onClick={handleToggleAutoSuggest}
+            className={`relative w-11 h-6 rounded-full transition-colors ${
+              profile.autoSuggest ? "bg-terracotta" : "bg-sand"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                profile.autoSuggest ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
         </div>
       </div>
 
