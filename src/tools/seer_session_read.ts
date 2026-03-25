@@ -1,6 +1,8 @@
-import { authenticateUser } from "../lib/auth.js";
+import { authenticateUser, PLAN_LIMITS } from "../lib/auth.js";
+import { supabase } from "../lib/supabase.js";
 import { logSeerCall } from "../lib/logger.js";
 import { appendSuggestInstruction } from "../lib/suggest.js";
+import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
 
 const SESSION_READ_INSTRUCTION = `SEER INSTRUCTION — Read and capture this session to .seer_memory.md
 
@@ -38,13 +40,31 @@ export async function seer_session_read(
   apiKey: string,
   surface: string = "unknown"
 ): Promise<string> {
-  // 1. Validate user — all plans allowed including Free
+  // 1. Validate user
   const user = await authenticateUser(apiKey);
   if (!user) {
     return JSON.stringify({ error: "Invalid SEER key. Visit seer.ai" });
   }
 
-  // 2. Log the call — zero Haiku cost
+  // 1b. MFA enforcement
+  const mfa = await checkMfa(user);
+  if (mfa.blocked) {
+    return getMfaBlockMessage();
+  }
+
+  // 2. Check plan limit
+  const limit = PLAN_LIMITS[user.plan] ?? 0;
+  if (user.usage_this_month >= limit) {
+    return JSON.stringify({ error: `Limit reached (${user.usage_this_month}/${limit}). Upgrade at seer.ai/upgrade` });
+  }
+
+  // 3. Increment usage — 1 call
+  await supabase
+    .from("users")
+    .update({ usage_this_month: user.usage_this_month + 1 })
+    .eq("id", user.id);
+
+  // 4. Log the call
   await logSeerCall({
     user_id: user.id,
     raw_input: "seer session read",
@@ -56,8 +76,7 @@ export async function seer_session_read(
     surface,
   });
 
-  // 3. Return the instruction for Claude to execute
-  // Claude reads its own conversation and writes to .seer_memory.md
-  // using the user's own API key — zero Haiku cost
-  return appendSuggestInstruction(SESSION_READ_INSTRUCTION, "seer_session_read", "session read");
+  // 5. Return the instruction for Claude to execute
+  const result = appendSuggestInstruction(SESSION_READ_INSTRUCTION, "seer_session_read", "session read");
+  return mfa.nudge ? result + mfa.nudge : result;
 }

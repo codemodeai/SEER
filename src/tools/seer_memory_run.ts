@@ -1,6 +1,8 @@
-import { authenticateUser } from "../lib/auth.js";
+import { authenticateUser, PLAN_LIMITS } from "../lib/auth.js";
+import { supabase } from "../lib/supabase.js";
 import { logSeerCall } from "../lib/logger.js";
 import { appendSuggestInstruction } from "../lib/suggest.js";
+import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
 
 const MEMORY_RUN_INSTRUCTION = `SEER INSTRUCTION — Create .seer_memory.md for this project
 
@@ -47,13 +49,31 @@ export async function seer_memory_run(
   apiKey: string,
   surface: string = "unknown"
 ): Promise<string> {
-  // 1. Validate user — all plans allowed including Free
+  // 1. Validate user
   const user = await authenticateUser(apiKey);
   if (!user) {
     return JSON.stringify({ error: "Invalid SEER key. Visit seer.ai" });
   }
 
-  // 2. Log the call — zero Haiku cost
+  // 1b. MFA enforcement
+  const mfa = await checkMfa(user);
+  if (mfa.blocked) {
+    return getMfaBlockMessage();
+  }
+
+  // 2. Check plan limit
+  const limit = PLAN_LIMITS[user.plan] ?? 0;
+  if (user.usage_this_month >= limit) {
+    return JSON.stringify({ error: `Limit reached (${user.usage_this_month}/${limit}). Upgrade at seer.ai/upgrade` });
+  }
+
+  // 3. Increment usage — 1 call
+  await supabase
+    .from("users")
+    .update({ usage_this_month: user.usage_this_month + 1 })
+    .eq("id", user.id);
+
+  // 4. Log the call
   await logSeerCall({
     user_id: user.id,
     raw_input: "seer memory run",
@@ -65,7 +85,7 @@ export async function seer_memory_run(
     surface,
   });
 
-  // 3. Return instruction for Claude to execute
-  // Claude reads the project using user's own API key — zero Haiku cost
-  return appendSuggestInstruction(MEMORY_RUN_INSTRUCTION, "seer_memory_run", "memory run");
+  // 5. Return instruction for Claude to execute
+  const result = appendSuggestInstruction(MEMORY_RUN_INSTRUCTION, "seer_memory_run", "memory run");
+  return mfa.nudge ? result + mfa.nudge : result;
 }
