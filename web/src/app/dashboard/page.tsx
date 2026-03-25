@@ -4,6 +4,7 @@ import TokenChart from "@/components/dashboard/TokenChart";
 import SavingsTrend from "@/components/dashboard/SavingsTrend";
 import FeatureBreakdown from "@/components/dashboard/FeatureBreakdown";
 import RecentCalls from "@/components/dashboard/RecentCalls";
+import MfaBanner from "@/components/dashboard/MfaBanner";
 
 export default function DashboardPage() {
   return (
@@ -17,6 +18,9 @@ export default function DashboardPage() {
           Your SEER usage overview and analytics.
         </p>
       </div>
+
+      {/* MFA Banner — shows until user completes MFA, then auto-hides */}
+      <MfaBanner />
 
       {/* Stat cards */}
       <StatCards />
