@@ -154,7 +154,7 @@ export async function seer_run(
       tool_used: "seer_continue",
       surface,
     });
-    const continueResult = appendSuggestInstruction(CONTINUE_INSTRUCTION, "seer_continue", trimmedInput);
+    const continueResult = appendSuggestInstruction(CONTINUE_INSTRUCTION, "seer_continue", trimmedInput, user.suggestion_skin);
     return mfa.nudge ? continueResult + mfa.nudge : continueResult;
   }
 
@@ -176,7 +176,7 @@ export async function seer_run(
       surface,
     });
     const instruction = buildCallbackInstruction(trimmedInput);
-    const callbackResult = appendSuggestInstruction(instruction, "seer_callback_memory", trimmedInput);
+    const callbackResult = appendSuggestInstruction(instruction, "seer_callback_memory", trimmedInput, user.suggestion_skin);
     return mfa.nudge ? callbackResult + mfa.nudge : callbackResult;
   }
 
@@ -333,5 +333,5 @@ export async function seer_run(
     }
   }
 
-  return appendMemoryLog(finalResult, "seer_run", input);
+  return appendMemoryLog(finalResult, "seer_run", input, user.suggestion_skin);
 }

@@ -77,6 +77,6 @@ export async function seer_session_read(
   });
 
   // 5. Return the instruction for Claude to execute
-  const result = appendSuggestInstruction(SESSION_READ_INSTRUCTION, "seer_session_read", "session read");
+  const result = appendSuggestInstruction(SESSION_READ_INSTRUCTION, "seer_session_read", "session read", user.suggestion_skin ?? "default");
   return mfa.nudge ? result + mfa.nudge : result;
 }

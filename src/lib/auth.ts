@@ -8,6 +8,7 @@ export interface SeerUser {
   ai_preference: string;
   last_nudge_at: string | null;
   auto_suggest: boolean;
+  suggestion_skin: "default" | "compact" | "focused";
   mfa_verified: boolean;
   prompt_count: number;
 }
@@ -19,7 +20,7 @@ export async function authenticateUser(
 
   const { data, error } = await supabase
     .from("users")
-    .select("id, email, plan, usage_this_month, ai_preference, last_nudge_at, auto_suggest, mfa_verified, prompt_count")
+    .select("id, email, plan, usage_this_month, ai_preference, last_nudge_at, auto_suggest, suggestion_skin, mfa_verified, prompt_count")
     .eq("seer_api_key", apiKey)
     .single();
 

@@ -26,5 +26,5 @@ export async function seer_status(apiKey: string): Promise<string> {
     ],
   });
 
-  return appendSuggestInstruction(result, "seer_status", "status");
+  return appendSuggestInstruction(result, "seer_status", "status", user.suggestion_skin ?? "default");
 }
