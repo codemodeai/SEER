@@ -10,6 +10,7 @@ import { detectReopen } from "../lib/reopen.js";
 import { appendMemoryLog } from "../lib/memory-log.js";
 import { appendSuggestInstruction } from "../lib/suggest.js";
 import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
+import { detectMarkDone } from "../lib/mark-done.js";
 import { seer_tools } from "./seer_tools.js";
 
 // --- Pattern matchers for zero-cost features (no Haiku call) ---
@@ -198,6 +199,7 @@ export async function seer_run(
   // 4. Inject memory context for Pro+ users
   let contextSnippet = "";
   let completedTasks: string[] = [];
+  let openTasks: string[] = [];
   const hasPro = user.plan === "pro" || user.plan === "agency";
   if (hasPro) {
     try {
@@ -219,11 +221,18 @@ export async function seer_run(
             memories.map((m) => `- ${m.content}`).join("\n");
 
           // Extract completed tasks for re-open detection
+          // Extract open tasks for mark-done detection
           for (const m of memories) {
-            const matches = m.content.match(/- \[x\] (.+)/gi);
-            if (matches) {
+            const completedMatches = m.content.match(/- \[x\] (.+)/gi);
+            if (completedMatches) {
               completedTasks.push(
-                ...matches.map((match) => match.replace(/- \[x\] /i, "").trim())
+                ...completedMatches.map((match) => match.replace(/- \[x\] /i, "").trim())
+              );
+            }
+            const openMatches = m.content.match(/- \[ \] (.+)/gi);
+            if (openMatches) {
+              openTasks.push(
+                ...openMatches.map((match) => match.replace(/- \[ \] /i, "").trim())
               );
             }
           }
@@ -314,6 +323,14 @@ export async function seer_run(
   // 9. Append MFA nudge if applicable
   if (mfa.nudge) {
     finalResult += mfa.nudge;
+  }
+
+  // 10. Feature-completion "mark done?" prompt
+  if (openTasks.length > 0) {
+    const markDone = detectMarkDone(input, openTasks);
+    if (markDone.shouldPrompt && markDone.markDoneInstruction) {
+      finalResult += markDone.markDoneInstruction;
+    }
   }
 
   return appendMemoryLog(finalResult, "seer_run", input);
