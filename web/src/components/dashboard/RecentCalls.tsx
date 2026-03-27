@@ -43,13 +43,17 @@ export default function RecentCalls() {
 
     async function fetchLogs() {
       const supabase = createClient();
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("seer_logs")
         .select("id, timestamp, raw_input, surface, raw_tokens, optimized_tokens, pct_saved")
         .eq("user_id", userId)
         .order("timestamp", { ascending: false })
         .limit(10);
 
+      if (error) {
+        console.error("RecentCalls: failed to fetch logs", error);
+        return;
+      }
       if (data) setLogs(data);
     }
     fetchLogs();

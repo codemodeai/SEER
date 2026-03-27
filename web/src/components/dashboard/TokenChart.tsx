@@ -21,12 +21,17 @@ export default function TokenChart() {
 
     async function fetchCalls() {
       const supabase = createClient();
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("seer_logs")
         .select("id, raw_tokens, optimized_tokens, raw_input")
         .eq("user_id", userId)
         .order("timestamp", { ascending: false })
         .limit(10);
+
+      if (error) {
+        console.error("TokenChart: failed to fetch calls", error);
+        return;
+      }
       if (data) setCalls(data);
     }
     fetchCalls();

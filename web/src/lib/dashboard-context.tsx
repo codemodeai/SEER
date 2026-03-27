@@ -68,6 +68,13 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           .gte("timestamp", new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
       ]);
 
+      if (userData.error) {
+        console.error("Dashboard: failed to fetch user data", userData.error);
+      }
+      if (usageData.error) {
+        console.error("Dashboard: failed to fetch usage data", usageData.error);
+      }
+
       setData({
         userId: user.id,
         userName: displayName,

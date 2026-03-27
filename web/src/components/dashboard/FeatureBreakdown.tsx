@@ -23,9 +23,13 @@ export default function FeatureBreakdown() {
 
     async function fetchData() {
       const supabase = createClient();
-      const { data: logs } = await supabase
+      const { data: logs, error } = await supabase
         .from("seer_logs").select("tool_used").eq("user_id", userId);
 
+      if (error) {
+        console.error("FeatureBreakdown: failed to fetch logs", error);
+        return;
+      }
       if (!logs || logs.length === 0) return;
 
       const counts: Record<string, number> = {};

@@ -28,8 +28,13 @@ export default function StatCards() {
 
     async function fetchStats() {
       const supabase = createClient();
-      const { data: logs } = await supabase
+      const { data: logs, error } = await supabase
         .from("seer_logs").select("tokens_saved, pct_saved").eq("user_id", userId);
+
+      if (error) {
+        console.error("StatCards: failed to fetch stats", error);
+        return;
+      }
 
       const totalCalls = logs?.length ?? 0;
       const totalSaved = logs?.reduce((s, l) => s + l.tokens_saved, 0) ?? 0;

@@ -23,11 +23,16 @@ export default function SavingsTrend() {
 
     async function fetchData() {
       const supabase = createClient();
-      const { data: result } = await supabase.rpc("daily_savings", {
+      const { data: result, error } = await supabase.rpc("daily_savings", {
         uid: userId,
         days: activeRange,
       });
 
+      if (error) {
+        console.error("SavingsTrend: failed to fetch savings", error);
+        setData([]);
+        return;
+      }
       if (result) {
         setData(result.map((r: { day: string; total_saved: number }) => ({
           day: new Date(r.day).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
