@@ -41,20 +41,28 @@ export default function ProfilePage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setLoading(false); return; }
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("users")
         .select("plan, seer_api_key, created_at, suggestion_skin, auto_suggest")
         .eq("id", user.id)
         .single();
 
+      if (error) {
+        console.error("Profile: failed to fetch user data", error);
+      }
+
       // Get real usage from seer_logs (current month)
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const { count } = await supabase
+      const { count, error: usageError } = await supabase
         .from("seer_logs")
         .select("id", { count: "exact", head: true })
         .eq("user_id", user.id)
         .gte("timestamp", monthStart);
+
+      if (usageError) {
+        console.error("Profile: failed to fetch usage", usageError);
+      }
 
       const name =
         user.user_metadata?.full_name ||

@@ -55,7 +55,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
-    router.push("/login");
+    window.location.href = "/login";
   }
 
   const limit = PLAN_LIMITS[plan] ?? 50;
