@@ -22,14 +22,20 @@ export default function SecurityPage() {
     async function fetchStatus() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setStep("status");
+        return;
+      }
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("users")
         .select("mfa_verified, prompt_count")
         .eq("id", user.id)
         .single();
 
+      if (error) {
+        console.error("Security: failed to fetch user data", error);
+      }
       if (data) {
         setMfaVerified(data.mfa_verified ?? false);
         setPromptCount(data.prompt_count ?? 0);
