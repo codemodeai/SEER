@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { createClient } from "@/lib/supabase-browser";
 import { useDashboard } from "@/lib/dashboard-context";
 
 interface DayData { day: string; saved: number }
@@ -22,23 +21,18 @@ export default function SavingsTrend() {
     if (!userId) return;
 
     async function fetchData() {
-      const supabase = createClient();
-      const { data: result, error } = await supabase.rpc("daily_savings", {
-        uid: userId,
-        days: activeRange,
-      });
+      try {
+        const res = await fetch(`/api/dashboard/logs?days=${activeRange}`);
+        if (!res.ok) return;
+        const json = await res.json();
+        const result = json.dailySavings ?? [];
 
-      if (error) {
-        console.error("SavingsTrend: failed to fetch savings", error);
-        setData([]);
-        return;
-      }
-      if (result) {
         setData(result.map((r: { day: string; total_saved: number }) => ({
           day: new Date(r.day).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
           saved: Number(r.total_saved),
         })));
-      } else {
+      } catch (err) {
+        console.error("SavingsTrend: failed to fetch", err);
         setData([]);
       }
     }

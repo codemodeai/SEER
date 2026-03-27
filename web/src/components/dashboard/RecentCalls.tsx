@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { createClient } from "@/lib/supabase-browser";
 import { useDashboard } from "@/lib/dashboard-context";
 
 interface LogEntry {
@@ -42,19 +41,14 @@ export default function RecentCalls() {
     if (!userId) return;
 
     async function fetchLogs() {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("seer_logs")
-        .select("id, timestamp, raw_input, surface, raw_tokens, optimized_tokens, pct_saved")
-        .eq("user_id", userId)
-        .order("timestamp", { ascending: false })
-        .limit(10);
-
-      if (error) {
-        console.error("RecentCalls: failed to fetch logs", error);
-        return;
+      try {
+        const res = await fetch("/api/dashboard/logs");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.recent) setLogs(data.recent);
+      } catch (err) {
+        console.error("RecentCalls: failed to fetch", err);
       }
-      if (data) setLogs(data);
     }
     fetchLogs();
   }, [userId]);

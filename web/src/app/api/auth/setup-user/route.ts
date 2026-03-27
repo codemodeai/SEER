@@ -36,17 +36,36 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    // Check if user record already exists
     const admin = getSupabaseAdmin();
+
+    // Get display name from auth metadata
+    const displayName =
+      user.user_metadata?.full_name ||
+      user.user_metadata?.name ||
+      user.email?.split("@")[0] ||
+      "User";
+
+    // Check if user record already exists
     const { data: existing } = await admin
       .from("users")
-      .select("id, seer_api_key, plan")
+      .select("id, seer_api_key, plan, mfa_verified, prompt_count, created_at, suggestion_skin, auto_suggest")
       .eq("id", user.id)
       .single();
 
+    // Get usage count for current month
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const { count: usageCount } = await admin
+      .from("seer_logs")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .gte("timestamp", monthStart);
+
     if (existing) {
+      let currentPlan = existing.plan;
+
       // Self-heal: check if user has an active subscription but wrong plan
-      if (existing.plan === "free") {
+      if (currentPlan === "free") {
         const { data: activeSub } = await admin
           .from("subscriptions")
           .select("plan")
@@ -60,43 +79,43 @@ export async function POST(req: NextRequest) {
             .from("users")
             .update({ plan: activeSub.plan })
             .eq("id", user.id);
+          currentPlan = activeSub.plan;
+        } else {
+          // Also check paid invoices as fallback
+          const { data: latestInvoice } = await admin
+            .from("invoices")
+            .select("plan")
+            .eq("user_id", user.id)
+            .eq("status", "paid")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .single();
 
-          return NextResponse.json({
-            seer_api_key: existing.seer_api_key,
-            plan: activeSub.plan,
-            message: "Plan restored from active subscription",
-          });
-        }
-
-        // Also check paid invoices as fallback
-        const { data: latestInvoice } = await admin
-          .from("invoices")
-          .select("plan")
-          .eq("user_id", user.id)
-          .eq("status", "paid")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
-
-        if (latestInvoice && latestInvoice.plan !== "free") {
-          console.warn(`Self-healing: User ${user.id} has paid ${latestInvoice.plan} invoice but plan is "free". Fixing.`);
-          await admin
-            .from("users")
-            .update({ plan: latestInvoice.plan })
-            .eq("id", user.id);
-
-          return NextResponse.json({
-            seer_api_key: existing.seer_api_key,
-            plan: latestInvoice.plan,
-            message: "Plan restored from paid invoice",
-          });
+          if (latestInvoice && latestInvoice.plan !== "free") {
+            console.warn(`Self-healing: User ${user.id} has paid ${latestInvoice.plan} invoice but plan is "free". Fixing.`);
+            await admin
+              .from("users")
+              .update({ plan: latestInvoice.plan })
+              .eq("id", user.id);
+            currentPlan = latestInvoice.plan;
+          }
         }
       }
 
       return NextResponse.json({
-        seer_api_key: existing.seer_api_key,
-        plan: existing.plan,
-        message: "User already exists",
+        userId: user.id,
+        userName: displayName,
+        email: user.email,
+        avatar: user.user_metadata?.avatar_url || "",
+        provider: user.app_metadata?.provider || "email",
+        plan: currentPlan,
+        usage: usageCount ?? 0,
+        mfaVerified: existing.mfa_verified ?? false,
+        promptCount: existing.prompt_count ?? 0,
+        seerApiKey: existing.seer_api_key,
+        createdAt: existing.created_at,
+        suggestionSkin: existing.suggestion_skin || "default",
+        autoSuggest: existing.auto_suggest ?? true,
       });
     }
 
@@ -119,7 +138,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
     }
 
-    return NextResponse.json({ seer_api_key: seerApiKey, plan });
+    return NextResponse.json({
+      userId: user.id,
+      userName: displayName,
+      email: user.email,
+      avatar: user.user_metadata?.avatar_url || "",
+      provider: user.app_metadata?.provider || "email",
+      plan,
+      usage: usageCount ?? 0,
+      mfaVerified: false,
+      promptCount: 0,
+      seerApiKey,
+      createdAt: new Date().toISOString(),
+      suggestionSkin: "default",
+      autoSuggest: true,
+    });
   } catch (err) {
     console.error("Setup user error:", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });

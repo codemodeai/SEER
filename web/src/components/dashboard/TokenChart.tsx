@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { createClient } from "@/lib/supabase-browser";
 import { useDashboard } from "@/lib/dashboard-context";
 
 interface CallData {
@@ -20,19 +19,14 @@ export default function TokenChart() {
     if (!userId) return;
 
     async function fetchCalls() {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("seer_logs")
-        .select("id, raw_tokens, optimized_tokens, raw_input")
-        .eq("user_id", userId)
-        .order("timestamp", { ascending: false })
-        .limit(10);
-
-      if (error) {
-        console.error("TokenChart: failed to fetch calls", error);
-        return;
+      try {
+        const res = await fetch("/api/dashboard/logs");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.recent) setCalls(data.recent);
+      } catch (err) {
+        console.error("TokenChart: failed to fetch", err);
       }
-      if (data) setCalls(data);
     }
     fetchCalls();
   }, [userId]);

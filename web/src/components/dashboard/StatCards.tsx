@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Zap, TrendingDown, Percent, Activity } from "lucide-react";
-import { createClient } from "@/lib/supabase-browser";
 import { useDashboard } from "@/lib/dashboard-context";
 
 const colorMap: Record<string, { bg: string; text: string; icon: string }> = {
@@ -27,27 +26,27 @@ export default function StatCards() {
     if (!userId) return;
 
     async function fetchStats() {
-      const supabase = createClient();
-      const { data: logs, error } = await supabase
-        .from("seer_logs").select("tokens_saved, pct_saved").eq("user_id", userId);
+      try {
+        const res = await fetch("/api/dashboard/logs");
+        if (!res.ok) return;
+        const data = await res.json();
+        const logs = data.allLogs ?? [];
 
-      if (error) {
-        console.error("StatCards: failed to fetch stats", error);
-        return;
+        const totalCalls = logs.length;
+        const totalSaved = logs.reduce((s: number, l: { tokens_saved: number }) => s + l.tokens_saved, 0);
+        const avgPct = totalCalls > 0
+          ? Math.round(logs.reduce((s: number, l: { pct_saved: number }) => s + l.pct_saved, 0) / totalCalls) : 0;
+        const limit = PLAN_LIMITS[plan] ?? 50;
+
+        setStats([
+          { label: "Total Seer Calls", value: totalCalls.toLocaleString(), change: totalCalls > 0 ? `${plan} plan` : "No calls yet", icon: Zap, color: "terracotta" },
+          { label: "Tokens Saved", value: totalSaved.toLocaleString(), change: totalSaved > 0 ? `~$${(totalSaved * 0.0015).toFixed(2)} saved` : "Start using SEER", icon: TrendingDown, color: "accent-sage" },
+          { label: "Avg. Optimization", value: `${avgPct}%`, change: totalCalls > 0 ? `across ${totalCalls} calls` : "—", icon: Percent, color: "accent-gold" },
+          { label: "Plan Usage", value: plan === "agency" ? `${usage} / ∞` : `${usage} / ${limit.toLocaleString()}`, change: plan === "agency" ? "Unlimited" : `${(limit - usage).toLocaleString()} remaining`, icon: Activity, color: "terracotta" },
+        ]);
+      } catch (err) {
+        console.error("StatCards: failed to fetch", err);
       }
-
-      const totalCalls = logs?.length ?? 0;
-      const totalSaved = logs?.reduce((s, l) => s + l.tokens_saved, 0) ?? 0;
-      const avgPct = totalCalls > 0
-        ? Math.round((logs?.reduce((s, l) => s + l.pct_saved, 0) ?? 0) / totalCalls) : 0;
-      const limit = PLAN_LIMITS[plan] ?? 50;
-
-      setStats([
-        { label: "Total Seer Calls", value: totalCalls.toLocaleString(), change: totalCalls > 0 ? `${plan} plan` : "No calls yet", icon: Zap, color: "terracotta" },
-        { label: "Tokens Saved", value: totalSaved.toLocaleString(), change: totalSaved > 0 ? `~$${(totalSaved * 0.0015).toFixed(2)} saved` : "Start using SEER", icon: TrendingDown, color: "accent-sage" },
-        { label: "Avg. Optimization", value: `${avgPct}%`, change: totalCalls > 0 ? `across ${totalCalls} calls` : "—", icon: Percent, color: "accent-gold" },
-        { label: "Plan Usage", value: plan === "agency" ? `${usage} / ∞` : `${usage} / ${limit.toLocaleString()}`, change: plan === "agency" ? "Unlimited" : `${(limit - usage).toLocaleString()} remaining`, icon: Activity, color: "terracotta" },
-      ]);
     }
     fetchStats();
   }, [userId, plan, usage]);

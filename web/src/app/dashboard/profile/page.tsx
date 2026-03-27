@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase-browser";
 import { User, Mail, Calendar, Shield, Zap, AlertTriangle, X, Loader2, Sparkles } from "lucide-react";
 
 interface UserProfile {
@@ -37,53 +36,31 @@ export default function ProfilePage() {
 
   useEffect(() => {
     async function fetchProfile() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setLoading(false); return; }
+      try {
+        const res = await fetch("/api/auth/setup-user", { method: "POST" });
+        if (!res.ok) {
+          console.error("Profile: setup-user failed", res.status);
+          setLoading(false);
+          return;
+        }
 
-      const { data, error } = await supabase
-        .from("users")
-        .select("plan, seer_api_key, created_at, suggestion_skin, auto_suggest")
-        .eq("id", user.id)
-        .single();
+        const data = await res.json();
 
-      if (error) {
-        console.error("Profile: failed to fetch user data", error);
+        setProfile({
+          name: data.userName || "User",
+          email: data.email || "",
+          avatar: data.avatar || "",
+          plan: data.plan || "free",
+          usage: data.usage ?? 0,
+          apiKey: data.seerApiKey || "",
+          createdAt: data.createdAt || "",
+          provider: data.provider || "email",
+          suggestionSkin: data.suggestionSkin || "default",
+          autoSuggest: data.autoSuggest ?? true,
+        });
+      } catch (err) {
+        console.error("Profile: failed to fetch", err);
       }
-
-      // Get real usage from seer_logs (current month)
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const { count, error: usageError } = await supabase
-        .from("seer_logs")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .gte("timestamp", monthStart);
-
-      if (usageError) {
-        console.error("Profile: failed to fetch usage", usageError);
-      }
-
-      const name =
-        user.user_metadata?.full_name ||
-        user.user_metadata?.name ||
-        user.email?.split("@")[0] ||
-        "User";
-
-      const provider = user.app_metadata?.provider || "email";
-
-      setProfile({
-        name,
-        email: user.email || "",
-        avatar: user.user_metadata?.avatar_url || "",
-        plan: data?.plan || "free",
-        usage: count ?? 0,
-        apiKey: data?.seer_api_key || "",
-        createdAt: data?.created_at || user.created_at || "",
-        provider,
-        suggestionSkin: data?.suggestion_skin || "default",
-        autoSuggest: data?.auto_suggest ?? true,
-      });
       setLoading(false);
     }
     fetchProfile();
@@ -126,22 +103,22 @@ export default function ProfilePage() {
   async function handleSkinChange(skin: "default" | "compact" | "focused") {
     if (!profile || profile.suggestionSkin === skin) return;
     setProfile({ ...profile, suggestionSkin: skin });
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      await supabase.from("users").update({ suggestion_skin: skin }).eq("id", user.id);
-    }
+    await fetch("/api/auth/update-preferences", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ suggestion_skin: skin }),
+    });
   }
 
   async function handleToggleAutoSuggest() {
     if (!profile) return;
     const newValue = !profile.autoSuggest;
     setProfile({ ...profile, autoSuggest: newValue });
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      await supabase.from("users").update({ auto_suggest: newValue }).eq("id", user.id);
-    }
+    await fetch("/api/auth/update-preferences", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ auto_suggest: newValue }),
+    });
   }
 
   if (loading) {

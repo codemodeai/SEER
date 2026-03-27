@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase-browser";
 import { Shield, ShieldCheck, Loader2, Copy, Check, AlertTriangle } from "lucide-react";
 
 type Step = "loading" | "status" | "enroll" | "verify" | "done";
@@ -20,25 +19,18 @@ export default function SecurityPage() {
 
   useEffect(() => {
     async function fetchStatus() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setStep("status");
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("users")
-        .select("mfa_verified, prompt_count")
-        .eq("id", user.id)
-        .single();
-
-      if (error) {
-        console.error("Security: failed to fetch user data", error);
-      }
-      if (data) {
-        setMfaVerified(data.mfa_verified ?? false);
-        setPromptCount(data.prompt_count ?? 0);
+      try {
+        const res = await fetch("/api/auth/setup-user", { method: "POST" });
+        if (!res.ok) {
+          console.error("Security: setup-user failed", res.status);
+          setStep("status");
+          return;
+        }
+        const data = await res.json();
+        setMfaVerified(data.mfaVerified ?? false);
+        setPromptCount(data.promptCount ?? 0);
+      } catch (err) {
+        console.error("Security: failed to fetch", err);
       }
       setStep("status");
     }

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { createClient } from "@/lib/supabase-browser";
 import { useDashboard } from "@/lib/dashboard-context";
 
 const TOOL_COLORS: Record<string, string> = {
@@ -22,28 +21,29 @@ export default function FeatureBreakdown() {
     if (!userId) return;
 
     async function fetchData() {
-      const supabase = createClient();
-      const { data: logs, error } = await supabase
-        .from("seer_logs").select("tool_used").eq("user_id", userId);
+      try {
+        const res = await fetch("/api/dashboard/logs");
+        if (!res.ok) return;
+        const data = await res.json();
+        const logs = data.allLogs ?? [];
 
-      if (error) {
-        console.error("FeatureBreakdown: failed to fetch logs", error);
-        return;
+        if (logs.length === 0) return;
+
+        const counts: Record<string, number> = {};
+        logs.forEach((l: { tool_used: string }) => { counts[l.tool_used] = (counts[l.tool_used] ?? 0) + 1; });
+
+        const sorted = Object.entries(counts)
+          .sort(([, a], [, b]) => b - a)
+          .map(([name, calls]) => ({
+            name,
+            calls,
+            color: TOOL_COLORS[name] ?? "bg-terracotta/50",
+          }));
+
+        setTools(sorted);
+      } catch (err) {
+        console.error("FeatureBreakdown: failed to fetch", err);
       }
-      if (!logs || logs.length === 0) return;
-
-      const counts: Record<string, number> = {};
-      logs.forEach((l) => { counts[l.tool_used] = (counts[l.tool_used] ?? 0) + 1; });
-
-      const sorted = Object.entries(counts)
-        .sort(([, a], [, b]) => b - a)
-        .map(([name, calls]) => ({
-          name,
-          calls,
-          color: TOOL_COLORS[name] ?? "bg-terracotta/50",
-        }));
-
-      setTools(sorted);
     }
     fetchData();
   }, [userId]);
