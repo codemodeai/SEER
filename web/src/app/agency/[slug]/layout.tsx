@@ -1,86 +1,101 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useParams } from "next/navigation";
 import { useState } from "react";
 import { ThemeProvider, useTheme } from "@/lib/theme";
-import { DashboardProvider, useDashboard } from "@/lib/dashboard-context";
+import { AgencyProvider, useAgency } from "@/lib/agency-context";
 import {
   LayoutDashboard,
-  Download,
-  Key,
-  CreditCard,
-  User,
+  Users,
+  Settings,
   LogOut,
   ChevronRight,
   Sun,
   Moon,
   Menu,
   X,
-  PlayCircle,
-  HelpCircle,
-  Zap,
-  ShieldCheck,
-  FileText,
   Building2,
+  Loader2,
+  AlertTriangle,
+  Key,
 } from "lucide-react";
 
-const sidebarLinks = [
-  { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Install Guide", href: "/dashboard/install", icon: Download },
-  { label: "Docs", href: "/dashboard/docs", icon: FileText },
-  { label: "Guides", href: "/dashboard/guides", icon: PlayCircle },
-  { label: "API Keys", href: "/dashboard/keys", icon: Key },
-  { label: "Profile", href: "/dashboard/profile", icon: User },
-  { label: "Security", href: "/dashboard/security", icon: ShieldCheck },
-  { label: "Billing", href: "/dashboard/billing", icon: CreditCard },
-  { label: "Updates", href: "/dashboard/updates", icon: Zap },
-  { label: "Help & Support", href: "/dashboard/help", icon: HelpCircle },
-];
-
-const PLAN_LIMITS: Record<string, number> = {
-  free: 50,
-  starter: 200,
-  pro: 1000,
-  agency: 99999,
-};
-
-function DashboardContent({ children }: { children: React.ReactNode }) {
+function AgencyPortalContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
+  const params = useParams();
+  const slug = params?.slug as string;
   const { theme, toggle } = useTheme();
-  const { userName, plan, usage, agencySlug } = useDashboard();
+  const { agency, role, loading, error } = useAgency();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Build dynamic sidebar links — add Agency Portal link for agency users
-  const allLinks = agencySlug
-    ? [
-        ...sidebarLinks.slice(0, 1),
-        { label: "Agency Portal", href: `/agency/${agencySlug}`, icon: Building2 },
-        ...sidebarLinks.slice(1),
-      ]
-    : sidebarLinks;
+  const sidebarLinks = [
+    { label: "Overview", href: `/agency/${slug}`, icon: LayoutDashboard },
+    { label: "Users", href: `/agency/${slug}/users`, icon: Users },
+    { label: "API Keys", href: `/agency/${slug}/keys`, icon: Key },
+    { label: "Settings", href: `/agency/${slug}/settings`, icon: Settings },
+  ];
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     window.location.href = "/login";
   }
 
-  const limit = PLAN_LIMITS[plan] ?? 50;
-  const pct = plan === "agency" ? 0 : Math.min((usage / limit) * 100, 100);
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-cream flex items-center justify-center">
+        <div className="flex items-center gap-3 text-muted">
+          <Loader2 size={20} className="animate-spin" />
+          <span className="text-sm">Loading agency portal...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !agency) {
+    return (
+      <div className="min-h-screen bg-cream flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <AlertTriangle size={40} className="text-terracotta mx-auto mb-4" />
+          <h1 className="font-display text-2xl text-charcoal mb-2">
+            {error === "Access denied" ? "Access Denied" : "Agency Not Found"}
+          </h1>
+          <p className="text-muted text-sm mb-6">
+            {error === "Access denied"
+              ? "You don't have permission to access this agency portal."
+              : "The agency you're looking for doesn't exist or has been removed."}
+          </p>
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-terracotta text-white rounded-xl text-sm font-medium hover:bg-terracotta/90 transition-colors"
+          >
+            Back to Dashboard
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-cream flex">
       {/* Sidebar */}
       <aside className="hidden lg:flex flex-col w-64 bg-ivory border-r border-sand/60 fixed inset-y-0 left-0 z-40">
-        {/* Logo + Theme toggle */}
+        {/* Agency branding + Theme toggle */}
         <div className="h-16 flex items-center justify-between px-6 border-b border-sand/60">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-terracotta flex items-center justify-center">
-              <span className="text-white font-display font-bold text-sm">S</span>
+              {agency.logoUrl ? (
+                <img
+                  src={agency.logoUrl}
+                  alt={agency.name}
+                  className="w-8 h-8 rounded-lg object-cover"
+                />
+              ) : (
+                <Building2 size={16} className="text-white" />
+              )}
             </div>
-            <span className="font-display text-xl text-charcoal tracking-tight">
-              SEER
+            <span className="font-display text-xl text-charcoal tracking-tight truncate max-w-[140px]">
+              {agency.name}
             </span>
           </div>
           <button
@@ -94,10 +109,10 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 flex flex-col gap-1">
-          {allLinks.map((link) => {
+          {sidebarLinks.map((link) => {
             const isActive =
-              link.href === "/dashboard"
-                ? pathname === "/dashboard"
+              link.href === `/agency/${slug}`
+                ? pathname === `/agency/${slug}`
                 : pathname.startsWith(link.href);
             return (
               <Link
@@ -119,38 +134,37 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        {/* User + Plan badge + logout */}
+        {/* Agency info + logout */}
         <div className="px-3 pb-4 flex flex-col gap-2">
-          {userName && (
-            <div className="px-4 py-2 flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-terracotta/15 flex items-center justify-center">
-                <span className="text-terracotta font-semibold text-sm">
-                  {userName.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-charcoal truncate">{userName}</p>
-                <p className="text-[10px] text-muted capitalize">{plan} plan</p>
-              </div>
-            </div>
-          )}
           <div className="px-4 py-3 rounded-xl bg-cream-dark border border-sand/50">
             <p className="text-[10px] font-semibold tracking-widest uppercase text-muted">
-              Current Plan
+              Agency Portal
             </p>
-            <p className="mt-1 font-display text-lg text-charcoal capitalize">{plan}</p>
+            <p className="mt-1 font-display text-lg text-charcoal">{agency.name}</p>
             <p className="text-xs text-muted mt-0.5">
-              {plan === "agency"
-                ? "Unlimited calls"
-                : `${usage} / ${limit.toLocaleString()} calls used`}
+              {agency.memberCount} / {agency.maxUsers} members
             </p>
             <div className="mt-2 h-1.5 rounded-full bg-sand overflow-hidden">
               <div
                 className="h-full rounded-full bg-terracotta"
-                style={{ width: `${pct}%` }}
+                style={{
+                  width: `${Math.min((agency.memberCount / agency.maxUsers) * 100, 100)}%`,
+                }}
               />
             </div>
           </div>
+          <div className="px-4 py-1">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-terracotta/10 text-terracotta">
+              {role}
+            </span>
+          </div>
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2 px-3 py-2 text-sm text-muted hover:text-charcoal transition-colors"
+          >
+            <LayoutDashboard size={16} />
+            Back to Dashboard
+          </Link>
           <button
             onClick={handleLogout}
             className="flex items-center gap-2 px-3 py-2 text-sm text-muted hover:text-charcoal transition-colors"
@@ -175,13 +189,14 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        {/* Drawer header */}
         <div className="h-14 flex items-center justify-between px-5 border-b border-sand/60">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-lg bg-terracotta flex items-center justify-center">
-              <span className="text-white font-display font-bold text-xs">S</span>
+              <Building2 size={14} className="text-white" />
             </div>
-            <span className="font-display text-lg text-charcoal tracking-tight">SEER</span>
+            <span className="font-display text-lg text-charcoal tracking-tight truncate max-w-[130px]">
+              {agency.name}
+            </span>
           </div>
           <button
             onClick={() => setMobileMenuOpen(false)}
@@ -191,12 +206,11 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
           </button>
         </div>
 
-        {/* Drawer nav */}
         <nav className="flex-1 px-3 py-4 flex flex-col gap-1">
-          {allLinks.map((link) => {
+          {sidebarLinks.map((link) => {
             const isActive =
-              link.href === "/dashboard"
-                ? pathname === "/dashboard"
+              link.href === `/agency/${slug}`
+                ? pathname === `/agency/${slug}`
                 : pathname.startsWith(link.href);
             return (
               <Link
@@ -219,21 +233,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        {/* Drawer footer */}
         <div className="px-3 pb-4 flex flex-col gap-2">
-          {userName && (
-            <div className="px-4 py-2 flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-full bg-terracotta/15 flex items-center justify-center">
-                <span className="text-terracotta font-semibold text-xs">
-                  {userName.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-charcoal truncate">{userName}</p>
-                <p className="text-[10px] text-muted capitalize">{plan} plan</p>
-              </div>
-            </div>
-          )}
           <button
             onClick={toggle}
             className="flex items-center gap-2 px-3 py-2 text-sm text-muted hover:text-charcoal transition-colors"
@@ -241,6 +241,13 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
             {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
             {theme === "light" ? "Dark mode" : "Light mode"}
           </button>
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2 px-3 py-2 text-sm text-muted hover:text-charcoal transition-colors"
+          >
+            <LayoutDashboard size={16} />
+            Back to Dashboard
+          </Link>
           <button
             onClick={handleLogout}
             className="flex items-center gap-2 px-3 py-2 text-sm text-muted hover:text-charcoal transition-colors"
@@ -262,15 +269,10 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
             >
               <Menu size={16} />
             </button>
-            <span className="font-display text-lg text-charcoal">Dashboard</span>
+            <span className="font-display text-lg text-charcoal truncate">
+              {agency.name}
+            </span>
           </div>
-          {userName && (
-            <div className="w-8 h-8 rounded-full bg-terracotta/15 flex items-center justify-center">
-              <span className="text-terracotta font-semibold text-xs">
-                {userName.charAt(0).toUpperCase()}
-              </span>
-            </div>
-          )}
         </header>
 
         <main className="p-4 sm:p-6 md:p-8 lg:p-10 max-w-[1400px]">{children}</main>
@@ -279,16 +281,16 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function DashboardLayout({
+export default function AgencyLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
     <ThemeProvider>
-      <DashboardProvider>
-        <DashboardContent>{children}</DashboardContent>
-      </DashboardProvider>
+      <AgencyProvider>
+        <AgencyPortalContent>{children}</AgencyPortalContent>
+      </AgencyProvider>
     </ThemeProvider>
   );
 }

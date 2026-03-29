@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase-server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { createAgencyForUser } from "@/lib/create-agency";
 
 export async function POST(req: NextRequest) {
   try {
@@ -111,7 +112,14 @@ export async function POST(req: NextRequest) {
       console.error("Failed to create invoice:", invoiceError);
     }
 
-    return NextResponse.json({ success: true, plan });
+    // Auto-create agency for agency plan subscribers
+    let agencySlug: string | null = null;
+    if (plan === "agency") {
+      const agency = await createAgencyForUser(admin, user.id, user.email ?? "");
+      agencySlug = agency?.slug ?? null;
+    }
+
+    return NextResponse.json({ success: true, plan, agencySlug });
   } catch (err) {
     console.error("Payment verify error:", err);
     return NextResponse.json({ error: "Verification failed" }, { status: 500 });

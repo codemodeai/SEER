@@ -3,13 +3,15 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle, ArrowRight, Sparkles } from "lucide-react";
+import { CheckCircle, ArrowRight, Sparkles, Building2 } from "lucide-react";
 import Link from "next/link";
 
 function SuccessContent() {
   const searchParams = useSearchParams();
   const plan = searchParams.get("plan") ?? "Starter";
   const price = searchParams.get("price") ?? "19";
+  const agencySlug = searchParams.get("agency");
+  const isAgency = plan.toLowerCase() === "agency";
 
   return (
     <div className="min-h-screen bg-cream flex items-center justify-center px-4">
@@ -86,6 +88,12 @@ function SuccessContent() {
               <CheckCircle size={14} className="text-accent-sage" />
               Dashboard unlocked
             </li>
+            {isAgency && (
+              <li className="flex items-center gap-2">
+                <CheckCircle size={14} className="text-accent-sage" />
+                Agency portal created
+              </li>
+            )}
           </ul>
         </motion.div>
 
@@ -96,19 +104,40 @@ function SuccessContent() {
           transition={{ delay: 0.6 }}
           className="mt-8 flex flex-col gap-3"
         >
-          <Link
-            href="/dashboard"
-            className="flex items-center justify-center gap-2 py-4 rounded-full bg-terracotta hover:bg-terracotta-dark text-white font-semibold text-sm transition-all shadow-lg shadow-terracotta/20"
-          >
-            Go to Dashboard
-            <ArrowRight size={16} />
-          </Link>
-          <Link
-            href="/dashboard/install"
-            className="flex items-center justify-center gap-2 py-3 rounded-full bg-cream-dark hover:bg-sand text-charcoal font-medium text-sm transition-all border border-sand"
-          >
-            Install SEER
-          </Link>
+          {isAgency && agencySlug ? (
+            <>
+              <Link
+                href={`/agency/${agencySlug}`}
+                className="flex items-center justify-center gap-2 py-4 rounded-full bg-terracotta hover:bg-terracotta-dark text-white font-semibold text-sm transition-all shadow-lg shadow-terracotta/20"
+              >
+                <Building2 size={16} />
+                Open Agency Portal
+                <ArrowRight size={16} />
+              </Link>
+              <Link
+                href="/dashboard"
+                className="flex items-center justify-center gap-2 py-3 rounded-full bg-cream-dark hover:bg-sand text-charcoal font-medium text-sm transition-all border border-sand"
+              >
+                Go to Dashboard
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/dashboard"
+                className="flex items-center justify-center gap-2 py-4 rounded-full bg-terracotta hover:bg-terracotta-dark text-white font-semibold text-sm transition-all shadow-lg shadow-terracotta/20"
+              >
+                Go to Dashboard
+                <ArrowRight size={16} />
+              </Link>
+              <Link
+                href="/dashboard/install"
+                className="flex items-center justify-center gap-2 py-3 rounded-full bg-cream-dark hover:bg-sand text-charcoal font-medium text-sm transition-all border border-sand"
+              >
+                Install SEER
+              </Link>
+            </>
+          )}
         </motion.div>
 
         <motion.p

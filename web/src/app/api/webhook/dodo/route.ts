@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase-server";
 import { getPlanByDodoPriceId } from "@/lib/plans";
+import { createAgencyForUser } from "@/lib/create-agency";
 
 export async function POST(req: NextRequest) {
   try {
@@ -46,6 +47,16 @@ export async function POST(req: NextRequest) {
           },
           { onConflict: "user_id,provider" }
         );
+
+        // Auto-create agency for agency plan subscribers
+        if (plan === "agency") {
+          const { data: userData } = await supabase
+            .from("users")
+            .select("email")
+            .eq("id", userId)
+            .single();
+          await createAgencyForUser(supabase, userId, userData?.email ?? "");
+        }
         break;
       }
 

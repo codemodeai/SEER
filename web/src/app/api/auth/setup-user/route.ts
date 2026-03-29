@@ -102,6 +102,31 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // Look up agency slug (owner or member)
+      let agencySlug: string | null = null;
+      const { data: ownedAgency } = await admin
+        .from("agencies")
+        .select("slug")
+        .eq("owner_id", user.id)
+        .eq("status", "active")
+        .limit(1)
+        .single();
+
+      if (ownedAgency) {
+        agencySlug = ownedAgency.slug;
+      } else {
+        const { data: membership } = await admin
+          .from("agency_users")
+          .select("agencies!inner(slug)")
+          .eq("user_id", user.id)
+          .limit(1)
+          .single();
+
+        if (membership) {
+          agencySlug = (membership as any).agencies?.slug ?? null;
+        }
+      }
+
       return NextResponse.json({
         userId: user.id,
         userName: displayName,
@@ -116,6 +141,7 @@ export async function POST(req: NextRequest) {
         createdAt: existing.created_at,
         suggestionSkin: existing.suggestion_skin || "default",
         autoSuggest: existing.auto_suggest ?? true,
+        agencySlug,
       });
     }
 
@@ -152,6 +178,7 @@ export async function POST(req: NextRequest) {
       createdAt: new Date().toISOString(),
       suggestionSkin: "default",
       autoSuggest: true,
+      agencySlug: null,
     });
   } catch (err) {
     console.error("Setup user error:", err);

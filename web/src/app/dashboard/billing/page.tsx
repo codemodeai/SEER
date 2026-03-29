@@ -213,7 +213,9 @@ export default function BillingPage() {
                 }),
               });
               if (verifyRes.ok) {
-                window.location.href = `/payment/success?plan=${selectedPlan}&price=${selectedPrice}`;
+                const verifyData = await verifyRes.json();
+                const agencyParam = verifyData.agencySlug ? `&agency=${verifyData.agencySlug}` : "";
+                window.location.href = `/payment/success?plan=${selectedPlan}&price=${selectedPrice}${agencyParam}`;
               } else {
                 alert("Payment verification failed. Please contact support.");
                 setLoading(null);
