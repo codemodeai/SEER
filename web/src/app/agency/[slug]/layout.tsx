@@ -19,6 +19,8 @@ import {
   Loader2,
   AlertTriangle,
   Key,
+  Cloud,
+  Activity,
 } from "lucide-react";
 
 function AgencyPortalContent({ children }: { children: React.ReactNode }) {
@@ -33,6 +35,8 @@ function AgencyPortalContent({ children }: { children: React.ReactNode }) {
     { label: "Overview", href: `/agency/${slug}`, icon: LayoutDashboard },
     { label: "Users", href: `/agency/${slug}/users`, icon: Users },
     { label: "API Keys", href: `/agency/${slug}/keys`, icon: Key },
+    { label: "Cloud Memory", href: `/agency/${slug}/memory`, icon: Cloud },
+    { label: "Activity", href: `/agency/${slug}/activity`, icon: Activity },
     { label: "Settings", href: `/agency/${slug}/settings`, icon: Settings },
   ];
 
