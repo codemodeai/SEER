@@ -45,9 +45,10 @@ export async function POST(req: NextRequest) {
 
     const hasRazorpay = !!process.env.RAZORPAY_KEY_ID;
     const hasDodo = !!process.env.DODO_API_KEY;
+    const isDev = process.env.NODE_ENV === "development";
 
-    // Use Razorpay if: user is in India, or Dodo isn't configured, or as fallback
-    const useRazorpay = hasRazorpay && (country === "IN" || !hasDodo);
+    // Use Razorpay if: user is in India, Dodo isn't configured, or in dev mode (no geo headers)
+    const useRazorpay = hasRazorpay && (country === "IN" || !hasDodo || (isDev && !country));
 
     if (useRazorpay) {
       // --- Razorpay subscription ---
