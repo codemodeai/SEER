@@ -11,6 +11,8 @@ import {
   TrendingUp,
   Loader2,
   Key,
+  Pin,
+  Megaphone,
 } from "lucide-react";
 
 interface MemberUsage {
@@ -31,10 +33,19 @@ interface AgencyStats {
   toolBreakdown: Record<string, number>;
 }
 
+interface PinnedAnnouncement {
+  id: string;
+  title: string;
+  body: string;
+  authorEmail: string;
+  created_at: string;
+}
+
 export default function AgencyOverview() {
   const { agency, role } = useAgency();
   const [stats, setStats] = useState<AgencyStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [pinnedAnnouncements, setPinnedAnnouncements] = useState<PinnedAnnouncement[]>([]);
 
   useEffect(() => {
     if (!agency) return;
@@ -50,7 +61,19 @@ export default function AgencyOverview() {
         setStatsLoading(false);
       }
     }
+    async function fetchPinned() {
+      try {
+        const res = await fetch(`/api/agency/${agency!.slug}/announcements`);
+        if (res.ok) {
+          const data = await res.json();
+          setPinnedAnnouncements(
+            (data.announcements ?? []).filter((a: any) => a.pinned).slice(0, 3)
+          );
+        }
+      } catch {}
+    }
     fetchStats();
+    fetchPinned();
   }, [agency]);
 
   if (!agency) return null;
@@ -114,6 +137,37 @@ export default function AgencyOverview() {
           </div>
         ))}
       </div>
+
+      {/* Pinned Announcements */}
+      {pinnedAnnouncements.length > 0 && (
+        <div className="mb-8 flex flex-col gap-3">
+          {pinnedAnnouncements.map((ann) => (
+            <div
+              key={ann.id}
+              className="flex items-start gap-3 px-5 py-4 bg-terracotta/[0.04] border border-terracotta/20 rounded-2xl"
+            >
+              <div className="w-8 h-8 rounded-lg bg-terracotta/10 flex items-center justify-center shrink-0 mt-0.5">
+                <Pin size={14} className="text-terracotta" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-charcoal">{ann.title}</p>
+                {ann.body && (
+                  <p className="text-xs text-charcoal/70 mt-0.5 line-clamp-2">{ann.body}</p>
+                )}
+                <p className="text-[10px] text-muted mt-1">
+                  by {ann.authorEmail.split("@")[0]}
+                </p>
+              </div>
+              <a
+                href={`/agency/${agency.slug}/announcements`}
+                className="text-[10px] text-terracotta font-medium hover:underline shrink-0 mt-1"
+              >
+                View all
+              </a>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Member's own stats — for regular members */}
       {role === "member" && !statsLoading && stats?.perMember && (

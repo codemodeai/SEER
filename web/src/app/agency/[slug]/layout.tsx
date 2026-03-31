@@ -21,6 +21,8 @@ import {
   Key,
   Cloud,
   Activity,
+  BarChart3,
+  Megaphone,
 } from "lucide-react";
 
 function AgencyPortalContent({ children }: { children: React.ReactNode }) {
@@ -37,6 +39,8 @@ function AgencyPortalContent({ children }: { children: React.ReactNode }) {
     { label: "API Keys", href: `/agency/${slug}/keys`, icon: Key },
     { label: "Cloud Memory", href: `/agency/${slug}/memory`, icon: Cloud },
     { label: "Activity", href: `/agency/${slug}/activity`, icon: Activity },
+    { label: "Analytics", href: `/agency/${slug}/analytics`, icon: BarChart3 },
+    { label: "Announcements", href: `/agency/${slug}/announcements`, icon: Megaphone },
     { label: "Settings", href: `/agency/${slug}/settings`, icon: Settings },
   ];
 
