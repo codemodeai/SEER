@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PLANS } from "@/lib/plans";
+import { usdToInrPaise } from "@/lib/exchange-rate";
 
 const DODO_API_URL = "https://api.dodopayments.com/v1";
 const RAZORPAY_API_URL = "https://api.razorpay.com/v1";
@@ -32,7 +33,6 @@ export async function POST(req: NextRequest) {
         provider: "demo",
         plan: planConfig.name,
         priceUsd: planConfig.priceUsd,
-        priceInr: planConfig.priceInr,
         message: `Payment gateway not configured yet. In production, this will redirect to checkout for the ${planConfig.name} plan at $${planConfig.priceUsd}/mo.`,
       });
     }
@@ -136,11 +136,13 @@ export async function POST(req: NextRequest) {
 
       console.log("Razorpay subscription created:", { subscriptionId: sub.id, plan });
 
+      const amountPaise = await usdToInrPaise(planConfig.priceUsd);
+
       return NextResponse.json({
         provider: "razorpay",
         subscriptionId: sub.id,
         razorpayKeyId: razorpayKey,
-        amount: planConfig.priceInr * 100,
+        amount: amountPaise,
         currency: "INR",
         planName: planConfig.name,
       });

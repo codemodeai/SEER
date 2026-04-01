@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { usdToInrPaise } from "@/lib/exchange-rate";
 
 const RAZORPAY_API_URL = "https://api.razorpay.com/v1";
-
-// INR conversion (approximate, for Razorpay)
-const USD_TO_INR = 85;
 
 function isConfigured(): boolean {
   return !!(process.env.RAZORPAY_KEY_ID || process.env.DODO_API_KEY);
@@ -73,7 +71,7 @@ export async function POST(req: NextRequest) {
     }
 
     const auth = Buffer.from(`${razorpayKey}:${razorpaySecret}`).toString("base64");
-    const amountInr = totalPrice * USD_TO_INR * 100; // paise
+    const amountInr = await usdToInrPaise(totalPrice);
 
     // Step 1: Create a Razorpay plan for this specific configuration
     const planRes = await fetch(`${RAZORPAY_API_URL}/plans`, {

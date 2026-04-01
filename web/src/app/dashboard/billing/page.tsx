@@ -46,11 +46,6 @@ const plans = [
   },
 ];
 
-const INR_PRICES: Record<string, number> = {
-  starter: 1599,
-  pro: 3999,
-  agency: 7999,
-};
 
 interface Invoice {
   id: string;

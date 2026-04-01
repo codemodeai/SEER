@@ -1,10 +1,16 @@
+import { usdToInr } from "@/lib/exchange-rate";
+
 export interface PlanConfig {
   name: string;
   priceUsd: number;
-  priceInr: number;
   calls: number | "unlimited";
   dodoPriceId: string;
   razorpayPlanId: string;
+}
+
+// Get INR price dynamically from live exchange rate
+export async function getPriceInr(usd: number): Promise<number> {
+  return usdToInr(usd);
 }
 
 function getPlans(): Record<string, PlanConfig> {
@@ -12,7 +18,6 @@ function getPlans(): Record<string, PlanConfig> {
     starter: {
       name: "Starter",
       priceUsd: 19,
-      priceInr: 1599,
       calls: 200,
       dodoPriceId: process.env.DODO_STARTER_PRICE_ID ?? "",
       razorpayPlanId: process.env.RAZORPAY_STARTER_PLAN_ID ?? "",
@@ -20,7 +25,6 @@ function getPlans(): Record<string, PlanConfig> {
     pro: {
       name: "Pro",
       priceUsd: 49,
-      priceInr: 3999,
       calls: 1000,
       dodoPriceId: process.env.DODO_PRO_PRICE_ID ?? "",
       razorpayPlanId: process.env.RAZORPAY_PRO_PLAN_ID ?? "",
@@ -28,7 +32,6 @@ function getPlans(): Record<string, PlanConfig> {
     agency: {
       name: "Agency",
       priceUsd: 99,
-      priceInr: 7999,
       calls: "unlimited",
       dodoPriceId: process.env.DODO_AGENCY_PRICE_ID ?? "",
       razorpayPlanId: process.env.RAZORPAY_AGENCY_PLAN_ID ?? "",

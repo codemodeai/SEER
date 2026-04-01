@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase-server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { usdToInr } from "@/lib/exchange-rate";
 
 export async function POST(req: NextRequest) {
   try {
@@ -87,7 +88,8 @@ export async function POST(req: NextRequest) {
 
     // Create invoice
     const USD_PRICES: Record<string, number> = { starter: 19, pro: 49, agency: 99 };
-    const INR_PRICES: Record<string, number> = { starter: 1599, pro: 3999, agency: 7999 };
+    const amountUsd = USD_PRICES[plan] ?? 0;
+    const amountInr = await usdToInr(amountUsd);
     const now = new Date();
     const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -95,8 +97,8 @@ export async function POST(req: NextRequest) {
     const { error: invoiceError } = await admin.from("invoices").insert({
       user_id: user.id,
       plan,
-      amount_usd: USD_PRICES[plan] ?? 0,
-      amount_inr: INR_PRICES[plan] ?? 0,
+      amount_usd: amountUsd,
+      amount_inr: amountInr,
       status: "paid",
       payment_id: razorpay_payment_id,
       provider: "razorpay",
