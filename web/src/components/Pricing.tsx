@@ -109,14 +109,21 @@ export default function Pricing() {
 
     // Load Razorpay script
     if (typeof window !== "undefined" && !window.Razorpay) {
+      const existing = document.querySelector('script[src*="checkout.razorpay.com"]');
+      if (existing) existing.remove();
+
       const script = document.createElement("script");
       script.src = "https://checkout.razorpay.com/v1/checkout.js";
       script.async = true;
-      document.body.appendChild(script);
+      script.onload = () => console.log("Razorpay script loaded");
+      script.onerror = () => console.error("Failed to load Razorpay script — check ad blockers");
+      document.head.appendChild(script);
     }
   }, []);
 
   async function handleCheckout(planId: string) {
+    console.log("handleCheckout called:", planId, { userId, userEmail });
+
     if (planId === "free") {
       window.location.href = "/signup?plan=free";
       return;
@@ -124,6 +131,7 @@ export default function Pricing() {
 
     // If not logged in, redirect to signup
     if (!userId) {
+      console.log("Not logged in, redirecting to signup");
       window.location.href = `/signup?plan=${planId}`;
       return;
     }
@@ -131,6 +139,7 @@ export default function Pricing() {
     setLoading(planId);
 
     try {
+      console.log("Calling /api/checkout...");
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -141,13 +150,25 @@ export default function Pricing() {
         }),
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        console.error("Checkout API returned non-JSON:", text);
+        alert("Server error. Please try again.");
+        setLoading(null);
+        return;
+      }
 
       if (!res.ok) {
+        console.error("Checkout API error:", res.status, data);
         alert(data.error ?? "Something went wrong. Please try again.");
         setLoading(null);
         return;
       }
+
+      console.log("Checkout API response:", { provider: data.provider, hasSubscriptionId: !!data.subscriptionId, hasKey: !!data.razorpayKeyId });
 
       // Demo mode — show checkout preview modal
       if (data.provider === "demo") {
@@ -162,21 +183,33 @@ export default function Pricing() {
       }
 
       if (data.provider === "dodo") {
-        // Redirect to Dodo hosted checkout
+        if (!data.checkoutUrl) {
+          alert("Payment redirect URL missing. Please try again.");
+          setLoading(null);
+          return;
+        }
         window.location.href = data.checkoutUrl;
       } else if (data.provider === "razorpay") {
+        if (!data.subscriptionId || !data.razorpayKeyId) {
+          console.error("Missing Razorpay data:", data);
+          alert("Payment setup incomplete. Please try again or contact support.");
+          setLoading(null);
+          return;
+        }
+
         // Wait for Razorpay script to load
         if (!window.Razorpay) {
+          console.log("Waiting for Razorpay script...");
           await new Promise<void>((resolve) => {
             const check = setInterval(() => {
               if (window.Razorpay) { clearInterval(check); resolve(); }
             }, 200);
-            setTimeout(() => { clearInterval(check); resolve(); }, 5000);
+            setTimeout(() => { clearInterval(check); resolve(); }, 8000);
           });
         }
 
         if (!window.Razorpay) {
-          alert("Payment gateway failed to load. Please refresh and try again.");
+          alert("Payment gateway failed to load. Please disable ad blockers, refresh, and try again.");
           setLoading(null);
           return;
         }
@@ -202,7 +235,9 @@ export default function Pricing() {
                 }),
               });
               if (verifyRes.ok) {
-                window.location.href = `/payment/success?plan=${selectedPlan}&price=${selectedPrice}`;
+                const verifyData = await verifyRes.json();
+                const agencyParam = verifyData.agencySlug ? `&agency=${verifyData.agencySlug}` : "";
+                window.location.href = `/payment/success?plan=${selectedPlan}&price=${selectedPrice}${agencyParam}`;
               } else {
                 alert("Payment verification failed. Please contact support.");
                 setLoading(null);
@@ -218,22 +253,30 @@ export default function Pricing() {
           theme: { color: "#D97757" },
         };
 
+        console.log("Opening Razorpay:", { key: data.razorpayKeyId?.substring(0, 12) + "...", subscription_id: data.subscriptionId });
+
         try {
           const rzp = new window.Razorpay(options);
           rzp.on("payment.failed", function (response: Record<string, unknown>) {
             const err = response.error as Record<string, string> | undefined;
+            console.error("Razorpay payment failed:", err);
             alert(`Payment failed: ${err?.description ?? "Unknown error"}`);
             setLoading(null);
           });
           rzp.open();
         } catch (e) {
-          alert(`Could not open payment gateway: ${e}`);
+          console.error("Razorpay open() error:", e);
+          alert("Could not open payment gateway. Please refresh and try again.");
           setLoading(null);
         }
-        return; // Don't clear loading — Razorpay modal is open
+        return;
+      } else {
+        console.error("Unknown provider:", data.provider);
+        alert("Unexpected payment response. Please try again.");
       }
-    } catch {
-      alert("Network error. Please try again.");
+    } catch (e) {
+      console.error("Checkout network error:", e);
+      alert("Network error. Please check your connection and try again.");
     }
     setLoading(null);
   }
