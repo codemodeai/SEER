@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PLANS } from "@/lib/plans";
-import { usdToInrPaise } from "@/lib/exchange-rate";
+import { getUsdToInr } from "@/lib/exchange-rate";
 
 const DODO_API_URL = "https://api.dodopayments.com/v1";
 const RAZORPAY_API_URL = "https://api.razorpay.com/v1";
@@ -136,15 +136,22 @@ export async function POST(req: NextRequest) {
 
       console.log("Razorpay subscription created:", { subscriptionId: sub.id, plan });
 
-      const amountPaise = await usdToInrPaise(planConfig.priceUsd);
+      const rate = await getUsdToInr();
+      const subtotalInr = Math.round(planConfig.priceUsd * rate);
+      const gstAmount = Math.round(subtotalInr * 0.18);
+      const totalInrWithGst = subtotalInr + gstAmount;
 
       return NextResponse.json({
         provider: "razorpay",
         subscriptionId: sub.id,
         razorpayKeyId: razorpayKey,
-        amount: amountPaise,
+        amount: totalInrWithGst * 100,
         currency: "INR",
         planName: planConfig.name,
+        priceUsd: planConfig.priceUsd,
+        subtotalInr,
+        gstAmount,
+        totalInr: totalInrWithGst,
       });
     } else {
       // --- Dodo Payments checkout ---

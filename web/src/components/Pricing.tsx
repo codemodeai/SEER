@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Check, Star, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase-browser";
-import CheckoutModal from "./CheckoutModal";
 
 const plans = [
   {
@@ -76,215 +75,34 @@ const plans = [
   },
 ];
 
-declare global {
-  interface Window {
-    Razorpay: new (options: Record<string, unknown>) => {
-      open: () => void;
-      on: (event: string, handler: (response: Record<string, unknown>) => void) => void;
-    };
-  }
-}
-
 export default function Pricing() {
   const [loading, setLoading] = useState<string | null>(null);
   const [userId, setUserId] = useState("");
-  const [userEmail, setUserEmail] = useState("");
-  const [modal, setModal] = useState<{
-    open: boolean;
-    plan: string;
-    priceUsd: number;
-    priceInr: number;
-  }>({ open: false, plan: "", priceUsd: 0, priceInr: 0 });
 
   useEffect(() => {
     async function fetchUser() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
-        setUserEmail(user.email ?? "");
-      }
+      if (user) setUserId(user.id);
     }
     fetchUser();
-
-    // Load Razorpay script
-    if (typeof window !== "undefined" && !window.Razorpay) {
-      const existing = document.querySelector('script[src*="checkout.razorpay.com"]');
-      if (existing) existing.remove();
-
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.async = true;
-      script.onload = () => console.log("Razorpay script loaded");
-      script.onerror = () => console.error("Failed to load Razorpay script — check ad blockers");
-      document.head.appendChild(script);
-    }
   }, []);
 
-  async function handleCheckout(planId: string) {
-    console.log("handleCheckout called:", planId, { userId, userEmail });
-
+  function handleCheckout(planId: string) {
     if (planId === "free") {
       window.location.href = "/signup?plan=free";
       return;
     }
-
-    // Agency → redirect to setup page
     if (planId === "agency") {
       window.location.href = userId ? "/agency/setup" : "/signup?plan=agency";
       return;
     }
-
-    // If not logged in, redirect to signup
     if (!userId) {
-      console.log("Not logged in, redirecting to signup");
       window.location.href = `/signup?plan=${planId}`;
       return;
     }
-
     setLoading(planId);
-
-    try {
-      console.log("Calling /api/checkout...");
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          plan: planId,
-          userId,
-          email: userEmail,
-        }),
-      });
-
-      const text = await res.text();
-      let data: any;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        console.error("Checkout API returned non-JSON:", text);
-        alert("Server error. Please try again.");
-        setLoading(null);
-        return;
-      }
-
-      if (!res.ok) {
-        console.error("Checkout API error:", res.status, data);
-        alert(data.error ?? "Something went wrong. Please try again.");
-        setLoading(null);
-        return;
-      }
-
-      console.log("Checkout API response:", { provider: data.provider, hasSubscriptionId: !!data.subscriptionId, hasKey: !!data.razorpayKeyId });
-
-      // Demo mode — show checkout preview modal
-      if (data.provider === "demo") {
-        setModal({
-          open: true,
-          plan: data.plan,
-          priceUsd: data.priceUsd,
-          priceInr: data.priceInr,
-        });
-        setLoading(null);
-        return;
-      }
-
-      if (data.provider === "dodo") {
-        if (!data.checkoutUrl) {
-          alert("Payment redirect URL missing. Please try again.");
-          setLoading(null);
-          return;
-        }
-        window.location.href = data.checkoutUrl;
-      } else if (data.provider === "razorpay") {
-        if (!data.subscriptionId || !data.razorpayKeyId) {
-          console.error("Missing Razorpay data:", data);
-          alert("Payment setup incomplete. Please try again or contact support.");
-          setLoading(null);
-          return;
-        }
-
-        // Wait for Razorpay script to load
-        if (!window.Razorpay) {
-          console.log("Waiting for Razorpay script...");
-          await new Promise<void>((resolve) => {
-            const check = setInterval(() => {
-              if (window.Razorpay) { clearInterval(check); resolve(); }
-            }, 200);
-            setTimeout(() => { clearInterval(check); resolve(); }, 8000);
-          });
-        }
-
-        if (!window.Razorpay) {
-          alert("Payment gateway failed to load. Please disable ad blockers, refresh, and try again.");
-          setLoading(null);
-          return;
-        }
-
-        const selectedPlan = planId;
-        const selectedPrice = plans.find((p) => p.id === planId)?.price ?? 0;
-        const options: Record<string, unknown> = {
-          key: data.razorpayKeyId,
-          subscription_id: data.subscriptionId,
-          name: "SEER",
-          description: `${data.planName} Plan — Monthly`,
-          prefill: { email: userEmail },
-          handler: async function (response: { razorpay_payment_id: string; razorpay_subscription_id: string; razorpay_signature: string }) {
-            try {
-              const verifyRes = await fetch("/api/payment/verify", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_subscription_id: response.razorpay_subscription_id,
-                  razorpay_signature: response.razorpay_signature,
-                  plan: selectedPlan,
-                }),
-              });
-              if (verifyRes.ok) {
-                const verifyData = await verifyRes.json();
-                const agencyParam = verifyData.agencySlug ? `&agency=${verifyData.agencySlug}` : "";
-                window.location.href = `/payment/success?plan=${selectedPlan}&price=${selectedPrice}${agencyParam}`;
-              } else {
-                alert("Payment verification failed. Please contact support.");
-                setLoading(null);
-              }
-            } catch {
-              alert("Payment verification error. Please contact support.");
-              setLoading(null);
-            }
-          },
-          modal: {
-            ondismiss: () => setLoading(null),
-          },
-          theme: { color: "#D97757" },
-        };
-
-        console.log("Opening Razorpay:", { key: data.razorpayKeyId?.substring(0, 12) + "...", subscription_id: data.subscriptionId });
-
-        try {
-          const rzp = new window.Razorpay(options);
-          rzp.on("payment.failed", function (response: Record<string, unknown>) {
-            const err = response.error as Record<string, string> | undefined;
-            console.error("Razorpay payment failed:", err);
-            alert(`Payment failed: ${err?.description ?? "Unknown error"}`);
-            setLoading(null);
-          });
-          rzp.open();
-        } catch (e) {
-          console.error("Razorpay open() error:", e);
-          alert("Could not open payment gateway. Please refresh and try again.");
-          setLoading(null);
-        }
-        return;
-      } else {
-        console.error("Unknown provider:", data.provider);
-        alert("Unexpected payment response. Please try again.");
-      }
-    } catch (e) {
-      console.error("Checkout network error:", e);
-      alert("Network error. Please check your connection and try again.");
-    }
-    setLoading(null);
+    window.location.href = `/payment/checkout?plan=${planId}`;
   }
 
   return (
@@ -325,7 +143,6 @@ export default function Pricing() {
                   : "bg-white border border-sand/80"
               }`}
             >
-              {/* Popular badge */}
               {plan.popular && (
                 <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
                   <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-terracotta text-white text-xs font-semibold shadow-md">
@@ -335,14 +152,12 @@ export default function Pricing() {
                 </div>
               )}
 
-              {/* Plan name */}
               <h3
                 className={`font-display text-xl ${plan.popular ? "text-white" : "text-charcoal"}`}
               >
                 {plan.name}
               </h3>
 
-              {/* Price */}
               <div className="mt-4 flex items-baseline gap-1">
                 <span
                   className={`font-display text-4xl md:text-5xl tracking-tight ${plan.popular ? "text-white" : "text-charcoal"}`}
@@ -362,7 +177,6 @@ export default function Pricing() {
                 {plan.description}
               </p>
 
-              {/* Calls badge */}
               <div
                 className={`mt-5 inline-flex self-start px-3 py-1 rounded-lg text-xs font-semibold ${
                   plan.popular
@@ -373,7 +187,6 @@ export default function Pricing() {
                 {plan.calls}
               </div>
 
-              {/* Features */}
               <ul className="mt-6 flex-1 flex flex-col gap-2.5">
                 {plan.features.map((feat) => (
                   <li key={feat} className="flex items-start gap-2.5">
@@ -390,7 +203,6 @@ export default function Pricing() {
                 ))}
               </ul>
 
-              {/* CTA Button */}
               <button
                 onClick={() => handleCheckout(plan.id)}
                 disabled={loading !== null}
@@ -413,7 +225,6 @@ export default function Pricing() {
           ))}
         </div>
 
-        {/* Bottom note */}
         <motion.p
           className="mt-12 text-center text-sm text-muted"
           initial={{ opacity: 0 }}
@@ -426,15 +237,6 @@ export default function Pricing() {
           Your Claude Code API costs are separate and unaffected by SEER.
         </motion.p>
       </div>
-
-      {/* Checkout Modal */}
-      <CheckoutModal
-        open={modal.open}
-        onClose={() => setModal({ ...modal, open: false })}
-        plan={modal.plan}
-        priceUsd={modal.priceUsd}
-        priceInr={modal.priceInr}
-      />
     </section>
   );
 }

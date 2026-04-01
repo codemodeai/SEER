@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { usdToInrPaise } from "@/lib/exchange-rate";
+import { getUsdToInr } from "@/lib/exchange-rate";
 
 const RAZORPAY_API_URL = "https://api.razorpay.com/v1";
 
@@ -71,7 +71,11 @@ export async function POST(req: NextRequest) {
     }
 
     const auth = Buffer.from(`${razorpayKey}:${razorpaySecret}`).toString("base64");
-    const amountInr = await usdToInrPaise(totalPrice);
+    const rate = await getUsdToInr();
+    const subtotalInr = Math.round(totalPrice * rate);
+    const gstAmount = Math.round(subtotalInr * 0.18);
+    const totalInrWithGst = subtotalInr + gstAmount;
+    const amountPaise = totalInrWithGst * 100;
 
     // Step 1: Create a Razorpay plan for this specific configuration
     const planRes = await fetch(`${RAZORPAY_API_URL}/plans`, {
@@ -85,7 +89,7 @@ export async function POST(req: NextRequest) {
         interval: 1,
         item: {
           name: `SEER Agency — ${memberTier} members`,
-          amount: amountInr,
+          amount: amountPaise,
           currency: "INR",
           description: `Agency plan: ${agencyName} (${memberTier} members, $${totalPrice}/mo)`,
         },
@@ -165,9 +169,13 @@ export async function POST(req: NextRequest) {
       provider: "razorpay",
       subscriptionId: sub.id,
       razorpayKeyId: razorpayKey,
-      amount: amountInr,
+      amount: amountPaise,
       currency: "INR",
       planName: `Agency — ${memberTier} members`,
+      priceUsd: totalPrice,
+      subtotalInr,
+      gstAmount,
+      totalInr: totalInrWithGst,
     });
   } catch (err) {
     console.error("Agency checkout error:", err);

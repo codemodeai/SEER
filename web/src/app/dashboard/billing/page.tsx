@@ -1,19 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Check, ArrowRight, CreditCard, Receipt, Loader2, Download, Calendar, FileText } from "lucide-react";
+import { Check, ArrowRight, Receipt, Loader2, Download, Calendar, FileText } from "lucide-react";
 import { createClient } from "@/lib/supabase-browser";
-import CheckoutModal from "@/components/CheckoutModal";
-
-declare global {
-  interface Window {
-    Razorpay: new (options: Record<string, unknown>) => {
-      open: () => void;
-      on: (event: string, handler: (response: Record<string, unknown>) => void) => void;
-    };
-  }
-}
 
 const plans = [
   {
@@ -61,53 +51,15 @@ interface Invoice {
 export default function BillingPage() {
   const [loading, setLoading] = useState<string | null>(null);
   const [currentPlan, setCurrentPlan] = useState("free");
-  const [userId, setUserId] = useState("");
-  const [userEmail, setUserEmail] = useState("");
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [nextBillingDate, setNextBillingDate] = useState<string | null>(null);
   const [invoicesLoading, setInvoicesLoading] = useState(true);
-  const [razorpayLoaded, setRazorpayLoaded] = useState(false);
-  const [modal, setModal] = useState<{
-    open: boolean;
-    plan: string;
-    priceUsd: number;
-    priceInr: number;
-  }>({ open: false, plan: "", priceUsd: 0, priceInr: 0 });
-
-  // Load Razorpay script properly
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    if (window.Razorpay) {
-      setRazorpayLoaded(true);
-      return;
-    }
-
-    // Remove any previously failed script tags
-    const existing = document.querySelector('script[src*="checkout.razorpay.com"]');
-    if (existing) existing.remove();
-
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.async = true;
-    script.onload = () => {
-      console.log("Razorpay script loaded successfully");
-      setRazorpayLoaded(true);
-    };
-    script.onerror = () => {
-      console.error("Failed to load Razorpay script — check ad blockers or network");
-    };
-    document.head.appendChild(script);
-  }, []);
 
   useEffect(() => {
     async function fetchUser() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-
-      setUserId(user.id);
-      setUserEmail(user.email ?? "");
 
       const { data } = await supabase
         .from("users")
@@ -147,157 +99,16 @@ export default function BillingPage() {
     fetchUser();
   }, []);
 
-  async function handlePlanChange(planId: string) {
+  function handlePlanChange(planId: string) {
     if (planId === "free" || planId === currentPlan) return;
 
-    // Agency → redirect to setup page
     if (planId === "agency") {
       window.location.href = "/agency/setup";
       return;
     }
 
     setLoading(planId);
-
-    try {
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          plan: planId,
-          userId,
-          email: userEmail,
-        }),
-      });
-
-      const text = await res.text();
-      let data: any;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        console.error("Checkout API returned non-JSON:", text);
-        alert("Server error. Please try again.");
-        setLoading(null);
-        return;
-      }
-
-      if (!res.ok) {
-        console.error("Checkout API error:", res.status, data);
-        alert(data.error ?? "Something went wrong.");
-        setLoading(null);
-        return;
-      }
-
-      console.log("Checkout API response:", { provider: data.provider, hasSubscriptionId: !!data.subscriptionId, hasKey: !!data.razorpayKeyId });
-
-      if (data.provider === "demo") {
-        setModal({
-          open: true,
-          plan: data.plan,
-          priceUsd: data.priceUsd,
-          priceInr: data.priceInr,
-        });
-        setLoading(null);
-        return;
-      }
-
-      if (data.provider === "dodo") {
-        if (!data.checkoutUrl) {
-          alert("Payment redirect URL missing. Please try again.");
-          setLoading(null);
-          return;
-        }
-        window.location.href = data.checkoutUrl;
-      } else if (data.provider === "razorpay") {
-        // Validate response data before proceeding
-        if (!data.subscriptionId || !data.razorpayKeyId) {
-          console.error("Missing Razorpay data:", { subscriptionId: data.subscriptionId, keyId: data.razorpayKeyId });
-          alert("Payment setup incomplete. Please try again or contact support.");
-          setLoading(null);
-          return;
-        }
-
-        // Wait for Razorpay script to load if not ready
-        if (!window.Razorpay) {
-          console.log("Waiting for Razorpay script to load...");
-          await new Promise<void>((resolve) => {
-            const check = setInterval(() => {
-              if (window.Razorpay) { clearInterval(check); resolve(); }
-            }, 200);
-            setTimeout(() => { clearInterval(check); resolve(); }, 8000);
-          });
-        }
-
-        if (!window.Razorpay) {
-          alert("Payment gateway failed to load. Please disable ad blockers, refresh, and try again.");
-          setLoading(null);
-          return;
-        }
-
-        const selectedPlan = planId;
-        const selectedPrice = plans.find((p) => p.id === planId)?.price ?? 0;
-        const options: Record<string, unknown> = {
-          key: data.razorpayKeyId,
-          subscription_id: data.subscriptionId,
-          name: "SEER",
-          description: `${data.planName} Plan — Monthly`,
-          prefill: { email: userEmail },
-          handler: async function (response: { razorpay_payment_id: string; razorpay_subscription_id: string; razorpay_signature: string }) {
-            try {
-              const verifyRes = await fetch("/api/payment/verify", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_subscription_id: response.razorpay_subscription_id,
-                  razorpay_signature: response.razorpay_signature,
-                  plan: selectedPlan,
-                }),
-              });
-              if (verifyRes.ok) {
-                const verifyData = await verifyRes.json();
-                const agencyParam = verifyData.agencySlug ? `&agency=${verifyData.agencySlug}` : "";
-                window.location.href = `/payment/success?plan=${selectedPlan}&price=${selectedPrice}${agencyParam}`;
-              } else {
-                alert("Payment verification failed. Please contact support.");
-                setLoading(null);
-              }
-            } catch {
-              alert("Payment verification error. Please contact support.");
-              setLoading(null);
-            }
-          },
-          modal: {
-            ondismiss: () => setLoading(null),
-          },
-          theme: { color: "#D97757" },
-        };
-
-        console.log("Opening Razorpay with:", { key: data.razorpayKeyId?.substring(0, 12) + "...", subscription_id: data.subscriptionId });
-
-        try {
-          const rzp = new window.Razorpay(options);
-          rzp.on("payment.failed", function (response: Record<string, unknown>) {
-            const err = response.error as Record<string, string> | undefined;
-            console.error("Razorpay payment failed:", err);
-            alert(`Payment failed: ${err?.description ?? "Unknown error"}`);
-            setLoading(null);
-          });
-          rzp.open();
-        } catch (e) {
-          console.error("Razorpay open() error:", e);
-          alert(`Could not open payment gateway. Please refresh and try again.`);
-          setLoading(null);
-        }
-        return; // Don't run finally block
-      } else {
-        console.error("Unknown provider:", data.provider);
-        alert("Unexpected payment provider response. Please try again.");
-      }
-    } catch (e) {
-      console.error("Checkout network error:", e);
-      alert("Network error. Please check your connection and try again.");
-    }
-    setLoading(null);
+    window.location.href = `/payment/checkout?plan=${planId}`;
   }
 
   function handleDownloadInvoice(invoiceId: string) {
@@ -532,14 +343,6 @@ export default function BillingPage() {
         </div>
       )}
 
-      {/* Checkout Modal */}
-      <CheckoutModal
-        open={modal.open}
-        onClose={() => setModal({ ...modal, open: false })}
-        plan={modal.plan}
-        priceUsd={modal.priceUsd}
-        priceInr={modal.priceInr}
-      />
     </div>
   );
 }

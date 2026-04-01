@@ -14,15 +14,6 @@ import {
   Shield,
 } from "lucide-react";
 
-declare global {
-  interface Window {
-    Razorpay: new (options: Record<string, unknown>) => {
-      open: () => void;
-      on: (event: string, handler: (response: Record<string, unknown>) => void) => void;
-    };
-  }
-}
-
 const MEMBER_TIERS = [
   { id: "1-5", label: "1–5 members", max: 5, price: 59 },
   { id: "6-10", label: "6–10 members", max: 10, price: 99 },
@@ -89,14 +80,6 @@ export default function AgencySetupPage() {
       setPageLoading(false);
     }
     init();
-
-    // Load Razorpay script
-    if (typeof window !== "undefined" && !window.Razorpay) {
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.async = true;
-      document.head.appendChild(script);
-    }
   }, []);
 
   const tier = MEMBER_TIERS.find((t) => t.id === selectedTier)!;
@@ -112,7 +95,7 @@ export default function AgencySetupPage() {
     setEnabledFeatures((prev) => ({ ...prev, [featureId]: !prev[featureId] }));
   }
 
-  async function handleSetup(e: React.FormEvent) {
+  function handleSetup(e: React.FormEvent) {
     e.preventDefault();
     const name = agencyName.trim();
     if (!name || name.length < 2) {
@@ -127,122 +110,20 @@ export default function AgencySetupPage() {
     setLoading(true);
     setError("");
 
-    try {
-      const res = await fetch("/api/agency/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          email: userEmail,
-          agencyName: name,
-          memberTier: selectedTier,
-          maxUsers: tier.max,
-          basePrice: tier.price,
-          addonPrice,
-          totalPrice,
-          enabledFeatures,
-        }),
-      });
+    // Store agency config in sessionStorage for the checkout page
+    const config = {
+      agencyName: name,
+      memberTier: selectedTier,
+      maxUsers: tier.max,
+      basePrice: tier.price,
+      addonPrice,
+      totalPrice,
+      enabledFeatures,
+    };
+    sessionStorage.setItem("seer_agency_config", JSON.stringify(config));
 
-      const text = await res.text();
-      let data: any;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        setError("Server error. Please try again.");
-        setLoading(false);
-        return;
-      }
-
-      if (!res.ok) {
-        setError(data.error ?? "Something went wrong.");
-        setLoading(false);
-        return;
-      }
-
-      if (data.provider === "razorpay") {
-        // Wait for script
-        if (!window.Razorpay) {
-          await new Promise<void>((resolve) => {
-            const check = setInterval(() => {
-              if (window.Razorpay) { clearInterval(check); resolve(); }
-            }, 200);
-            setTimeout(() => { clearInterval(check); resolve(); }, 8000);
-          });
-        }
-
-        if (!window.Razorpay) {
-          setError("Payment gateway failed to load. Please disable ad blockers and refresh.");
-          setLoading(false);
-          return;
-        }
-
-        const options: Record<string, unknown> = {
-          key: data.razorpayKeyId,
-          subscription_id: data.subscriptionId,
-          name: "SEER",
-          description: `Agency Plan — ${tier.label} — $${totalPrice}/mo`,
-          prefill: { email: userEmail },
-          handler: async function (response: {
-            razorpay_payment_id: string;
-            razorpay_subscription_id: string;
-            razorpay_signature: string;
-          }) {
-            try {
-              const verifyRes = await fetch("/api/payment/verify", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_subscription_id: response.razorpay_subscription_id,
-                  razorpay_signature: response.razorpay_signature,
-                  plan: "agency",
-                  agencyConfig: {
-                    agencyName: name,
-                    memberTier: selectedTier,
-                    maxUsers: tier.max,
-                    basePrice: tier.price,
-                    addonPrice,
-                    enabledFeatures,
-                  },
-                }),
-              });
-              if (verifyRes.ok) {
-                const verifyData = await verifyRes.json();
-                window.location.href = `/payment/success?plan=agency&price=${totalPrice}&agency=${verifyData.agencySlug ?? ""}`;
-              } else {
-                setError("Payment verification failed. Please contact support.");
-                setLoading(false);
-              }
-            } catch {
-              setError("Payment verification error. Please contact support.");
-              setLoading(false);
-            }
-          },
-          modal: { ondismiss: () => setLoading(false) },
-          theme: { color: "#D97757" },
-        };
-
-        try {
-          const rzp = new window.Razorpay(options);
-          rzp.on("payment.failed", function (response: Record<string, unknown>) {
-            const err = response.error as Record<string, string> | undefined;
-            setError(`Payment failed: ${err?.description ?? "Unknown error"}`);
-            setLoading(false);
-          });
-          rzp.open();
-        } catch (err) {
-          setError("Could not open payment gateway. Please refresh and try again.");
-          setLoading(false);
-        }
-      } else if (data.provider === "demo") {
-        setError(`Demo mode: Agency "${name}" would cost $${totalPrice}/mo. Configure payment keys to proceed.`);
-        setLoading(false);
-      }
-    } catch {
-      setError("Network error. Please try again.");
-      setLoading(false);
-    }
+    // Redirect to payment checkout page
+    window.location.href = "/payment/checkout?plan=agency";
   }
 
   if (pageLoading) {
