@@ -40,9 +40,9 @@ const plans = [
   {
     id: "agency",
     name: "Agency",
-    price: 99,
+    price: 59,
     calls: "Unlimited",
-    features: ["+ Team workspace", "Shared memory", "Dedicated support"],
+    features: ["+ Team workspace (1–5 members)", "Shared memory", "+$50 per 5 extra members"],
   },
 ];
 
@@ -154,6 +154,13 @@ export default function BillingPage() {
 
   async function handlePlanChange(planId: string) {
     if (planId === "free" || planId === currentPlan) return;
+
+    // Agency → redirect to setup page
+    if (planId === "agency") {
+      window.location.href = "/agency/setup";
+      return;
+    }
+
     setLoading(planId);
 
     try {
@@ -428,6 +435,11 @@ export default function BillingPage() {
                     <>
                       <Loader2 size={12} className="animate-spin" />
                       Processing...
+                    </>
+                  ) : plan.id === "agency" ? (
+                    <>
+                      Setup your agency
+                      <ArrowRight size={12} />
                     </>
                   ) : (
                     <>

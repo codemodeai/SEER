@@ -60,18 +60,18 @@ const plans = [
   {
     id: "agency",
     name: "Agency",
-    price: 99,
+    price: 59,
     period: "/month",
-    description: "For teams sharing context across codebases",
+    description: "Team portal with shared memory & activity",
     calls: "Unlimited calls",
     features: [
       "Everything in Pro",
-      "Team workspace",
+      "Team workspace (1–5 members)",
       "Shared project memory",
-      "Unlimited calls",
-      "Dedicated support",
+      "Real-time activity tracking",
+      "Scale: +$50 per 5 extra members",
     ],
-    cta: "Get Agency",
+    cta: "Setup your agency",
     popular: false,
   },
 ];
@@ -126,6 +126,12 @@ export default function Pricing() {
 
     if (planId === "free") {
       window.location.href = "/signup?plan=free";
+      return;
+    }
+
+    // Agency → redirect to setup page
+    if (planId === "agency") {
+      window.location.href = userId ? "/agency/setup" : "/signup?plan=agency";
       return;
     }
 

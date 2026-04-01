@@ -23,6 +23,7 @@ import {
   Activity,
   BarChart3,
   Megaphone,
+  BookOpen,
 } from "lucide-react";
 
 function AgencyPortalContent({ children }: { children: React.ReactNode }) {
@@ -41,6 +42,7 @@ function AgencyPortalContent({ children }: { children: React.ReactNode }) {
     { label: "Activity", href: `/agency/${slug}/activity`, icon: Activity },
     { label: "Analytics", href: `/agency/${slug}/analytics`, icon: BarChart3 },
     { label: "Announcements", href: `/agency/${slug}/announcements`, icon: Megaphone },
+    { label: "Guide", href: `/agency/${slug}/guide`, icon: BookOpen },
     { label: "Settings", href: `/agency/${slug}/settings`, icon: Settings },
   ];
 

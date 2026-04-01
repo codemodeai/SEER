@@ -39,11 +39,20 @@ export async function POST(req: NextRequest) {
       razorpay_subscription_id,
       razorpay_signature,
       plan,
+      agencyConfig,
     } = body as {
       razorpay_payment_id: string;
       razorpay_subscription_id: string;
       razorpay_signature: string;
       plan: string;
+      agencyConfig?: {
+        agencyName: string;
+        memberTier: string;
+        maxUsers: number;
+        basePrice: number;
+        addonPrice: number;
+        enabledFeatures: Record<string, boolean>;
+      };
     };
 
     if (!razorpay_payment_id || !razorpay_subscription_id || !razorpay_signature || !plan) {
@@ -90,8 +99,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Create invoice for this payment
-    const USD_PRICES: Record<string, number> = { starter: 19, pro: 49, agency: 99 };
-    const INR_PRICES: Record<string, number> = { starter: 1599, pro: 3999, agency: 7999 };
+    const agencyTotal = agencyConfig ? agencyConfig.basePrice + agencyConfig.addonPrice : 0;
+    const USD_PRICES: Record<string, number> = { starter: 19, pro: 49, agency: agencyTotal || 59 };
+    const INR_PRICES: Record<string, number> = { starter: 1599, pro: 3999, agency: (agencyTotal || 59) * 85 };
     const now = new Date();
     const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -117,6 +127,21 @@ export async function POST(req: NextRequest) {
     if (plan === "agency") {
       const agency = await createAgencyForUser(admin, user.id, user.email ?? "");
       agencySlug = agency?.slug ?? null;
+
+      // Update agency with tier, pricing, and feature config from setup
+      if (agency && agencyConfig) {
+        await admin
+          .from("agencies")
+          .update({
+            name: agencyConfig.agencyName,
+            max_users: agencyConfig.maxUsers,
+            member_tier: agencyConfig.memberTier,
+            base_price: agencyConfig.basePrice,
+            addon_price: agencyConfig.addonPrice,
+            enabled_features: agencyConfig.enabledFeatures,
+          })
+          .eq("id", agency.id);
+      }
     }
 
     return NextResponse.json({ success: true, plan, agencySlug });
