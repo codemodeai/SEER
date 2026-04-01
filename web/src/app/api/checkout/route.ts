@@ -47,23 +47,43 @@ export async function POST(req: NextRequest) {
     const hasDodo = !!process.env.DODO_API_KEY;
     const isDev = process.env.NODE_ENV === "development";
 
-    // Use Razorpay if: user is in India, Dodo isn't configured, or in dev mode (no geo headers)
-    const useRazorpay = hasRazorpay && (country === "IN" || !hasDodo || (isDev && !country));
+    // Razorpay is the PRIMARY provider. Use it when:
+    // 1. Razorpay key exists AND (user is in India OR no country detected OR Dodo not configured OR dev mode)
+    // Only use Dodo for explicitly non-India users when Dodo is configured
+    const isIndia = country === "IN" || country === "";
+    const useRazorpay = hasRazorpay && (isIndia || !hasDodo || isDev);
+
+    console.log("Checkout routing:", {
+      country,
+      hasRazorpay,
+      hasDodo,
+      isDev,
+      isIndia,
+      useRazorpay,
+      plan,
+      planId: planConfig.razorpayPlanId,
+    });
 
     if (useRazorpay) {
       // --- Razorpay subscription ---
       const razorpayKey = process.env.RAZORPAY_KEY_ID?.trim();
       const razorpaySecret = (process.env.RAZORPAY_KEY_SECRET ?? "").trim();
 
-      console.log("Razorpay debug:", {
-        keyPresent: !!razorpayKey,
-        keyLength: razorpayKey?.length,
-        keyPrefix: razorpayKey?.substring(0, 12),
-        secretPresent: !!razorpaySecret,
-        secretLength: razorpaySecret.length,
-        planId: planConfig.razorpayPlanId,
-        planIdPresent: !!planConfig.razorpayPlanId,
-      });
+      if (!razorpayKey || !razorpaySecret) {
+        console.error("Razorpay keys missing:", { keyPresent: !!razorpayKey, secretPresent: !!razorpaySecret });
+        return NextResponse.json(
+          { error: "Payment gateway not configured. Please contact support." },
+          { status: 500 }
+        );
+      }
+
+      if (!planConfig.razorpayPlanId) {
+        console.error("Razorpay plan ID missing for plan:", plan);
+        return NextResponse.json(
+          { error: `Plan configuration error for ${planConfig.name}. Please contact support.` },
+          { status: 500 }
+        );
+      }
 
       const auth = Buffer.from(`${razorpayKey}:${razorpaySecret}`).toString(
         "base64"
@@ -85,7 +105,12 @@ export async function POST(req: NextRequest) {
 
       if (!subRes.ok) {
         const errText = await subRes.text();
-        console.error("Razorpay error:", errText, "Plan ID:", planConfig.razorpayPlanId, "Key:", razorpayKey?.substring(0, 10));
+        console.error("Razorpay subscription error:", {
+          status: subRes.status,
+          body: errText,
+          planId: planConfig.razorpayPlanId,
+          keyPrefix: razorpayKey?.substring(0, 12),
+        });
         let detail = "";
         try {
           const errJson = JSON.parse(errText);
@@ -100,6 +125,17 @@ export async function POST(req: NextRequest) {
       }
 
       const sub = await subRes.json();
+
+      if (!sub.id) {
+        console.error("Razorpay returned no subscription ID:", sub);
+        return NextResponse.json(
+          { error: "Failed to create subscription. Please try again." },
+          { status: 502 }
+        );
+      }
+
+      console.log("Razorpay subscription created:", { subscriptionId: sub.id, plan });
+
       return NextResponse.json({
         provider: "razorpay",
         subscriptionId: sub.id,
