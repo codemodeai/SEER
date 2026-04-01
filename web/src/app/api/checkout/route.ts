@@ -12,10 +12,11 @@ function isConfigured(): boolean {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { plan, userId, email } = body as {
+    const { plan, userId, email, preferredProvider } = body as {
       plan: string;
       userId: string;
       email: string;
+      preferredProvider?: "razorpay" | "dodo";
     };
 
     const planConfig = PLANS[plan];
@@ -47,11 +48,17 @@ export async function POST(req: NextRequest) {
     const hasDodo = !!process.env.DODO_API_KEY;
     const isDev = process.env.NODE_ENV === "development";
 
-    // Razorpay is the PRIMARY provider. Use it when:
-    // 1. Razorpay key exists AND (user is in India OR no country detected OR Dodo not configured OR dev mode)
-    // Only use Dodo for explicitly non-India users when Dodo is configured
+    // If user explicitly chose a provider, respect it (when both are available)
+    // Otherwise: India/unknown → Razorpay, non-India → Dodo
     const isIndia = country === "IN" || country === "";
-    const useRazorpay = hasRazorpay && (isIndia || !hasDodo || isDev);
+    let useRazorpay: boolean;
+    if (preferredProvider === "dodo" && hasDodo) {
+      useRazorpay = false;
+    } else if (preferredProvider === "razorpay" && hasRazorpay) {
+      useRazorpay = true;
+    } else {
+      useRazorpay = hasRazorpay && (isIndia || !hasDodo || isDev);
+    }
 
     console.log("Checkout routing:", {
       country,

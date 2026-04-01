@@ -13,6 +13,9 @@ import {
   Building2,
   Zap,
   IndianRupee,
+  DollarSign,
+  Globe,
+  Check,
 } from "lucide-react";
 
 declare global {
@@ -49,6 +52,8 @@ interface AgencyConfig {
   enabledFeatures: Record<string, boolean>;
 }
 
+type Provider = "razorpay" | "dodo";
+
 function CheckoutContent() {
   const searchParams = useSearchParams();
   const plan = searchParams.get("plan") ?? "";
@@ -60,6 +65,8 @@ function CheckoutContent() {
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isIndia, setIsIndia] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<Provider>("dodo");
 
   const isAgency = plan === "agency";
   const planMeta = isAgency ? null : PLAN_INFO[plan];
@@ -76,6 +83,18 @@ function CheckoutContent() {
       setUserId(user.id);
       setUserEmail(user.email ?? "");
 
+      // Geo detection
+      try {
+        const geoRes = await fetch("/api/geo");
+        if (geoRes.ok) {
+          const geo = await geoRes.json();
+          setIsIndia(geo.isIndia);
+          setSelectedProvider(geo.isIndia ? "razorpay" : "dodo");
+        }
+      } catch {
+        // Default to dodo on error
+      }
+
       // Agency config from sessionStorage
       let totalUsd = planMeta?.priceUsd ?? 0;
       if (isAgency) {
@@ -89,7 +108,7 @@ function CheckoutContent() {
         totalUsd = config.totalPrice;
       }
 
-      // Fetch price info
+      // Fetch price info (INR breakdown)
       const url = isAgency
         ? `/api/payment/price-info?plan=agency&totalUsd=${totalUsd}`
         : `/api/payment/price-info?plan=${plan}`;
@@ -121,7 +140,6 @@ function CheckoutContent() {
     setError("");
 
     try {
-      // Call the appropriate checkout API
       let apiUrl: string;
       let body: Record<string, unknown>;
 
@@ -137,10 +155,11 @@ function CheckoutContent() {
           addonPrice: agencyConfig.addonPrice,
           totalPrice: agencyConfig.totalPrice,
           enabledFeatures: agencyConfig.enabledFeatures,
+          preferredProvider: selectedProvider,
         };
       } else {
         apiUrl = "/api/checkout";
-        body = { plan, userId, email: userEmail };
+        body = { plan, userId, email: userEmail, preferredProvider: selectedProvider };
       }
 
       const res = await fetch(apiUrl, {
@@ -163,18 +182,19 @@ function CheckoutContent() {
         return;
       }
 
+      // Dodo → redirect to hosted checkout
       if (data.provider === "dodo" && data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
         return;
       }
 
+      // Razorpay → open modal
       if (data.provider !== "razorpay" || !data.subscriptionId || !data.razorpayKeyId) {
         setError("Payment setup incomplete. Please try again.");
         setLoading(false);
         return;
       }
 
-      // Wait for Razorpay script
       if (!window.Razorpay) {
         await new Promise<void>((resolve) => {
           const check = setInterval(() => {
@@ -229,7 +249,6 @@ function CheckoutContent() {
             });
             if (verifyRes.ok) {
               const verifyData = await verifyRes.json();
-              // Clear agency config from sessionStorage
               sessionStorage.removeItem("seer_agency_config");
               const agencyParam = verifyData.agencySlug ? `&agency=${verifyData.agencySlug}` : "";
               window.location.href = `/payment/success?plan=${currentPlan}&price=${priceInfo?.priceUsd ?? 0}${agencyParam}`;
@@ -285,6 +304,8 @@ function CheckoutContent() {
     ? `${agencyConfig?.agencyName} — Unlimited calls, shared memory, activity tracking`
     : planMeta!.description;
 
+  const isDodo = selectedProvider === "dodo";
+
   return (
     <div className="min-h-screen bg-cream">
       <div className="max-w-lg mx-auto px-4 py-12 sm:py-16">
@@ -303,7 +324,7 @@ function CheckoutContent() {
             <CreditCard size={28} className="text-terracotta" />
           </div>
           <h1 className="font-display text-3xl text-charcoal">Complete your purchase</h1>
-          <p className="text-muted text-sm mt-2">Review your plan and pay securely with Razorpay.</p>
+          <p className="text-muted text-sm mt-2">Review your plan and choose a payment method.</p>
         </div>
 
         {/* Plan info card */}
@@ -322,7 +343,6 @@ function CheckoutContent() {
             </div>
           </div>
 
-          {/* Agency addons detail */}
           {isAgency && agencyConfig && agencyConfig.addonPrice > 0 && (
             <div className="mb-4 pb-4 border-b border-sand/40">
               <p className="text-[10px] font-semibold tracking-widest uppercase text-muted mb-2">Add-ons</p>
@@ -336,18 +356,84 @@ function CheckoutContent() {
           )}
         </div>
 
-        {/* Price breakdown card */}
-        <div className="bg-charcoal text-white rounded-2xl p-6 mb-4">
-          <div className="flex items-center gap-2 mb-5">
-            <Receipt size={16} className="text-terracotta-light" />
-            <h3 className="text-xs font-semibold tracking-widest uppercase text-white/50">
-              Price Breakdown
-            </h3>
-          </div>
+        {/* Payment method selector */}
+        <div className="bg-ivory border border-sand/60 rounded-2xl p-6 mb-4">
+          <p className="text-[10px] font-semibold tracking-widest uppercase text-muted mb-3">
+            Payment Method
+          </p>
+          <div className="flex flex-col gap-3">
+            {/* Dodo — always shown */}
+            <button
+              type="button"
+              onClick={() => setSelectedProvider("dodo")}
+              className={`flex items-center gap-4 px-4 py-3.5 rounded-xl border-2 transition-all text-left ${
+                isDodo
+                  ? "border-terracotta bg-terracotta/[0.04]"
+                  : "border-sand/60 bg-white hover:border-sand"
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                isDodo ? "bg-terracotta/10" : "bg-cream-dark"
+              }`}>
+                <Globe size={18} className={isDodo ? "text-terracotta" : "text-muted"} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-charcoal">Pay in USD</span>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase bg-blue-50 text-blue-600">
+                    International
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted mt-0.5">
+                  Dodo Payments — Card, PayPal & more — ${priceInfo?.priceUsd ?? 0}/mo
+                </p>
+              </div>
+              {isDodo && <Check size={16} className="text-terracotta shrink-0" />}
+            </button>
 
-          {priceInfo ? (
+            {/* Razorpay — shown only for Indian users */}
+            {isIndia && (
+              <button
+                type="button"
+                onClick={() => setSelectedProvider("razorpay")}
+                className={`flex items-center gap-4 px-4 py-3.5 rounded-xl border-2 transition-all text-left ${
+                  !isDodo
+                    ? "border-terracotta bg-terracotta/[0.04]"
+                    : "border-sand/60 bg-white hover:border-sand"
+                }`}
+              >
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                  !isDodo ? "bg-terracotta/10" : "bg-cream-dark"
+                }`}>
+                  <IndianRupee size={18} className={!isDodo ? "text-terracotta" : "text-muted"} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-charcoal">Pay in INR</span>
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase bg-orange-50 text-orange-600">
+                      India
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted mt-0.5">
+                    Razorpay — UPI, Cards, Net Banking — ₹{priceInfo?.totalInr.toLocaleString("en-IN") ?? 0}/mo
+                  </p>
+                </div>
+                {!isDodo && <Check size={16} className="text-terracotta shrink-0" />}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Price breakdown card — show INR breakdown only for Razorpay */}
+        {selectedProvider === "razorpay" && priceInfo ? (
+          <div className="bg-charcoal text-white rounded-2xl p-6 mb-4">
+            <div className="flex items-center gap-2 mb-5">
+              <Receipt size={16} className="text-terracotta-light" />
+              <h3 className="text-xs font-semibold tracking-widest uppercase text-white/50">
+                Price Breakdown (INR)
+              </h3>
+            </div>
             <div className="flex flex-col gap-3 text-sm">
-              {/* Subtotal */}
               <div className="flex items-center justify-between">
                 <span className="text-white/70">Subtotal</span>
                 <div className="text-right">
@@ -356,20 +442,14 @@ function CheckoutContent() {
                   <span className="font-medium">₹{priceInfo.subtotalInr.toLocaleString("en-IN")}</span>
                 </div>
               </div>
-
-              {/* Exchange rate */}
               <div className="flex items-center justify-between text-xs">
                 <span className="text-white/40">Exchange rate</span>
                 <span className="text-white/40">1 USD = ₹{priceInfo.exchangeRate}</span>
               </div>
-
-              {/* GST */}
               <div className="flex items-center justify-between">
                 <span className="text-white/70">GST ({priceInfo.gstPercent}%)</span>
                 <span className="font-medium">₹{priceInfo.gstAmount.toLocaleString("en-IN")}</span>
               </div>
-
-              {/* Divider */}
               <div className="border-t border-white/20 mt-1 pt-3 flex items-center justify-between">
                 <span className="text-white font-semibold">Total</span>
                 <div className="flex items-center gap-2">
@@ -380,12 +460,40 @@ function CheckoutContent() {
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="flex items-center justify-center py-4">
-              <Loader2 size={18} className="animate-spin text-white/40" />
+          </div>
+        ) : selectedProvider === "dodo" ? (
+          <div className="bg-charcoal text-white rounded-2xl p-6 mb-4">
+            <div className="flex items-center gap-2 mb-5">
+              <Receipt size={16} className="text-terracotta-light" />
+              <h3 className="text-xs font-semibold tracking-widest uppercase text-white/50">
+                Price Summary (USD)
+              </h3>
             </div>
-          )}
-        </div>
+            <div className="flex flex-col gap-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-white/70">Plan price</span>
+                <span className="font-medium">${priceInfo?.priceUsd ?? 0}/mo</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-white/40">Taxes & fees</span>
+                <span className="text-white/40">Handled by Dodo Payments (MoR)</span>
+              </div>
+              <div className="border-t border-white/20 mt-1 pt-3 flex items-center justify-between">
+                <span className="text-white font-semibold">Total</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-display text-2xl text-terracotta-light">
+                    ${priceInfo?.priceUsd ?? 0}
+                  </span>
+                  <span className="text-white/40 text-xs">/mo</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-charcoal text-white rounded-2xl p-6 mb-4 flex items-center justify-center py-8">
+            <Loader2 size={18} className="animate-spin text-white/40" />
+          </div>
+        )}
 
         {/* Error */}
         {error && (
@@ -405,6 +513,11 @@ function CheckoutContent() {
               <Loader2 size={18} className="animate-spin" />
               Processing...
             </>
+          ) : isDodo ? (
+            <>
+              <DollarSign size={18} />
+              Pay ${priceInfo?.priceUsd ?? 0}/mo
+            </>
           ) : priceInfo ? (
             <>
               <IndianRupee size={18} />
@@ -418,7 +531,11 @@ function CheckoutContent() {
         {/* Security note */}
         <div className="flex items-center justify-center gap-2 mt-5 text-xs text-muted">
           <Shield size={12} />
-          <span>Secured by Razorpay. 7-day money-back guarantee.</span>
+          <span>
+            {isDodo
+              ? "Secured by Dodo Payments. 7-day money-back guarantee."
+              : "Secured by Razorpay. 7-day money-back guarantee."}
+          </span>
         </div>
       </div>
     </div>

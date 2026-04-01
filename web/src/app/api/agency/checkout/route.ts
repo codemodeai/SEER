@@ -21,7 +21,19 @@ export async function POST(req: NextRequest) {
       addonPrice,
       totalPrice,
       enabledFeatures,
-    } = body;
+      preferredProvider,
+    } = body as {
+      userId: string;
+      email: string;
+      agencyName: string;
+      memberTier: string;
+      maxUsers: number;
+      basePrice: number;
+      addonPrice: number;
+      totalPrice: number;
+      enabledFeatures: Record<string, boolean>;
+      preferredProvider?: "razorpay" | "dodo";
+    };
 
     // Validate
     if (!userId || !email) {
@@ -63,6 +75,66 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    const hasRazorpay = !!process.env.RAZORPAY_KEY_ID;
+    const hasDodo = !!process.env.DODO_API_KEY;
+
+    // Determine provider based on user preference
+    const useDodo = preferredProvider === "dodo" && hasDodo;
+
+    if (useDodo) {
+      // --- Dodo Payments (USD, hosted checkout) ---
+      const DODO_API_URL = "https://api.dodopayments.com/v1";
+      const dodoAgencyProductId = process.env.DODO_AGENCY_PRICE_ID ?? "";
+
+      if (!dodoAgencyProductId) {
+        return NextResponse.json({ error: "Agency product not configured for Dodo" }, { status: 500 });
+      }
+
+      const dodoRes = await fetch(`${DODO_API_URL}/subscriptions`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.DODO_API_KEY ?? ""}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          billing: { city: "", country: "", state: "", street: "", zipcode: "" },
+          customer: { email, name: email.split("@")[0] },
+          payment_link: true,
+          product_id: dodoAgencyProductId,
+          quantity: 1,
+          return_url: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/dashboard?payment=success`,
+          metadata: {
+            user_id: userId,
+            seer_plan: "agency",
+            agency_name: agencyName,
+            member_tier: memberTier,
+            max_users: String(maxUsers),
+            base_price: String(basePrice),
+            addon_price: String(addonPrice),
+            total_price: String(totalPrice),
+            enabled_features: JSON.stringify(enabledFeatures),
+          },
+        }),
+      });
+
+      if (!dodoRes.ok) {
+        const errText = await dodoRes.text();
+        console.error("Dodo agency subscription error:", errText);
+        return NextResponse.json({ error: "Payment provider error. Please try again." }, { status: 502 });
+      }
+
+      const dodoData = await dodoRes.json();
+      console.log("Agency Dodo checkout created:", { subscriptionId: dodoData.subscription_id, agency: agencyName });
+
+      return NextResponse.json({
+        provider: "dodo",
+        checkoutUrl: dodoData.payment_link,
+        subscriptionId: dodoData.subscription_id,
+        priceUsd: totalPrice,
+      });
+    }
+
+    // --- Razorpay (INR, modal checkout) ---
     const razorpayKey = process.env.RAZORPAY_KEY_ID?.trim();
     const razorpaySecret = (process.env.RAZORPAY_KEY_SECRET ?? "").trim();
 
