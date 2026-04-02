@@ -46,15 +46,18 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protect dashboard and agency portal routes
+  // Protect dashboard and agency portal routes (except /agency/invite which is public)
   if (
     (request.nextUrl.pathname.startsWith("/dashboard") ||
-      request.nextUrl.pathname.startsWith("/agency")) &&
+      (request.nextUrl.pathname.startsWith("/agency") &&
+        !request.nextUrl.pathname.startsWith("/agency/invite"))) &&
     !user
   ) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("redirect", request.nextUrl.pathname);
+    // Preserve full path + query string so redirect works after login
+    const fullPath = request.nextUrl.pathname + request.nextUrl.search;
+    url.searchParams.set("redirect", fullPath);
     return NextResponse.redirect(url);
   }
 
@@ -64,8 +67,14 @@ export async function middleware(request: NextRequest) {
       request.nextUrl.pathname === "/signup") &&
     user
   ) {
+    // If there's a redirect param, honor it (e.g. invite acceptance flow)
+    const redirectTo = request.nextUrl.searchParams.get("redirect");
+    if (redirectTo) {
+      return NextResponse.redirect(new URL(redirectTo, request.url));
+    }
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
+    url.search = "";
     return NextResponse.redirect(url);
   }
 
