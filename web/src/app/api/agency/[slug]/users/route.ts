@@ -85,7 +85,7 @@ export async function GET(
         role,
         assigned_plan,
         joined_at,
-        users!inner(email, usage_this_month, seer_api_key)
+        users!agency_users_user_id_fkey(email, usage_this_month, seer_api_key)
       `)
       .eq("agency_id", agency.id)
       .order("joined_at", { ascending: true });

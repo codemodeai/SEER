@@ -121,15 +121,19 @@ export async function POST(req: NextRequest) {
       } else {
         const { data: membership } = await admin
           .from("agency_users")
-          .select("role, agencies!inner(slug, name)")
+          .select("role, agency_id, agencies!agency_users_agency_id_fkey(slug, name)")
           .eq("user_id", user.id)
           .limit(1)
           .single();
 
         if (membership) {
-          agencySlug = (membership as any).agencies?.slug ?? null;
+          const role = (membership as any).role ?? "member";
           agencyName = (membership as any).agencies?.name ?? null;
-          agencyRole = (membership as any).role ?? "member";
+          agencyRole = role;
+          // Only owner/admin can access the agency portal — members see their own dashboard only
+          if (role === "admin") {
+            agencySlug = (membership as any).agencies?.slug ?? null;
+          }
         }
       }
 

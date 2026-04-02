@@ -63,6 +63,12 @@ export async function GET(
       if (!member) {
         return NextResponse.json({ error: "Access denied" }, { status: 403 });
       }
+
+      // Only admins can access the agency portal — regular members use their own dashboard
+      if (member.role !== "admin") {
+        return NextResponse.json({ error: "Access denied. Only admins can access the agency portal." }, { status: 403 });
+      }
+
       membership = member;
     }
 
