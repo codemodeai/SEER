@@ -83,26 +83,25 @@ export async function POST(req: NextRequest) {
 
     if (useDodo) {
       // --- Dodo Payments (USD, hosted checkout) ---
-      const DODO_API_URL = "https://api.dodopayments.com/v1";
+      const DODO_API_URL = process.env.DODO_API_KEY?.startsWith("sk_live")
+        ? "https://live.dodopayments.com"
+        : "https://test.dodopayments.com";
       const dodoAgencyProductId = process.env.DODO_AGENCY_PRICE_ID ?? "";
 
       if (!dodoAgencyProductId) {
         return NextResponse.json({ error: "Agency product not configured for Dodo" }, { status: 500 });
       }
 
-      const dodoRes = await fetch(`${DODO_API_URL}/subscriptions`, {
+      const dodoRes = await fetch(`${DODO_API_URL}/checkouts`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${process.env.DODO_API_KEY ?? ""}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          billing: { city: "", country: "", state: "", street: "", zipcode: "" },
+          product_cart: [{ product_id: dodoAgencyProductId, quantity: 1 }],
           customer: { email, name: email.split("@")[0] },
-          payment_link: true,
-          product_id: dodoAgencyProductId,
-          quantity: 1,
-          return_url: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/dashboard?payment=success`,
+          return_url: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/payment/success?plan=agency&price=${totalPrice}`,
           metadata: {
             user_id: userId,
             seer_plan: "agency",
@@ -119,17 +118,19 @@ export async function POST(req: NextRequest) {
 
       if (!dodoRes.ok) {
         const errText = await dodoRes.text();
-        console.error("Dodo agency subscription error:", errText);
-        return NextResponse.json({ error: "Payment provider error. Please try again." }, { status: 502 });
+        console.error("Dodo agency checkout error:", dodoRes.status, errText);
+        let detail = "";
+        try { detail = JSON.parse(errText)?.message || errText; } catch { detail = errText; }
+        return NextResponse.json({ error: `Payment error: ${detail}` }, { status: 502 });
       }
 
       const dodoData = await dodoRes.json();
-      console.log("Agency Dodo checkout created:", { subscriptionId: dodoData.subscription_id, agency: agencyName });
+      console.log("Agency Dodo checkout created:", dodoData);
 
       return NextResponse.json({
         provider: "dodo",
-        checkoutUrl: dodoData.payment_link,
-        subscriptionId: dodoData.subscription_id,
+        checkoutUrl: dodoData.checkout_url,
+        sessionId: dodoData.session_id,
         priceUsd: totalPrice,
       });
     }
