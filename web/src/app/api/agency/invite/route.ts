@@ -193,11 +193,11 @@ export async function POST(req: NextRequest) {
       agency_id: invite.agency_id,
       user_id: user.id,
       role: invite.role,
-      assigned_plan: "agency",
+      assigned_plan: "starter",
       invited_by: invite.invited_by,
     });
 
-    // Upgrade user plan to agency (unlimited access)
+    // Upgrade user plan to agency (unlimited access) — stored on users table, not agency_users
     if (!insertErr) {
       await admin.from("users").update({ plan: "agency" }).eq("id", user.id);
     }
