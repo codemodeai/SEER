@@ -17,8 +17,10 @@ export default function SignupPage() {
 function SignupForm() {
   const searchParams = useSearchParams();
   const plan = searchParams.get("plan") ?? "free";
+  const redirect = searchParams.get("redirect") ?? "";
+  const prefillEmail = searchParams.get("email") ?? "";
 
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(prefillEmail);
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,7 +38,7 @@ function SignupForm() {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?redirect=/dashboard`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirect || "/dashboard")}`,
         data: { name, plan },
       },
     });
@@ -56,7 +58,7 @@ function SignupForm() {
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?redirect=/dashboard`,
+        redirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirect || "/dashboard")}`,
         queryParams: { access_type: "offline", prompt: "consent" },
       },
     });
@@ -67,7 +69,7 @@ function SignupForm() {
     await supabase.auth.signInWithOAuth({
       provider: "github",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?redirect=/dashboard`,
+        redirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirect || "/dashboard")}`,
       },
     });
   }

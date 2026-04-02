@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 
 interface AgencyMember {
-  user_id: string;
+  user_id: string | null;
   email: string;
   role: string;
   assigned_plan: string;
@@ -27,6 +27,8 @@ interface AgencyMember {
   joined_at: string;
   api_key_masked: string | null;
   has_api_key: boolean;
+  status?: "active" | "pending";
+  invite_id?: string;
 }
 
 // --- Add User Modal ---
@@ -44,6 +46,9 @@ function AddUserModal({
   const [plan, setPlan] = useState("starter");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [inviteSent, setInviteSent] = useState(false);
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -59,25 +64,45 @@ function AddUserModal({
 
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Failed to add user");
+        setError(data.error || "Failed to invite user");
         setSaving(false);
         return;
       }
 
+      // Show success state
+      if (data.emailSent) {
+        setInviteSent(true);
+      } else if (data.inviteUrl) {
+        setInviteUrl(data.inviteUrl);
+      }
+
       onAdded({
-        user_id: data.member.user_id,
+        user_id: null,
         email: data.member.email,
         role: data.member.role,
         assigned_plan: data.member.assigned_plan,
         usage_this_month: 0,
         joined_at: new Date().toISOString(),
         api_key_masked: null,
-        has_api_key: true,
+        has_api_key: false,
+        status: "pending",
       });
-      onClose();
+
+      // Auto-close after email sent
+      if (data.emailSent) {
+        setTimeout(onClose, 2000);
+      }
     } catch {
       setError("Network error. Please try again.");
       setSaving(false);
+    }
+  }
+
+  function handleCopyLink() {
+    if (inviteUrl) {
+      navigator.clipboard.writeText(inviteUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   }
 
@@ -88,12 +113,55 @@ function AddUserModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
-          <h2 className="font-display text-xl text-charcoal">Add User</h2>
+          <h2 className="font-display text-xl text-charcoal">
+            {inviteSent || inviteUrl ? "Invite Sent" : "Invite User"}
+          </h2>
           <button onClick={onClose} className="text-muted hover:text-charcoal transition-colors">
             <X size={18} />
           </button>
         </div>
 
+        {/* Success: email sent */}
+        {inviteSent && (
+          <div className="text-center py-4">
+            <div className="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center mx-auto mb-3">
+              <Check size={24} className="text-green-500" />
+            </div>
+            <p className="text-sm text-charcoal font-medium">Invite sent to {email}</p>
+            <p className="text-xs text-muted mt-1">They&apos;ll receive an email with a link to join.</p>
+          </div>
+        )}
+
+        {/* Success: no email service — show link to copy */}
+        {inviteUrl && (
+          <div className="flex flex-col gap-3 py-2">
+            <div className="text-center">
+              <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center mx-auto mb-3">
+                <Key size={24} className="text-amber-500" />
+              </div>
+              <p className="text-sm text-charcoal font-medium mb-1">Invite created for {email}</p>
+              <p className="text-xs text-muted">Email service not configured. Share this link manually:</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={inviteUrl}
+                readOnly
+                className="flex-1 px-3 py-2 rounded-xl border border-sand/60 bg-cream-dark text-xs text-muted font-mono truncate"
+              />
+              <button
+                onClick={handleCopyLink}
+                className="px-3 py-2 bg-terracotta text-white rounded-xl text-xs font-medium hover:bg-terracotta/90 transition-colors flex items-center gap-1.5"
+              >
+                {copied ? <Check size={12} /> : <Copy size={12} />}
+                {copied ? "Copied" : "Copy"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Invite form — only show if not yet submitted */}
+        {!inviteSent && !inviteUrl && (
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {/* Email */}
           <div>
@@ -108,7 +176,7 @@ function AddUserModal({
               required
               className="w-full px-4 py-2.5 rounded-xl border border-sand/60 bg-white text-sm text-charcoal placeholder:text-muted focus:outline-none focus:border-terracotta/40 focus:ring-2 focus:ring-terracotta/10 transition-all"
             />
-            <p className="text-[10px] text-muted mt-1">User must have an existing SEER account.</p>
+            <p className="text-[10px] text-muted mt-1">Works with any email — no existing account needed.</p>
           </div>
 
           {/* Role */}
@@ -171,9 +239,10 @@ function AddUserModal({
             className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-terracotta text-white rounded-xl text-sm font-medium hover:bg-terracotta/90 transition-colors disabled:opacity-50"
           >
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-            {saving ? "Adding..." : "Add User"}
+            {saving ? "Sending..." : "Send Invite"}
           </button>
         </form>
+        )}
       </div>
     </div>
   );
@@ -189,7 +258,7 @@ function EditUserModal({
   slug: string;
   member: AgencyMember;
   onClose: () => void;
-  onUpdated: (userId: string, role: string, plan: string) => void;
+  onUpdated: (userId: string | null, role: string, plan: string) => void;
 }) {
   const [role, setRole] = useState(member.role);
   const [plan, setPlan] = useState(member.assigned_plan);
@@ -328,7 +397,7 @@ function RemoveUserModal({
   slug: string;
   member: AgencyMember;
   onClose: () => void;
-  onRemoved: (userId: string) => void;
+  onRemoved: (userId: string | null) => void;
 }) {
   const [removing, setRemoving] = useState(false);
   const [error, setError] = useState("");
@@ -469,7 +538,8 @@ export default function AgencyUsersPage() {
     setMembers((prev) => [...prev, member]);
   }
 
-  function handleUpdated(userId: string, newRole: string, newPlan: string) {
+  function handleUpdated(userId: string | null, newRole: string, newPlan: string) {
+    if (!userId) return;
     setMembers((prev) =>
       prev.map((m) =>
         m.user_id === userId ? { ...m, role: newRole, assigned_plan: newPlan } : m
@@ -477,7 +547,8 @@ export default function AgencyUsersPage() {
     );
   }
 
-  function handleRemoved(userId: string) {
+  function handleRemoved(userId: string | null) {
+    if (!userId) return;
     setMembers((prev) => prev.filter((m) => m.user_id !== userId));
   }
 
@@ -593,14 +664,25 @@ export default function AgencyUsersPage() {
                   >
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-terracotta/15 flex items-center justify-center">
-                          <span className="text-terracotta font-semibold text-xs">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                          member.status === "pending" ? "bg-amber-100" : "bg-terracotta/15"
+                        }`}>
+                          <span className={`font-semibold text-xs ${
+                            member.status === "pending" ? "text-amber-600" : "text-terracotta"
+                          }`}>
                             {member.email.charAt(0).toUpperCase()}
                           </span>
                         </div>
-                        <span className="text-charcoal font-medium truncate max-w-[200px]">
-                          {member.email}
-                        </span>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-charcoal font-medium truncate max-w-[200px]">
+                            {member.email}
+                          </span>
+                          {member.status === "pending" && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-semibold uppercase tracking-wider bg-amber-100 text-amber-700 flex-shrink-0">
+                              Invited
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="px-5 py-3.5">
@@ -660,20 +742,24 @@ export default function AgencyUsersPage() {
                     </td>
                     {canManage && (
                       <td className="px-5 py-3.5 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => setEditMember(member)}
-                            className="text-xs text-terracotta hover:text-terracotta/70 font-medium transition-colors"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => setRemoveMember(member)}
-                            className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors"
-                          >
-                            Remove
-                          </button>
-                        </div>
+                        {member.status === "pending" ? (
+                          <span className="text-[10px] text-muted italic">Awaiting response</span>
+                        ) : (
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => setEditMember(member)}
+                              className="text-xs text-terracotta hover:text-terracotta/70 font-medium transition-colors"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => setRemoveMember(member)}
+                              className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        )}
                       </td>
                     )}
                   </tr>

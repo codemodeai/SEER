@@ -65,14 +65,7 @@ export async function PATCH(
       updates.name = name;
     }
 
-    // Validate and apply max_users
-    if (body.max_users !== undefined) {
-      const maxUsers = parseInt(body.max_users, 10);
-      if (isNaN(maxUsers) || maxUsers < 1 || maxUsers > 100) {
-        return NextResponse.json({ error: "Max users must be 1-100" }, { status: 400 });
-      }
-      updates.max_users = maxUsers;
-    }
+    // max_users is locked — set during plan purchase, not editable via settings
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });

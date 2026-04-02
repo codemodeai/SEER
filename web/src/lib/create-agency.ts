@@ -15,7 +15,8 @@ function generateSlug(name: string): string {
 export async function createAgencyForUser(
   admin: SupabaseClient,
   userId: string,
-  email: string
+  email: string,
+  maxUsers?: number
 ): Promise<{ slug: string; id: string } | null> {
   // Check if user already owns an agency
   const { data: existing } = await admin
@@ -43,7 +44,7 @@ export async function createAgencyForUser(
       slug,
       owner_id: userId,
       plan: "agency",
-      max_users: 10,
+      max_users: maxUsers ?? 5,
       status: "active",
     })
     .select("id, slug")

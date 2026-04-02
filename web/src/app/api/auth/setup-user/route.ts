@@ -104,9 +104,11 @@ export async function POST(req: NextRequest) {
 
       // Look up agency slug (owner or member)
       let agencySlug: string | null = null;
+      let agencyName: string | null = null;
+      let agencyRole: string | null = null;
       const { data: ownedAgency } = await admin
         .from("agencies")
-        .select("slug")
+        .select("slug, name")
         .eq("owner_id", user.id)
         .eq("status", "active")
         .limit(1)
@@ -114,16 +116,20 @@ export async function POST(req: NextRequest) {
 
       if (ownedAgency) {
         agencySlug = ownedAgency.slug;
+        agencyName = ownedAgency.name;
+        agencyRole = "owner";
       } else {
         const { data: membership } = await admin
           .from("agency_users")
-          .select("agencies!inner(slug)")
+          .select("role, agencies!inner(slug, name)")
           .eq("user_id", user.id)
           .limit(1)
           .single();
 
         if (membership) {
           agencySlug = (membership as any).agencies?.slug ?? null;
+          agencyName = (membership as any).agencies?.name ?? null;
+          agencyRole = (membership as any).role ?? "member";
         }
       }
 
@@ -142,6 +148,8 @@ export async function POST(req: NextRequest) {
         suggestionSkin: existing.suggestion_skin || "default",
         autoSuggest: existing.auto_suggest ?? true,
         agencySlug,
+        agencyName,
+        agencyRole,
       });
     }
 

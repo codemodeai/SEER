@@ -5,6 +5,7 @@ import SavingsTrend from "@/components/dashboard/SavingsTrend";
 import FeatureBreakdown from "@/components/dashboard/FeatureBreakdown";
 import RecentCalls from "@/components/dashboard/RecentCalls";
 import MfaBanner from "@/components/dashboard/MfaBanner";
+import AgencyBanner from "@/components/dashboard/AgencyBanner";
 
 export default function DashboardPage() {
   return (
@@ -18,6 +19,9 @@ export default function DashboardPage() {
           Your SEER usage overview and analytics.
         </p>
       </div>
+
+      {/* Agency membership banner — shows for users added to an agency */}
+      <AgencyBanner />
 
       {/* MFA Banner — shows until user completes MFA, then auto-hides */}
       <MfaBanner />

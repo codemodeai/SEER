@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase-server";
+import { sendInviteEmail } from "@/lib/send-invite-email";
 import crypto from "crypto";
 
 function generateSeerApiKey(): string {
@@ -105,17 +106,39 @@ export async function GET(
         joined_at: m.joined_at,
         api_key_masked: key ? `${key.slice(0, 12)}...${key.slice(-4)}` : null,
         has_api_key: !!key,
+        status: "active",
       };
     });
 
-    return NextResponse.json({ members: formatted });
+    // Also fetch pending invites
+    const { data: pendingInvites } = await admin
+      .from("agency_invites")
+      .select("id, email, role, assigned_plan, created_at, status")
+      .eq("agency_id", agency.id)
+      .eq("status", "pending")
+      .order("created_at", { ascending: true });
+
+    const inviteFormatted = (pendingInvites ?? []).map((inv: any) => ({
+      user_id: null,
+      email: inv.email,
+      role: inv.role,
+      assigned_plan: inv.assigned_plan,
+      usage_this_month: 0,
+      joined_at: inv.created_at,
+      api_key_masked: null,
+      has_api_key: false,
+      status: "pending",
+      invite_id: inv.id,
+    }));
+
+    return NextResponse.json({ members: [...formatted, ...inviteFormatted] });
   } catch (err) {
     console.error("Agency users GET error:", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
 
-// POST /api/agency/[slug]/users — add a user to the agency by email
+// POST /api/agency/[slug]/users — invite a user to the agency by email
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
@@ -143,7 +166,7 @@ export async function POST(
 
     const admin = getSupabaseAdmin();
 
-    // Check seat limit
+    // Check seat limit (count existing members + pending invites)
     const { count: memberCount } = await admin
       .from("agency_users")
       .select("id", { count: "exact", head: true })
@@ -151,79 +174,97 @@ export async function POST(
 
     const { data: agencyData } = await admin
       .from("agencies")
-      .select("max_users")
+      .select("max_users, name")
       .eq("id", agency.id)
       .single();
 
     if ((memberCount ?? 0) >= (agencyData?.max_users ?? 10)) {
       return NextResponse.json(
-        { error: `Seat limit reached (${agencyData?.max_users ?? 10} max). Increase max users in settings.` },
+        { error: `Seat limit reached (${agencyData?.max_users ?? 10} max). Upgrade your plan for more seats.` },
         { status: 409 }
       );
     }
 
-    // Find user by email in users table
+    // Check if already a member (by email in users → agency_users)
     const { data: targetUser } = await admin
       .from("users")
-      .select("id, email, seer_api_key")
+      .select("id, email")
       .eq("email", email)
       .single();
 
-    if (!targetUser) {
-      return NextResponse.json(
-        { error: "No SEER account found with that email. The user must sign up first." },
-        { status: 404 }
-      );
+    if (targetUser) {
+      // Check if this user is the owner
+      if (targetUser.id === agency.owner_id) {
+        return NextResponse.json({ error: "The agency owner cannot be invited" }, { status: 400 });
+      }
+
+      // Check if already a member
+      const { data: existingMember } = await admin
+        .from("agency_users")
+        .select("id")
+        .eq("agency_id", agency.id)
+        .eq("user_id", targetUser.id)
+        .single();
+
+      if (existingMember) {
+        return NextResponse.json({ error: "This user is already a member of the agency" }, { status: 409 });
+      }
     }
 
-    // Auto-generate API key if user doesn't have one
-    let apiKey = targetUser.seer_api_key;
-    if (!apiKey) {
-      apiKey = generateSeerApiKey();
-      await admin
-        .from("users")
-        .update({ seer_api_key: apiKey })
-        .eq("id", targetUser.id);
-    }
-
-    // Prevent adding self (owner)
-    if (targetUser.id === agency.owner_id) {
-      return NextResponse.json({ error: "The agency owner cannot be added as a member" }, { status: 400 });
-    }
-
-    // Check if already a member
-    const { data: existing } = await admin
-      .from("agency_users")
+    // Check for existing pending invite
+    const { data: existingInvite } = await admin
+      .from("agency_invites")
       .select("id")
       .eq("agency_id", agency.id)
-      .eq("user_id", targetUser.id)
+      .eq("email", email)
+      .eq("status", "pending")
       .single();
 
-    if (existing) {
-      return NextResponse.json({ error: "User is already a member of this agency" }, { status: 409 });
+    if (existingInvite) {
+      return NextResponse.json({ error: "An invite is already pending for this email" }, { status: 409 });
     }
 
-    // Add to agency
-    const { error: insertErr } = await admin.from("agency_users").insert({
+    // Create invite token
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
+
+    const { error: inviteErr } = await admin.from("agency_invites").insert({
       agency_id: agency.id,
-      user_id: targetUser.id,
+      email,
       role,
       assigned_plan: assignedPlan,
+      token,
+      status: "pending",
       invited_by: user.id,
+      expires_at: expiresAt.toISOString(),
     });
 
-    if (insertErr) {
-      console.error("Add member error:", insertErr);
-      return NextResponse.json({ error: "Failed to add user" }, { status: 500 });
+    if (inviteErr) {
+      console.error("Create invite error:", inviteErr);
+      return NextResponse.json({ error: "Failed to create invite" }, { status: 500 });
     }
+
+    // Send invite email
+    const { sent, inviteUrl } = await sendInviteEmail({
+      to: email,
+      agencyName: agencyData?.name ?? slug,
+      role,
+      inviterEmail: user.email ?? "",
+      token,
+    });
 
     return NextResponse.json({
       success: true,
+      invited: true,
+      emailSent: sent,
+      inviteUrl: sent ? undefined : inviteUrl, // Only return URL if email wasn't sent (for manual sharing)
       member: {
-        user_id: targetUser.id,
-        email: targetUser.email,
+        user_id: null,
+        email,
         role,
         assigned_plan: assignedPlan,
+        status: "pending",
       },
     });
   } catch (err) {

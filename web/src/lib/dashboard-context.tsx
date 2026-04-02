@@ -10,6 +10,8 @@ interface DashboardData {
   mfaVerified: boolean;
   promptCount: number;
   agencySlug: string | null;
+  agencyName: string | null;
+  agencyRole: string | null;
   loading: boolean;
 }
 
@@ -21,6 +23,8 @@ const DashboardContext = createContext<DashboardData>({
   mfaVerified: false,
   promptCount: 0,
   agencySlug: null,
+  agencyName: null,
+  agencyRole: null,
   loading: true,
 });
 
@@ -37,6 +41,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     mfaVerified: false,
     promptCount: 0,
     agencySlug: null,
+    agencyName: null,
+    agencyRole: null,
     loading: true,
   });
 
@@ -60,6 +66,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           mfaVerified: userData.mfaVerified ?? false,
           promptCount: userData.promptCount ?? 0,
           agencySlug: userData.agencySlug ?? null,
+          agencyName: userData.agencyName ?? null,
+          agencyRole: userData.agencyRole ?? null,
           loading: false,
         });
       } catch (err) {

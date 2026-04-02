@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
     // Auto-create agency for agency plan subscribers
     let agencySlug: string | null = null;
     if (plan === "agency") {
-      const agency = await createAgencyForUser(admin, user.id, user.email ?? "");
+      const agency = await createAgencyForUser(admin, user.id, user.email ?? "", agencyConfig?.maxUsers);
       agencySlug = agency?.slug ?? null;
 
       // Update agency with tier, pricing, and feature config from setup

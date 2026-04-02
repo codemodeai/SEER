@@ -55,7 +55,8 @@ export async function POST(req: NextRequest) {
             .select("email")
             .eq("id", userId)
             .single();
-          await createAgencyForUser(supabase, userId, userData?.email ?? "");
+          const maxUsers = event.data?.metadata?.max_users ? parseInt(event.data.metadata.max_users, 10) : undefined;
+          await createAgencyForUser(supabase, userId, userData?.email ?? "", maxUsers);
         }
         break;
       }
