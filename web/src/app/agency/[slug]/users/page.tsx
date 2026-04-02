@@ -43,7 +43,6 @@ function AddUserModal({
 }) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("member");
-  const [plan, setPlan] = useState("starter");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [inviteSent, setInviteSent] = useState(false);
@@ -59,7 +58,7 @@ function AddUserModal({
       const res = await fetch(`/api/agency/${slug}/users`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, role, assigned_plan: plan }),
+        body: JSON.stringify({ email, role }),
       });
 
       const data = await res.json();
@@ -202,29 +201,6 @@ function AddUserModal({
             </div>
           </div>
 
-          {/* Plan */}
-          <div>
-            <label className="block text-xs font-semibold tracking-widest uppercase text-muted mb-1.5">
-              Assigned Plan
-            </label>
-            <div className="flex gap-2">
-              {(["starter", "pro"] as const).map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setPlan(p)}
-                  className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium border transition-all ${
-                    plan === p
-                      ? "bg-terracotta/10 border-terracotta/40 text-terracotta"
-                      : "bg-white border-sand/60 text-muted hover:border-sand"
-                  }`}
-                >
-                  {p === "pro" ? "Pro (1000)" : "Starter (200)"}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Error */}
           {error && (
             <div className="px-4 py-2.5 rounded-xl text-sm bg-red-50 text-red-700 border border-red-200">
@@ -258,10 +234,9 @@ function EditUserModal({
   slug: string;
   member: AgencyMember;
   onClose: () => void;
-  onUpdated: (userId: string | null, role: string, plan: string) => void;
+  onUpdated: (userId: string | null, role: string) => void;
 }) {
   const [role, setRole] = useState(member.role);
-  const [plan, setPlan] = useState(member.assigned_plan);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -277,7 +252,6 @@ function EditUserModal({
         body: JSON.stringify({
           user_id: member.user_id,
           role,
-          assigned_plan: plan,
         }),
       });
 
@@ -288,7 +262,7 @@ function EditUserModal({
         return;
       }
 
-      onUpdated(member.user_id, role, plan);
+      onUpdated(member.user_id, role);
       onClose();
     } catch {
       setError("Network error. Please try again.");
@@ -337,29 +311,6 @@ function EditUserModal({
                   }`}
                 >
                   {r === "admin" ? "Admin" : "Member"}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Plan */}
-          <div>
-            <label className="block text-xs font-semibold tracking-widest uppercase text-muted mb-1.5">
-              Assigned Plan
-            </label>
-            <div className="flex gap-2">
-              {(["starter", "pro"] as const).map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setPlan(p)}
-                  className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium border transition-all ${
-                    plan === p
-                      ? "bg-terracotta/10 border-terracotta/40 text-terracotta"
-                      : "bg-white border-sand/60 text-muted hover:border-sand"
-                  }`}
-                >
-                  {p === "pro" ? "Pro (1000)" : "Starter (200)"}
                 </button>
               ))}
             </div>
@@ -538,11 +489,11 @@ export default function AgencyUsersPage() {
     setMembers((prev) => [...prev, member]);
   }
 
-  function handleUpdated(userId: string | null, newRole: string, newPlan: string) {
+  function handleUpdated(userId: string | null, newRole: string) {
     if (!userId) return;
     setMembers((prev) =>
       prev.map((m) =>
-        m.user_id === userId ? { ...m, role: newRole, assigned_plan: newPlan } : m
+        m.user_id === userId ? { ...m, role: newRole } : m
       )
     );
   }
@@ -702,8 +653,8 @@ export default function AgencyUsersPage() {
                       </span>
                     </td>
                     <td className="px-5 py-3.5">
-                      <span className="capitalize text-charcoal">
-                        {member.assigned_plan}
+                      <span className="text-charcoal font-medium text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-md">
+                        Unlimited
                       </span>
                     </td>
                     <td className="px-5 py-3.5 text-muted">

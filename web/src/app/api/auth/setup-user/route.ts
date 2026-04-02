@@ -134,6 +134,11 @@ export async function POST(req: NextRequest) {
           if (role === "admin") {
             agencySlug = (membership as any).agencies?.slug ?? null;
           }
+          // All agency members get unlimited access (agency plan)
+          if (currentPlan !== "agency") {
+            currentPlan = "agency";
+            await admin.from("users").update({ plan: "agency" }).eq("id", user.id);
+          }
         }
       }
 

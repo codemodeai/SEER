@@ -193,9 +193,14 @@ export async function POST(req: NextRequest) {
       agency_id: invite.agency_id,
       user_id: user.id,
       role: invite.role,
-      assigned_plan: invite.assigned_plan,
+      assigned_plan: "agency",
       invited_by: invite.invited_by,
     });
+
+    // Upgrade user plan to agency (unlimited access)
+    if (!insertErr) {
+      await admin.from("users").update({ plan: "agency" }).eq("id", user.id);
+    }
 
     if (insertErr) {
       console.error("Accept invite — insert error:", insertErr);
