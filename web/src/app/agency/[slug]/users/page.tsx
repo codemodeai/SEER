@@ -638,10 +638,10 @@ export default function AgencyUsersPage() {
                     </td>
                     <td className="px-5 py-3.5">
                       <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider ${
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
                           member.role === "admin"
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-sand/40 text-muted"
+                            ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                            : "bg-blue-500/15 text-blue-400 border border-blue-500/25"
                         }`}
                       >
                         {member.role === "admin" ? (
@@ -653,7 +653,7 @@ export default function AgencyUsersPage() {
                       </span>
                     </td>
                     <td className="px-5 py-3.5">
-                      <span className="text-charcoal font-medium text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-md">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
                         Unlimited
                       </span>
                     </td>

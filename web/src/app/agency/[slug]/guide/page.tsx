@@ -39,12 +39,12 @@ const GUIDE_SECTIONS: GuideSection[] = [
       {
         title: "Understanding roles",
         description:
-          "There are three roles: Owner (you — full access), Admin (can manage users, keys, announcements), and Member (can use SEER, view activity, read announcements). Assign roles wisely based on trust level.",
+          "There are three roles:\n• Owner — full access to the portal, billing, and settings\n• Admin — can access the portal, manage users, keys, and announcements\n• Member — gets unlimited SEER access via their API key, but cannot see the agency portal. They see their own personal dashboard with a banner showing they belong to your agency.",
       },
       {
         title: "Your first steps",
         description:
-          "1. Add your team members under Users\n2. Each member automatically gets an API key\n3. Share the API key with each member for their Claude Code setup\n4. Members start using SEER — you see everything in Activity & Analytics",
+          '1. Click "Add User" under Users to invite team members by email\n2. They receive an invite email with a link to accept\n3. Once accepted, they get unlimited SEER access and an auto-generated API key\n4. Members start using SEER — you see everything in Activity & Analytics',
       },
     ],
   },
@@ -54,19 +54,29 @@ const GUIDE_SECTIONS: GuideSection[] = [
     icon: Users,
     steps: [
       {
-        title: "Adding a team member",
+        title: "Inviting a team member",
         description:
-          'Go to Users → click "Add User" → enter their email address (they must have a SEER account). Choose their role (admin or member) and plan tier (starter or pro). An API key is automatically generated.',
+          'Go to Users → click "Add User" → enter their email address (any email works — no existing SEER account required). Choose their role (Admin or Member). They\'ll receive an invite email with a link to join. If they don\'t have an account yet, they can sign up through the invite link.',
+      },
+      {
+        title: "Invite flow for new users",
+        description:
+          "When a user clicks the invite link:\n1. If not logged in — they see invite details and a login/signup button (email pre-filled)\n2. After login — they see an acceptance page with your agency name and their role\n3. On accept — they join the agency with unlimited access and are redirected to the portal or their dashboard",
+      },
+      {
+        title: "Unlimited access for all members",
+        description:
+          "All agency members automatically get unlimited SEER access (Agency plan). There is no per-user plan selection — your agency subscription covers everyone. The seat limit is set during your plan purchase and shown in Settings.",
       },
       {
         title: "Editing a member",
         description:
-          "Click the edit icon next to any member to change their role or assigned plan. Only the owner can promote someone to admin. Changes take effect immediately.",
+          "Click Edit next to any member to change their role (Member or Admin). Only the owner can promote someone to admin. Role changes take effect immediately.",
       },
       {
         title: "Removing a member",
         description:
-          "Click the remove icon and confirm. Their API key is revoked instantly and they lose access to the agency portal. Their personal SEER account is not affected.",
+          "Click Remove and confirm. Their API key is revoked instantly and they lose agency access. Their personal SEER account reverts to the free plan.",
       },
     ],
   },
@@ -188,12 +198,12 @@ const GUIDE_SECTIONS: GuideSection[] = [
       {
         title: "Editing agency info",
         description:
-          "Go to Settings to change your agency name or adjust the maximum number of users. Only the owner can edit settings.",
+          "Go to Settings to change your agency name. Only the owner can edit settings. The seat limit (max users) is locked — it was set during your plan purchase and cannot be changed here.",
       },
       {
         title: "Feature toggles",
         description:
-          "Your enabled features (Announcements, Project Management, etc.) are configured during agency setup. Contact support or visit billing to change your feature set.",
+          "Your enabled features (Announcements, Project Management, etc.) are configured during agency setup. To change your feature set, contact support.",
       },
       {
         title: "Agency slug",
@@ -229,22 +239,22 @@ export default function AgencyGuidePage() {
 
       {/* Quick tips */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <div className="bg-terracotta/[0.04] border border-terracotta/20 rounded-2xl px-5 py-4">
+        <div className="bg-terracotta/10 border border-terracotta/20 rounded-2xl px-5 py-4">
           <Shield size={16} className="text-terracotta mb-2" />
           <p className="text-xs font-semibold text-charcoal">Security Tip</p>
           <p className="text-[11px] text-muted mt-1">
             Never share API keys in public channels. Use direct messages or a password manager.
           </p>
         </div>
-        <div className="bg-blue-50 border border-blue-200 rounded-2xl px-5 py-4">
-          <FolderKanban size={16} className="text-blue-600 mb-2" />
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl px-5 py-4">
+          <FolderKanban size={16} className="text-blue-400 mb-2" />
           <p className="text-xs font-semibold text-charcoal">Organization Tip</p>
           <p className="text-[11px] text-muted mt-1">
             Use consistent project names across your team so cloud memory and activity sync properly.
           </p>
         </div>
-        <div className="bg-green-50 border border-green-200 rounded-2xl px-5 py-4">
-          <Zap size={16} className="text-green-600 mb-2" />
+        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl px-5 py-4">
+          <Zap size={16} className="text-emerald-400 mb-2" />
           <p className="text-xs font-semibold text-charcoal">Productivity Tip</p>
           <p className="text-[11px] text-muted mt-1">
             Check Activity before starting work to avoid stepping on a teammate&apos;s active feature.
