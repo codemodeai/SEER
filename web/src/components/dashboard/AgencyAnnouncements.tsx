@@ -43,8 +43,8 @@ export default function AgencyAnnouncements() {
     fetchAnnouncements();
   }, [loading, agencyName]);
 
-  // Don't render if not in an agency, still loading, or no announcements
-  if (loading || fetching || !agencyName || announcements.length === 0) return null;
+  // Don't render if not in an agency or still loading context
+  if (loading || !agencyName) return null;
 
   const pinned = announcements.filter((a) => a.pinned);
   const regular = announcements.filter((a) => !a.pinned);
@@ -70,7 +70,30 @@ export default function AgencyAnnouncements() {
             From {agencyName}
           </p>
         </div>
+        {announcements.length > 0 && (
+          <span className="ml-auto text-[10px] font-medium bg-terracotta/10 text-terracotta px-2 py-0.5 rounded-full">
+            {announcements.length}
+          </span>
+        )}
       </div>
+
+      {/* Loading state */}
+      {fetching && (
+        <div className="px-5 py-6 text-center">
+          <p className="text-xs text-muted animate-pulse">Loading announcements...</p>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!fetching && announcements.length === 0 && (
+        <div className="px-5 py-6 text-center">
+          <Megaphone size={20} className="text-muted/30 mx-auto mb-2" />
+          <p className="text-xs text-muted">No announcements yet</p>
+          <p className="text-[10px] text-muted/60 mt-0.5">
+            Your agency admin will post updates here.
+          </p>
+        </div>
+      )}
 
       {/* Pinned announcements */}
       {pinned.map((a) => (
