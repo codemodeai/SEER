@@ -24,6 +24,7 @@ import {
   BarChart3,
   Megaphone,
   BookOpen,
+  FolderKanban,
 } from "lucide-react";
 
 function AgencyPortalContent({ children }: { children: React.ReactNode }) {
@@ -41,6 +42,7 @@ function AgencyPortalContent({ children }: { children: React.ReactNode }) {
     { label: "Cloud Memory", href: `/agency/${slug}/memory`, icon: Cloud },
     { label: "Activity", href: `/agency/${slug}/activity`, icon: Activity },
     { label: "Analytics", href: `/agency/${slug}/analytics`, icon: BarChart3 },
+    { label: "Projects", href: `/agency/${slug}/projects`, icon: FolderKanban },
     { label: "Announcements", href: `/agency/${slug}/announcements`, icon: Megaphone },
     { label: "Guide", href: `/agency/${slug}/guide`, icon: BookOpen },
     { label: "Settings", href: `/agency/${slug}/settings`, icon: Settings },
