@@ -16,9 +16,11 @@ import {
   Eye,
   MoreHorizontal,
   Trash2,
-  GripVertical,
+  Brain,
+  Circle,
+  RefreshCw,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 
 interface Task {
@@ -54,6 +56,14 @@ interface Member {
   role: string;
 }
 
+interface CloudMemory {
+  content: string;
+  version: number;
+  updatedBy: string | null;
+  updatedAt: string;
+  integrityOk: boolean;
+}
+
 const COLUMNS = [
   { key: "todo" as const, label: "To Do", icon: Clock, color: "border-gray-400/40" },
   { key: "in_progress" as const, label: "In Progress", icon: AlertTriangle, color: "border-blue-400/40" },
@@ -77,9 +87,12 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [memory, setMemory] = useState<CloudMemory | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCreateTask, setShowCreateTask] = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [activeTab, setActiveTab] = useState<"board" | "memory">("board");
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   async function fetchData() {
     if (!agency) return;
@@ -93,6 +106,11 @@ export default function ProjectDetailPage() {
       setProject(data.project);
       setTasks(data.tasks ?? []);
       setMembers(data.members ?? []);
+
+      // Fetch linked cloud memory
+      if (data.project?.name) {
+        fetchMemory(data.project.name);
+      }
     } catch {
       // silent
     } finally {
@@ -100,15 +118,48 @@ export default function ProjectDetailPage() {
     }
   }
 
+  async function fetchMemory(projectName: string) {
+    if (!agency) return;
+    try {
+      const res = await fetch(`/api/agency/${agency.slug}/memory?project=${encodeURIComponent(projectName)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setMemory({
+          content: data.project.content,
+          version: data.project.version,
+          updatedBy: data.project.updatedBy,
+          updatedAt: data.project.updatedAt,
+          integrityOk: data.project.integrityOk,
+        });
+      } else {
+        setMemory(null);
+      }
+    } catch {
+      // silent
+    }
+  }
+
   useEffect(() => {
     fetchData();
+    // Real-time polling every 10 seconds
+    pollRef.current = setInterval(() => {
+      if (project?.name) fetchMemory(project.name);
+    }, 10000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [agency, projectId]);
+
+  // Restart memory poll when project name changes
+  useEffect(() => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    if (project?.name) {
+      pollRef.current = setInterval(() => fetchMemory(project.name), 10000);
+    }
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [project?.name]);
 
   async function handleStatusChange(taskId: string, newStatus: string) {
     if (!agency) return;
-    // Optimistic update
     setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, status: newStatus as Task["status"] } : t));
-
     await fetch(`/api/agency/${agency.slug}/projects/${projectId}/tasks`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -119,9 +170,7 @@ export default function ProjectDetailPage() {
   async function handleDeleteTask(taskId: string) {
     if (!agency || !confirm("Delete this task?")) return;
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
-    await fetch(`/api/agency/${agency.slug}/projects/${projectId}/tasks?task_id=${taskId}`, {
-      method: "DELETE",
-    });
+    await fetch(`/api/agency/${agency.slug}/projects/${projectId}/tasks?task_id=${taskId}`, { method: "DELETE" });
   }
 
   if (!agency) return null;
@@ -146,6 +195,8 @@ export default function ProjectDetailPage() {
   }
 
   const canManage = role === "owner" || role === "admin";
+  const doneCount = tasks.filter(t => t.status === "done").length;
+  const progress = tasks.length > 0 ? Math.round((doneCount / tasks.length) * 100) : 0;
 
   return (
     <div>
@@ -160,7 +211,19 @@ export default function ProjectDetailPage() {
         </Link>
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="font-display text-2xl sm:text-3xl text-charcoal dark:text-white">{project.name}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="font-display text-2xl sm:text-3xl text-charcoal dark:text-white">{project.name}</h1>
+              {memory && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border bg-purple-500/15 text-purple-400 border-purple-500/25">
+                  <Brain size={10} />
+                  Memory v{memory.version}
+                </span>
+              )}
+              <span className="flex items-center gap-1 text-[10px] text-emerald-400">
+                <Circle size={6} className="fill-emerald-400 animate-pulse" />
+                Live
+              </span>
+            </div>
             {project.description && (
               <p className="text-sm text-muted mt-1 max-w-2xl">{project.description}</p>
             )}
@@ -173,78 +236,101 @@ export default function ProjectDetailPage() {
                 </span>
               )}
               <span>{tasks.length} tasks</span>
-              <span>{tasks.filter(t => t.status === "done").length} done</span>
+              <span>{doneCount} done</span>
             </div>
           </div>
         </div>
 
-        {/* Progress bar */}
+        {/* Progress */}
         {tasks.length > 0 && (
           <div className="mt-4 max-w-md">
             <div className="flex items-center justify-between mb-1">
               <span className="text-[10px] text-muted">Progress</span>
-              <span className="text-[10px] font-medium text-charcoal dark:text-white">
-                {Math.round((tasks.filter(t => t.status === "done").length / tasks.length) * 100)}%
-              </span>
+              <span className="text-[10px] font-medium text-charcoal dark:text-white">{progress}%</span>
             </div>
             <div className="h-2 rounded-full bg-sand/60 dark:bg-white/10 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-terracotta transition-all"
-                style={{ width: `${(tasks.filter(t => t.status === "done").length / tasks.length) * 100}%` }}
-              />
+              <div className="h-full rounded-full bg-terracotta transition-all" style={{ width: `${progress}%` }} />
             </div>
           </div>
         )}
       </div>
 
-      {/* Kanban board */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {COLUMNS.map((col) => {
-          const ColIcon = col.icon;
-          const columnTasks = tasks
-            .filter((t) => t.status === col.key)
-            .sort((a, b) => a.position - b.position);
-
-          return (
-            <div
-              key={col.key}
-              className={`bg-cream/50 dark:bg-charcoal/30 border-t-2 ${col.color} rounded-xl p-3 min-h-[300px]`}
-            >
-              {/* Column header */}
-              <div className="flex items-center justify-between mb-3 px-1">
-                <div className="flex items-center gap-2">
-                  <ColIcon size={14} className="text-muted" />
-                  <span className="text-xs font-semibold text-charcoal dark:text-white">{col.label}</span>
-                  <span className="text-[10px] font-medium text-muted bg-sand/40 dark:bg-white/10 px-1.5 py-0.5 rounded-full">
-                    {columnTasks.length}
-                  </span>
-                </div>
-                <button
-                  onClick={() => setShowCreateTask(col.key)}
-                  className="w-6 h-6 rounded-lg hover:bg-terracotta/10 flex items-center justify-center text-muted hover:text-terracotta transition-colors"
-                >
-                  <Plus size={14} />
-                </button>
-              </div>
-
-              {/* Task cards */}
-              <div className="flex flex-col gap-2">
-                {columnTasks.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    canManage={canManage}
-                    columns={COLUMNS}
-                    onStatusChange={handleStatusChange}
-                    onDelete={handleDeleteTask}
-                    onEdit={() => setEditingTask(task)}
-                  />
-                ))}
-              </div>
-            </div>
-          );
-        })}
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 bg-cream-dark/50 dark:bg-charcoal/30 rounded-xl p-1 w-fit">
+        <button
+          onClick={() => setActiveTab("board")}
+          className={`px-4 py-2 rounded-lg text-xs font-medium transition-colors ${
+            activeTab === "board"
+              ? "bg-ivory dark:bg-charcoal text-charcoal dark:text-white shadow-sm"
+              : "text-muted hover:text-charcoal dark:hover:text-white"
+          }`}
+        >
+          Task Board ({tasks.length})
+        </button>
+        <button
+          onClick={() => setActiveTab("memory")}
+          className={`px-4 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
+            activeTab === "memory"
+              ? "bg-ivory dark:bg-charcoal text-charcoal dark:text-white shadow-sm"
+              : "text-muted hover:text-charcoal dark:hover:text-white"
+          }`}
+        >
+          <Brain size={12} />
+          Project Memory
+          {memory && <Circle size={5} className="text-emerald-400 fill-emerald-400" />}
+        </button>
       </div>
+
+      {/* Tab content */}
+      {activeTab === "board" && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {COLUMNS.map((col) => {
+            const ColIcon = col.icon;
+            const columnTasks = tasks
+              .filter((t) => t.status === col.key)
+              .sort((a, b) => a.position - b.position);
+
+            return (
+              <div key={col.key} className={`bg-cream/50 dark:bg-charcoal/30 border-t-2 ${col.color} rounded-xl p-3 min-h-[300px]`}>
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <div className="flex items-center gap-2">
+                    <ColIcon size={14} className="text-muted" />
+                    <span className="text-xs font-semibold text-charcoal dark:text-white">{col.label}</span>
+                    <span className="text-[10px] font-medium text-muted bg-sand/40 dark:bg-white/10 px-1.5 py-0.5 rounded-full">{columnTasks.length}</span>
+                  </div>
+                  <button
+                    onClick={() => setShowCreateTask(col.key)}
+                    className="w-6 h-6 rounded-lg hover:bg-terracotta/10 flex items-center justify-center text-muted hover:text-terracotta transition-colors"
+                  >
+                    <Plus size={14} />
+                  </button>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {columnTasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      canManage={canManage}
+                      columns={COLUMNS}
+                      onStatusChange={handleStatusChange}
+                      onDelete={handleDeleteTask}
+                      onEdit={() => setEditingTask(task)}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {activeTab === "memory" && (
+        <MemoryPanel
+          memory={memory}
+          projectName={project.name}
+          onRefresh={() => fetchMemory(project.name)}
+        />
+      )}
 
       {/* Create Task Modal */}
       {showCreateTask && (
@@ -275,6 +361,109 @@ export default function ProjectDetailPage() {
   );
 }
 
+/* ── Memory Panel ── */
+function MemoryPanel({
+  memory,
+  projectName,
+  onRefresh,
+}: {
+  memory: CloudMemory | null;
+  projectName: string;
+  onRefresh: () => void;
+}) {
+  if (!memory) {
+    return (
+      <div className="bg-ivory dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-2xl p-8 text-center">
+        <Brain size={32} className="text-muted/30 mx-auto mb-3" />
+        <h3 className="text-sm font-semibold text-charcoal dark:text-white mb-1">No memory synced yet</h3>
+        <p className="text-xs text-muted max-w-md mx-auto">
+          When team members use SEER on a project named &ldquo;{projectName}&rdquo;, the .seer_memory.md file
+          will automatically sync here in real-time.
+        </p>
+      </div>
+    );
+  }
+
+  // Parse memory sections
+  const sections = parseMemory(memory.content);
+
+  return (
+    <div className="space-y-4">
+      {/* Meta bar */}
+      <div className="flex items-center justify-between bg-ivory dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-xl px-4 py-2.5">
+        <div className="flex items-center gap-3 text-[11px] text-muted">
+          <span className="flex items-center gap-1">
+            <Brain size={12} className="text-purple-400" />
+            Version {memory.version}
+          </span>
+          {memory.updatedBy && <span>by {memory.updatedBy.split("@")[0]}</span>}
+          <span>{new Date(memory.updatedAt).toLocaleString()}</span>
+          {memory.integrityOk ? (
+            <span className="text-emerald-400">Integrity OK</span>
+          ) : (
+            <span className="text-red-400">Integrity mismatch</span>
+          )}
+        </div>
+        <button
+          onClick={onRefresh}
+          className="text-muted hover:text-terracotta transition-colors"
+          title="Refresh memory"
+        >
+          <RefreshCw size={14} />
+        </button>
+      </div>
+
+      {/* Memory sections */}
+      {sections.map((section, i) => (
+        <div
+          key={i}
+          className="bg-ivory dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-2xl overflow-hidden"
+        >
+          <div className="px-5 py-3 border-b border-sand/40 dark:border-white/10">
+            <h3 className="text-xs font-semibold text-charcoal dark:text-white">{section.title}</h3>
+          </div>
+          <div className="px-5 py-4">
+            <pre className="text-xs text-muted leading-relaxed whitespace-pre-wrap font-mono">{section.content}</pre>
+          </div>
+        </div>
+      ))}
+
+      {/* Raw fallback if no sections parsed */}
+      {sections.length === 0 && (
+        <div className="bg-ivory dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-2xl p-5">
+          <pre className="text-xs text-muted leading-relaxed whitespace-pre-wrap font-mono">{memory.content}</pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function parseMemory(content: string): { title: string; content: string }[] {
+  const sections: { title: string; content: string }[] = [];
+  const lines = content.split("\n");
+  let currentTitle = "";
+  let currentContent: string[] = [];
+
+  for (const line of lines) {
+    const headingMatch = line.match(/^##\s+(.+)/);
+    if (headingMatch) {
+      if (currentTitle) {
+        sections.push({ title: currentTitle, content: currentContent.join("\n").trim() });
+      }
+      currentTitle = headingMatch[1];
+      currentContent = [];
+    } else if (currentTitle) {
+      currentContent.push(line);
+    }
+  }
+
+  if (currentTitle) {
+    sections.push({ title: currentTitle, content: currentContent.join("\n").trim() });
+  }
+
+  return sections;
+}
+
 /* ── Task Card ── */
 function TaskCard({
   task,
@@ -299,7 +488,6 @@ function TaskCard({
       className="bg-ivory dark:bg-charcoal/60 border border-sand/50 dark:border-white/8 rounded-xl p-3 cursor-pointer hover:border-terracotta/20 transition-all group relative"
       onClick={onEdit}
     >
-      {/* Priority dot + title */}
       <div className="flex items-start gap-2">
         <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${PRIORITY_DOT[task.priority]}`} />
         <p className="text-xs font-medium text-charcoal dark:text-white line-clamp-2 flex-1">{task.title}</p>
@@ -313,23 +501,20 @@ function TaskCard({
         )}
       </div>
 
-      {/* Menu dropdown */}
       {menuOpen && (
         <div
           className="absolute right-2 top-8 z-10 bg-ivory dark:bg-charcoal border border-sand/60 dark:border-white/10 rounded-xl shadow-lg py-1 min-w-[140px]"
           onClick={(e) => e.stopPropagation()}
         >
-          {columns
-            .filter((c) => c.key !== task.status)
-            .map((c) => (
-              <button
-                key={c.key}
-                onClick={() => { onStatusChange(task.id, c.key); setMenuOpen(false); }}
-                className="w-full text-left px-3 py-1.5 text-xs text-charcoal dark:text-white hover:bg-cream-dark dark:hover:bg-white/5 transition-colors"
-              >
-                Move to {c.label}
-              </button>
-            ))}
+          {columns.filter((c) => c.key !== task.status).map((c) => (
+            <button
+              key={c.key}
+              onClick={() => { onStatusChange(task.id, c.key); setMenuOpen(false); }}
+              className="w-full text-left px-3 py-1.5 text-xs text-charcoal dark:text-white hover:bg-cream-dark dark:hover:bg-white/5 transition-colors"
+            >
+              Move to {c.label}
+            </button>
+          ))}
           <hr className="my-1 border-sand/40 dark:border-white/10" />
           <button
             onClick={() => { onDelete(task.id); setMenuOpen(false); }}
@@ -341,7 +526,6 @@ function TaskCard({
         </div>
       )}
 
-      {/* Meta row */}
       <div className="flex items-center gap-2 mt-2 flex-wrap">
         {task.assigneeEmail && (
           <span className="inline-flex items-center gap-1 text-[10px] text-muted">
@@ -426,49 +610,24 @@ function CreateTaskModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div
-        className="bg-ivory dark:bg-charcoal border border-sand/60 dark:border-white/10 rounded-2xl w-full max-w-md mx-4 p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="bg-ivory dark:bg-charcoal border border-sand/60 dark:border-white/10 rounded-2xl w-full max-w-md mx-4 p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h2 className="font-display text-xl text-charcoal dark:text-white">New Task</h2>
-          <button onClick={onClose} className="text-muted hover:text-charcoal dark:hover:text-white">
-            <X size={18} />
-          </button>
+          <button onClick={onClose} className="text-muted hover:text-charcoal dark:hover:text-white"><X size={18} /></button>
         </div>
-
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
             <label className="block text-xs font-medium text-charcoal dark:text-white mb-1">Title *</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="What needs to be done?"
-              className="w-full px-3 py-2 bg-cream dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-xl text-sm text-charcoal dark:text-white placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-terracotta/30"
-              autoFocus
-            />
+            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What needs to be done?" className="w-full px-3 py-2 bg-cream dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-xl text-sm text-charcoal dark:text-white placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-terracotta/30" autoFocus />
           </div>
-
           <div>
             <label className="block text-xs font-medium text-charcoal dark:text-white mb-1">Description</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Add details..."
-              rows={3}
-              className="w-full px-3 py-2 bg-cream dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-xl text-sm text-charcoal dark:text-white placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-terracotta/30 resize-none"
-            />
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Add details..." rows={3} className="w-full px-3 py-2 bg-cream dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-xl text-sm text-charcoal dark:text-white placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-terracotta/30 resize-none" />
           </div>
-
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-charcoal dark:text-white mb-1">Priority</label>
-              <select
-                value={priority}
-                onChange={(e) => setPriority(e.target.value)}
-                className="w-full px-3 py-2 bg-cream dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-xl text-sm text-charcoal dark:text-white focus:outline-none focus:ring-2 focus:ring-terracotta/30"
-              >
+              <select value={priority} onChange={(e) => setPriority(e.target.value)} className="w-full px-3 py-2 bg-cream dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-xl text-sm text-charcoal dark:text-white focus:outline-none focus:ring-2 focus:ring-terracotta/30">
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
@@ -477,44 +636,20 @@ function CreateTaskModal({
             </div>
             <div>
               <label className="block text-xs font-medium text-charcoal dark:text-white mb-1">Due Date</label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3 py-2 bg-cream dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-xl text-sm text-charcoal dark:text-white focus:outline-none focus:ring-2 focus:ring-terracotta/30"
-              />
+              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full px-3 py-2 bg-cream dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-xl text-sm text-charcoal dark:text-white focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
             </div>
           </div>
-
           <div>
             <label className="block text-xs font-medium text-charcoal dark:text-white mb-1">Assign To</label>
-            <select
-              value={assignedTo}
-              onChange={(e) => setAssignedTo(e.target.value)}
-              className="w-full px-3 py-2 bg-cream dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-xl text-sm text-charcoal dark:text-white focus:outline-none focus:ring-2 focus:ring-terracotta/30"
-            >
+            <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} className="w-full px-3 py-2 bg-cream dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-xl text-sm text-charcoal dark:text-white focus:outline-none focus:ring-2 focus:ring-terracotta/30">
               <option value="">Unassigned</option>
-              {members.map((m) => (
-                <option key={m.userId} value={m.userId}>
-                  {m.email.split("@")[0]} ({m.role})
-                </option>
-              ))}
+              {members.map((m) => (<option key={m.userId} value={m.userId}>{m.email.split("@")[0]} ({m.role})</option>))}
             </select>
           </div>
-
           {error && <p className="text-xs text-red-400">{error}</p>}
-
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-muted hover:text-charcoal dark:hover:text-white transition-colors">
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving || !title.trim()}
-              className="px-4 py-2 bg-terracotta text-white rounded-xl text-sm font-medium hover:bg-terracotta/90 transition-colors disabled:opacity-50"
-            >
-              {saving ? "Creating..." : "Create Task"}
-            </button>
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-muted hover:text-charcoal dark:hover:text-white transition-colors">Cancel</button>
+            <button type="submit" disabled={saving || !title.trim()} className="px-4 py-2 bg-terracotta text-white rounded-xl text-sm font-medium hover:bg-terracotta/90 transition-colors disabled:opacity-50">{saving ? "Creating..." : "Create Task"}</button>
           </div>
         </form>
       </div>
@@ -588,57 +723,29 @@ function EditTaskModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div
-        className="bg-ivory dark:bg-charcoal border border-sand/60 dark:border-white/10 rounded-2xl w-full max-w-lg mx-4 p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="bg-ivory dark:bg-charcoal border border-sand/60 dark:border-white/10 rounded-2xl w-full max-w-lg mx-4 p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h2 className="font-display text-xl text-charcoal dark:text-white">Edit Task</h2>
           <div className="flex items-center gap-2">
             {canManage && (
-              <button
-                onClick={() => onDeleted(task.id)}
-                className="text-muted hover:text-red-400 transition-colors"
-                title="Delete task"
-              >
-                <Trash2 size={16} />
-              </button>
+              <button onClick={() => onDeleted(task.id)} className="text-muted hover:text-red-400 transition-colors" title="Delete"><Trash2 size={16} /></button>
             )}
-            <button onClick={onClose} className="text-muted hover:text-charcoal dark:hover:text-white">
-              <X size={18} />
-            </button>
+            <button onClick={onClose} className="text-muted hover:text-charcoal dark:hover:text-white"><X size={18} /></button>
           </div>
         </div>
-
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
             <label className="block text-xs font-medium text-charcoal dark:text-white mb-1">Title *</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2 bg-cream dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-xl text-sm text-charcoal dark:text-white focus:outline-none focus:ring-2 focus:ring-terracotta/30"
-            />
+            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full px-3 py-2 bg-cream dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-xl text-sm text-charcoal dark:text-white focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
           </div>
-
           <div>
             <label className="block text-xs font-medium text-charcoal dark:text-white mb-1">Description</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              className="w-full px-3 py-2 bg-cream dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-xl text-sm text-charcoal dark:text-white placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-terracotta/30 resize-none"
-            />
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="w-full px-3 py-2 bg-cream dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-xl text-sm text-charcoal dark:text-white placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-terracotta/30 resize-none" />
           </div>
-
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-charcoal dark:text-white mb-1">Status</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as Task["status"])}
-                className="w-full px-3 py-2 bg-cream dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-xl text-sm text-charcoal dark:text-white focus:outline-none focus:ring-2 focus:ring-terracotta/30"
-              >
+              <select value={status} onChange={(e) => setStatus(e.target.value as Task["status"])} className="w-full px-3 py-2 bg-cream dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-xl text-sm text-charcoal dark:text-white focus:outline-none focus:ring-2 focus:ring-terracotta/30">
                 <option value="todo">To Do</option>
                 <option value="in_progress">In Progress</option>
                 <option value="in_review">In Review</option>
@@ -647,11 +754,7 @@ function EditTaskModal({
             </div>
             <div>
               <label className="block text-xs font-medium text-charcoal dark:text-white mb-1">Priority</label>
-              <select
-                value={priority}
-                onChange={(e) => setPriority(e.target.value as Task["priority"])}
-                className="w-full px-3 py-2 bg-cream dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-xl text-sm text-charcoal dark:text-white focus:outline-none focus:ring-2 focus:ring-terracotta/30"
-              >
+              <select value={priority} onChange={(e) => setPriority(e.target.value as Task["priority"])} className="w-full px-3 py-2 bg-cream dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-xl text-sm text-charcoal dark:text-white focus:outline-none focus:ring-2 focus:ring-terracotta/30">
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
@@ -659,53 +762,27 @@ function EditTaskModal({
               </select>
             </div>
           </div>
-
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-charcoal dark:text-white mb-1">Assign To</label>
-              <select
-                value={assignedTo}
-                onChange={(e) => setAssignedTo(e.target.value)}
-                className="w-full px-3 py-2 bg-cream dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-xl text-sm text-charcoal dark:text-white focus:outline-none focus:ring-2 focus:ring-terracotta/30"
-              >
+              <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} className="w-full px-3 py-2 bg-cream dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-xl text-sm text-charcoal dark:text-white focus:outline-none focus:ring-2 focus:ring-terracotta/30">
                 <option value="">Unassigned</option>
-                {members.map((m) => (
-                  <option key={m.userId} value={m.userId}>
-                    {m.email.split("@")[0]} ({m.role})
-                  </option>
-                ))}
+                {members.map((m) => (<option key={m.userId} value={m.userId}>{m.email.split("@")[0]} ({m.role})</option>))}
               </select>
             </div>
             <div>
               <label className="block text-xs font-medium text-charcoal dark:text-white mb-1">Due Date</label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3 py-2 bg-cream dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-xl text-sm text-charcoal dark:text-white focus:outline-none focus:ring-2 focus:ring-terracotta/30"
-              />
+              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full px-3 py-2 bg-cream dark:bg-charcoal/50 border border-sand/60 dark:border-white/10 rounded-xl text-sm text-charcoal dark:text-white focus:outline-none focus:ring-2 focus:ring-terracotta/30" />
             </div>
           </div>
-
-          {/* Meta info */}
           <div className="text-[10px] text-muted flex items-center gap-3">
             <span>Created by {task.creatorEmail.split("@")[0]}</span>
-            <span>on {new Date(task.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+            <span>{new Date(task.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
           </div>
-
           {error && <p className="text-xs text-red-400">{error}</p>}
-
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-muted hover:text-charcoal dark:hover:text-white transition-colors">
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving || !title.trim()}
-              className="px-4 py-2 bg-terracotta text-white rounded-xl text-sm font-medium hover:bg-terracotta/90 transition-colors disabled:opacity-50"
-            >
-              {saving ? "Saving..." : "Save Changes"}
-            </button>
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-muted hover:text-charcoal dark:hover:text-white transition-colors">Cancel</button>
+            <button type="submit" disabled={saving || !title.trim()} className="px-4 py-2 bg-terracotta text-white rounded-xl text-sm font-medium hover:bg-terracotta/90 transition-colors disabled:opacity-50">{saving ? "Saving..." : "Save Changes"}</button>
           </div>
         </form>
       </div>
