@@ -6,6 +6,7 @@ import FeatureBreakdown from "@/components/dashboard/FeatureBreakdown";
 import RecentCalls from "@/components/dashboard/RecentCalls";
 import MfaBanner from "@/components/dashboard/MfaBanner";
 import AgencyBanner from "@/components/dashboard/AgencyBanner";
+import AgencyAnnouncements from "@/components/dashboard/AgencyAnnouncements";
 
 export default function DashboardPage() {
   return (
@@ -22,6 +23,9 @@ export default function DashboardPage() {
 
       {/* Agency membership banner — shows for users added to an agency */}
       <AgencyBanner />
+
+      {/* Agency announcements — shows for agency members */}
+      <AgencyAnnouncements />
 
       {/* MFA Banner — shows until user completes MFA, then auto-hides */}
       <MfaBanner />
