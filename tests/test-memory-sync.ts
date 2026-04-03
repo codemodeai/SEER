@@ -417,6 +417,74 @@ async function runTests() {
   assert(isIdle, "Idle detection — User 1 last_seen > 10min ago");
 
   // ──────────────────────────────────────────────────
+  // STEP 7b: Conflict detection — same feature, same project
+  // ──────────────────────────────────────────────────
+  console.log("\n7b. Conflict detection — two users on same feature...");
+
+  // Reset User 1 to active with a specific feature
+  await supabase
+    .from("agency_activity")
+    .update({
+      feature_label: "login page",
+      status: "active",
+      last_seen: new Date().toISOString(),
+    })
+    .eq("agency_id", agency.agencyId)
+    .eq("user_id", users.user1Id)
+    .eq("project_name", TEST_PROJECT);
+
+  if (!isSameUser) {
+    // User 2 also working on "login page" in same project
+    await supabase
+      .from("agency_activity")
+      .update({
+        feature_label: "login page",
+        status: "active",
+        last_seen: new Date().toISOString(),
+      })
+      .eq("agency_id", agency.agencyId)
+      .eq("user_id", users.user2Id)
+      .eq("project_name", TEST_PROJECT);
+
+    // Check conflict: group by project::feature
+    const { data: sameFeature } = await supabase
+      .from("agency_activity")
+      .select("user_id, feature_label, status")
+      .eq("agency_id", agency.agencyId)
+      .eq("project_name", TEST_PROJECT)
+      .eq("feature_label", "login page")
+      .eq("status", "active");
+
+    assert(
+      (sameFeature ?? []).length === 2,
+      "Conflict detected — 2 users on 'login page' in same project"
+    );
+
+    // Now change User 2 to different feature — no conflict
+    await supabase
+      .from("agency_activity")
+      .update({ feature_label: "dashboard" })
+      .eq("agency_id", agency.agencyId)
+      .eq("user_id", users.user2Id)
+      .eq("project_name", TEST_PROJECT);
+
+    const { data: diffFeature } = await supabase
+      .from("agency_activity")
+      .select("user_id, feature_label")
+      .eq("agency_id", agency.agencyId)
+      .eq("project_name", TEST_PROJECT)
+      .eq("feature_label", "login page")
+      .eq("status", "active");
+
+    assert(
+      (diffFeature ?? []).length === 1,
+      "No conflict — users on different features ('login page' vs 'dashboard')"
+    );
+  } else {
+    console.log("  ⚠ Skipped conflict test (single user agency)");
+  }
+
+  // ──────────────────────────────────────────────────
   // STEP 8: Content size limit
   // ──────────────────────────────────────────────────
   console.log("\n8. Content size limit...");
