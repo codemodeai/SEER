@@ -333,5 +333,5 @@ export async function seer_run(
     }
   }
 
-  return appendMemoryLog(finalResult, "seer_run", input, user.suggestion_skin, user.auto_suggest);
+  return appendMemoryLog(finalResult, "seer_run", input, user.suggestion_skin, user.auto_suggest, apiKey);
 }
