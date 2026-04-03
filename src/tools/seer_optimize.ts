@@ -2,10 +2,11 @@ import { authenticateUser, PLAN_LIMITS } from "../lib/auth.js";
 import { supabase } from "../lib/supabase.js";
 import { callHaiku, estimateTokens, parseHaikuJson } from "../lib/haiku.js";
 import { logSeerCall } from "../lib/logger.js";
-import { formatOptimizeResult } from "../lib/formatter.js";
+import { formatOptimizeResult, buildUsageWarning } from "../lib/formatter.js";
 import { SECURITY_ANCHOR } from "../lib/security.js";
 import { appendMemoryLog } from "../lib/memory-log.js";
 import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
+import { checkTeamConflict } from "../lib/conflict-detect.js";
 
 function systemPromptForModel(model: string): string {
   const modelHint =
@@ -44,6 +45,9 @@ export async function seer_optimize(
   if (mfa.blocked) {
     return getMfaBlockMessage();
   }
+
+  // 1c. Team conflict detection
+  const conflict = await checkTeamConflict(user, prompt);
 
   // 2. Check limit
   const limit = PLAN_LIMITS[user.plan] ?? 0;
@@ -101,6 +105,7 @@ export async function seer_optimize(
   });
 
   // 7. Return formatted
+  const usageWarning = buildUsageWarning(user.plan, user.usage_this_month + 1, limit);
   if (parsed) {
     const result = formatOptimizeResult({
       ...parsed,
@@ -111,8 +116,8 @@ export async function seer_optimize(
       pct_saved: pctSaved,
     });
     const finalResult = mfa.nudge ? result + mfa.nudge : result;
-    return appendMemoryLog(finalResult, "seer_optimize", prompt, user.suggestion_skin, user.auto_suggest, apiKey);
+    return appendMemoryLog(conflict.warning + usageWarning + finalResult, "seer_optimize", prompt, user.suggestion_skin, user.auto_suggest, apiKey);
   }
   const finalResult = mfa.nudge ? resultText + mfa.nudge : resultText;
-  return appendMemoryLog(finalResult, "seer_optimize", prompt, "default", true, apiKey);
+  return appendMemoryLog(conflict.warning + usageWarning + finalResult, "seer_optimize", prompt, "default", true, apiKey);
 }

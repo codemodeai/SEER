@@ -1,8 +1,10 @@
 import { authenticateUser, PLAN_LIMITS } from "../lib/auth.js";
 import { supabase } from "../lib/supabase.js";
 import { logSeerCall } from "../lib/logger.js";
+import { buildUsageWarning } from "../lib/formatter.js";
 import { appendSuggestInstruction } from "../lib/suggest.js";
 import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
+import { checkTeamConflict } from "../lib/conflict-detect.js";
 
 const MEMORY_RUN_INSTRUCTION = `SEER INSTRUCTION — Create .seer_memory.md for this project
 
@@ -61,6 +63,9 @@ export async function seer_memory_run(
     return getMfaBlockMessage();
   }
 
+  // 1c. Team conflict detection
+  const conflict = await checkTeamConflict(user, "memory run");
+
   // 2. Check plan limit
   const limit = PLAN_LIMITS[user.plan] ?? 0;
   if (user.usage_this_month >= limit) {
@@ -86,6 +91,7 @@ export async function seer_memory_run(
   });
 
   // 5. Return instruction for Claude to execute
+  const usageWarning = buildUsageWarning(user.plan, user.usage_this_month + 1, limit);
   const result = appendSuggestInstruction(MEMORY_RUN_INSTRUCTION, "seer_memory_run", "memory run", user.suggestion_skin ?? "default", user.auto_suggest);
-  return mfa.nudge ? result + mfa.nudge : result;
+  return conflict.warning + usageWarning + (mfa.nudge ? result + mfa.nudge : result);
 }

@@ -92,7 +92,9 @@ export async function POST(req: NextRequest) {
         console.error("Heartbeat update error:", updateErr);
         return NextResponse.json({ error: "Failed to update" }, { status: 500 });
       }
-      return NextResponse.json({ success: true, action: "updated" });
+
+      const conflicts = await detectConflicts(admin, agencyId, user.id, projectName, featureLabel);
+      return NextResponse.json({ success: true, action: "updated", conflicts });
     } else {
       const { error: insertErr } = await admin
         .from("agency_activity")
@@ -109,10 +111,60 @@ export async function POST(req: NextRequest) {
         console.error("Heartbeat insert error:", insertErr);
         return NextResponse.json({ error: "Failed to create" }, { status: 500 });
       }
-      return NextResponse.json({ success: true, action: "created" });
+
+      const conflicts = await detectConflicts(admin, agencyId, user.id, projectName, featureLabel);
+      return NextResponse.json({ success: true, action: "created", conflicts });
     }
   } catch (err) {
     console.error("Activity heartbeat error:", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
+}
+
+// Detect team members working on the same feature in the same project
+async function detectConflicts(
+  admin: ReturnType<typeof getSupabaseAdmin>,
+  agencyId: string,
+  currentUserId: string,
+  projectName: string,
+  featureLabel: string
+): Promise<Array<{ email: string; feature: string; project: string }>> {
+  if (!featureLabel) return [];
+
+  const idleCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+
+  // Find other active users on the same project with overlapping feature
+  const { data: others } = await admin
+    .from("agency_activity")
+    .select("user_id, feature_label, users!agency_activity_user_id_fkey(email)")
+    .eq("agency_id", agencyId)
+    .eq("project_name", projectName)
+    .eq("status", "active")
+    .gt("last_seen", idleCutoff)
+    .neq("user_id", currentUserId);
+
+  if (!others || others.length === 0) return [];
+
+  const normalizedFeature = featureLabel.toLowerCase().trim();
+  const conflicts: Array<{ email: string; feature: string; project: string }> = [];
+
+  for (const other of others) {
+    const otherFeature = (other.feature_label ?? "").toLowerCase().trim();
+    if (!otherFeature) continue;
+
+    // Exact match or significant overlap (one contains the other)
+    if (
+      otherFeature === normalizedFeature ||
+      otherFeature.includes(normalizedFeature) ||
+      normalizedFeature.includes(otherFeature)
+    ) {
+      conflicts.push({
+        email: (other as any).users?.email ?? "a team member",
+        feature: other.feature_label ?? featureLabel,
+        project: projectName,
+      });
+    }
+  }
+
+  return conflicts;
 }

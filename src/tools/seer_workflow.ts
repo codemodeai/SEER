@@ -2,10 +2,11 @@ import { authenticateUser, PLAN_LIMITS } from "../lib/auth.js";
 import { supabase } from "../lib/supabase.js";
 import { callHaiku, estimateTokens } from "../lib/haiku.js";
 import { logSeerCall } from "../lib/logger.js";
-import { formatWorkflowResult } from "../lib/formatter.js";
+import { formatWorkflowResult, buildUsageWarning } from "../lib/formatter.js";
 import { SECURITY_ANCHOR, scanWorkflowStep, logSecurityIncident } from "../lib/security.js";
 import { appendMemoryLog } from "../lib/memory-log.js";
 import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
+import { checkTeamConflict } from "../lib/conflict-detect.js";
 
 const SYSTEM_PROMPT = `Decompose this goal into 3-7 sequential steps. Return ONLY JSON: { "goal": "...", "steps": [{ "step": 1, "title": "...", "context": "...", "prompt": "..." }] }. Each step's "prompt" should be a focused, executable instruction that Claude Code can run directly.
 ${SECURITY_ANCHOR}`;
@@ -26,6 +27,9 @@ export async function seer_workflow(
   if (mfa.blocked) {
     return getMfaBlockMessage();
   }
+
+  // 1c. Team conflict detection
+  const conflict = await checkTeamConflict(user, goal);
 
   // 2. Plan check — workflow requires starter+
   if (user.plan === "free") {
@@ -106,6 +110,7 @@ export async function seer_workflow(
   });
 
   // 8. Return formatted
+  const usageWarning = buildUsageWarning(user.plan, user.usage_this_month + 1, limit);
   try {
     const parsed = JSON.parse(resultText);
     const result = formatWorkflowResult({
@@ -116,9 +121,9 @@ export async function seer_workflow(
       },
     });
     const finalResult = mfa.nudge ? result + mfa.nudge : result;
-    return appendMemoryLog(finalResult, "seer_workflow", goal, user.suggestion_skin, user.auto_suggest, apiKey);
+    return appendMemoryLog(conflict.warning + usageWarning + finalResult, "seer_workflow", goal, user.suggestion_skin, user.auto_suggest, apiKey);
   } catch {
     const finalResult = mfa.nudge ? resultText + mfa.nudge : resultText;
-    return appendMemoryLog(finalResult, "seer_workflow", goal, user.suggestion_skin, user.auto_suggest, apiKey);
+    return appendMemoryLog(conflict.warning + usageWarning + finalResult, "seer_workflow", goal, user.suggestion_skin, user.auto_suggest, apiKey);
   }
 }

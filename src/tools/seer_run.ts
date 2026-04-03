@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabase.js";
 import { callHaiku, estimateTokens, parseHaikuJson } from "../lib/haiku.js";
 import { logSeerCall } from "../lib/logger.js";
 import { getEmbedding, searchMemory } from "../lib/embeddings.js";
-import { formatRunResult } from "../lib/formatter.js";
+import { formatRunResult, buildUsageWarning } from "../lib/formatter.js";
 import { SECURITY_ANCHOR } from "../lib/security.js";
 import { checkNudge } from "../lib/nudge.js";
 import { detectReopen } from "../lib/reopen.js";
@@ -11,6 +11,7 @@ import { appendMemoryLog } from "../lib/memory-log.js";
 import { appendSuggestInstruction } from "../lib/suggest.js";
 import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
 import { detectMarkDone } from "../lib/mark-done.js";
+import { checkTeamConflict } from "../lib/conflict-detect.js";
 import { seer_tools } from "./seer_tools.js";
 
 // --- Pattern matchers for zero-cost features (no Haiku call) ---
@@ -137,6 +138,9 @@ export async function seer_run(
     return getMfaBlockMessage();
   }
 
+  // 1c2. Team conflict detection — instant server-side check
+  const conflict = await checkTeamConflict(user, trimmedInput);
+
   // 1d. Route "seer continue" — 1 call, no Haiku cost
   if (CONTINUE_PATTERNS.test(trimmedInput)) {
     const limit = PLAN_LIMITS[user.plan] ?? 0;
@@ -154,8 +158,9 @@ export async function seer_run(
       tool_used: "seer_continue",
       surface,
     });
+    const usageWarning = buildUsageWarning(user.plan, user.usage_this_month + 1, limit);
     const continueResult = appendSuggestInstruction(CONTINUE_INSTRUCTION, "seer_continue", trimmedInput, user.suggestion_skin, user.auto_suggest);
-    return mfa.nudge ? continueResult + mfa.nudge : continueResult;
+    return conflict.warning + usageWarning + (mfa.nudge ? continueResult + mfa.nudge : continueResult);
   }
 
   // 1e. Route callback memory recall — 1 call, no Haiku cost
@@ -175,9 +180,10 @@ export async function seer_run(
       tool_used: "seer_callback_memory",
       surface,
     });
+    const usageWarning = buildUsageWarning(user.plan, user.usage_this_month + 1, limit);
     const instruction = buildCallbackInstruction(trimmedInput);
     const callbackResult = appendSuggestInstruction(instruction, "seer_callback_memory", trimmedInput, user.suggestion_skin, user.auto_suggest);
-    return mfa.nudge ? callbackResult + mfa.nudge : callbackResult;
+    return conflict.warning + usageWarning + (mfa.nudge ? callbackResult + mfa.nudge : callbackResult);
   }
 
   // 2. Check plan limit
@@ -294,6 +300,7 @@ export async function seer_run(
   });
 
   // 7. Return formatted result
+  const usageWarning = buildUsageWarning(user.plan, user.usage_this_month + 1, limit);
   let finalResult: string;
   if (parsed) {
     finalResult = formatRunResult({
@@ -333,5 +340,5 @@ export async function seer_run(
     }
   }
 
-  return appendMemoryLog(finalResult, "seer_run", input, user.suggestion_skin, user.auto_suggest, apiKey);
+  return appendMemoryLog(conflict.warning + usageWarning + finalResult, "seer_run", input, user.suggestion_skin, user.auto_suggest, apiKey);
 }

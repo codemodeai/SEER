@@ -1,8 +1,10 @@
 import { authenticateUser, PLAN_LIMITS } from "../lib/auth.js";
 import { supabase } from "../lib/supabase.js";
 import { logSeerCall } from "../lib/logger.js";
+import { buildUsageWarning } from "../lib/formatter.js";
 import { appendSuggestInstruction } from "../lib/suggest.js";
 import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
+import { checkTeamConflict } from "../lib/conflict-detect.js";
 
 const SESSION_READ_INSTRUCTION = `SEER INSTRUCTION — Read and capture this session to .seer_memory.md
 
@@ -52,6 +54,9 @@ export async function seer_session_read(
     return getMfaBlockMessage();
   }
 
+  // 1c. Team conflict detection
+  const conflict = await checkTeamConflict(user, "session read");
+
   // 2. Check plan limit
   const limit = PLAN_LIMITS[user.plan] ?? 0;
   if (user.usage_this_month >= limit) {
@@ -77,6 +82,7 @@ export async function seer_session_read(
   });
 
   // 5. Return the instruction for Claude to execute
+  const usageWarning = buildUsageWarning(user.plan, user.usage_this_month + 1, limit);
   const result = appendSuggestInstruction(SESSION_READ_INSTRUCTION, "seer_session_read", "session read", user.suggestion_skin ?? "default", user.auto_suggest);
-  return mfa.nudge ? result + mfa.nudge : result;
+  return conflict.warning + usageWarning + (mfa.nudge ? result + mfa.nudge : result);
 }

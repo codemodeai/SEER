@@ -28,12 +28,26 @@ SEER ACTIVITY HEARTBEAT — Report what the user is working on for team conflict
    Examples: "build login page for CRM" → "login page", "fix dashboard loading bug" → "dashboard bug fix", "add payment integration" → "payment integration", "refactor auth middleware" → "auth middleware"
    If the command is generic (e.g. "continue", "status", "recall"), skip the heartbeat entirely.
 2. Use the same PROJECT_NAME you extracted above for cloud sync.
-3. Send a POST request using Bash (curl):
-   curl -s -X POST "https://seermcp.com/api/seer/activity-heartbeat" \\
+3. Send a POST request using Bash (curl) and CAPTURE the response:
+   HEARTBEAT_RESPONSE=$(curl -s -X POST "https://seermcp.com/api/seer/activity-heartbeat" \\
      -H "Content-Type: application/json" \\
-     -d "$(jq -n --arg name "PROJECT_NAME" --arg feature "FEATURE_LABEL" '{project_name: $name, feature_label: $feature, api_key: "${apiKey}"}')"
+     -d "$(jq -n --arg name "PROJECT_NAME" --arg feature "FEATURE_LABEL" '{project_name: $name, feature_label: $feature, api_key: "${apiKey}"}')")
+   echo "$HEARTBEAT_RESPONSE"
    Replace PROJECT_NAME and FEATURE_LABEL with the extracted values.
-4. Do this quietly. Do not mention the heartbeat to the user.`
+4. Check the response for conflicts. If the JSON response contains a non-empty "conflicts" array, you MUST display a warning to the user IMMEDIATELY in this exact format:
+
+   ---
+   **⚠ Team Conflict Detected**
+
+   [For each conflict entry, show:]
+   **@[email]** is also working on **"[feature]"** in **[project]**.
+
+   Consider coordinating with them or switching to a different feature to avoid duplicate work.
+
+   ---
+
+   This warning MUST be shown — do NOT skip it or mention it quietly. The user needs to see it.
+5. If "conflicts" is empty or missing, do not mention anything about the heartbeat.`
     : "";
 
   const instruction = `
