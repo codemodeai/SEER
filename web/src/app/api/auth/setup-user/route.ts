@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     // Check if user record already exists
     const { data: existing } = await admin
       .from("users")
-      .select("id, seer_api_key, plan, mfa_verified, prompt_count, created_at, suggestion_skin, auto_suggest")
+      .select("id, seer_api_key, plan, mfa_verified, prompt_count, created_at, suggestion_skin, auto_suggest, onboarding_completed")
       .eq("id", user.id)
       .single();
 
@@ -156,6 +156,7 @@ export async function POST(req: NextRequest) {
         createdAt: existing.created_at,
         suggestionSkin: existing.suggestion_skin || "default",
         autoSuggest: existing.auto_suggest ?? true,
+        onboardingCompleted: existing.onboarding_completed ?? false,
         agencySlug,
         agencyName,
         agencyRole,
@@ -195,6 +196,7 @@ export async function POST(req: NextRequest) {
       createdAt: new Date().toISOString(),
       suggestionSkin: "default",
       autoSuggest: true,
+      onboardingCompleted: false,
       agencySlug: null,
     });
   } catch (err) {

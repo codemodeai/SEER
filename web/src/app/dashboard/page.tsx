@@ -1,3 +1,8 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useDashboard } from "@/lib/dashboard-context";
 import StatCards from "@/components/dashboard/StatCards";
 import UsageGauge from "@/components/dashboard/UsageGauge";
 import TokenChart from "@/components/dashboard/TokenChart";
@@ -9,6 +14,18 @@ import AgencyBanner from "@/components/dashboard/AgencyBanner";
 import AgencyAnnouncements from "@/components/dashboard/AgencyAnnouncements";
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const { loading, onboardingCompleted } = useDashboard();
+
+  // Redirect new users to onboarding
+  useEffect(() => {
+    if (!loading && !onboardingCompleted) {
+      router.replace("/dashboard/onboarding");
+    }
+  }, [loading, onboardingCompleted, router]);
+
+  if (!loading && !onboardingCompleted) return null;
+
   return (
     <div className="space-y-6">
       {/* Header */}

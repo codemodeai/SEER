@@ -9,6 +9,7 @@ interface DashboardData {
   usage: number;
   mfaVerified: boolean;
   promptCount: number;
+  onboardingCompleted: boolean;
   agencySlug: string | null;
   agencyName: string | null;
   agencyRole: string | null;
@@ -22,6 +23,7 @@ const DashboardContext = createContext<DashboardData>({
   usage: 0,
   mfaVerified: false,
   promptCount: 0,
+  onboardingCompleted: false,
   agencySlug: null,
   agencyName: null,
   agencyRole: null,
@@ -40,6 +42,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     usage: 0,
     mfaVerified: false,
     promptCount: 0,
+    onboardingCompleted: false,
     agencySlug: null,
     agencyName: null,
     agencyRole: null,
@@ -65,6 +68,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           usage: userData.usage ?? 0,
           mfaVerified: userData.mfaVerified ?? false,
           promptCount: userData.promptCount ?? 0,
+          onboardingCompleted: userData.onboardingCompleted ?? false,
           agencySlug: userData.agencySlug ?? null,
           agencyName: userData.agencyName ?? null,
           agencyRole: userData.agencyRole ?? null,
