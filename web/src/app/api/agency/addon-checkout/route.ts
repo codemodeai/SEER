@@ -6,6 +6,7 @@ const RAZORPAY_API_URL = "https://api.razorpay.com/v1";
 
 const ADDON_PRICES: Record<string, number> = {
   project_management: 5,
+  webhooks: 3,
 };
 
 // POST /api/agency/addon-checkout — create payment for an agency addon feature
@@ -53,9 +54,10 @@ export async function POST(req: NextRequest) {
       const features = currentAgency?.enabled_features ?? {};
       features[feature] = true;
 
+      const addonTotal = (features.project_management ? 5 : 0) + (features.webhooks ? 3 : 0);
       await admin
         .from("agencies")
-        .update({ enabled_features: features, addon_price: (features.project_management ? 5 : 0) })
+        .update({ enabled_features: features, addon_price: addonTotal })
         .eq("id", agency.id);
 
       return NextResponse.json({

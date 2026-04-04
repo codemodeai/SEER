@@ -400,6 +400,12 @@ function CheckoutContent() {
                   <span className="text-charcoal font-medium">+$5/mo</span>
                 </div>
               )}
+              {agencyConfig.enabledFeatures.webhooks && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-warm-brown-light">Webhooks</span>
+                  <span className="text-charcoal font-medium">+$3/mo</span>
+                </div>
+              )}
             </div>
           )}
         </div>

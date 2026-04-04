@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
         if (agency) {
           const features = agency.enabled_features ?? {};
           features[feature] = true;
-          const addonPrice = (features.project_management ? 5 : 0);
+          const addonPrice = (features.project_management ? 5 : 0) + (features.webhooks ? 3 : 0);
           await admin
             .from("agencies")
             .update({ enabled_features: features, addon_price: addonPrice })
