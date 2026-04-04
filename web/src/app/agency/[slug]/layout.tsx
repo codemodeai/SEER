@@ -25,6 +25,7 @@ import {
   Megaphone,
   BookOpen,
   FolderKanban,
+  Lock,
 } from "lucide-react";
 
 function AgencyPortalContent({ children }: { children: React.ReactNode }) {
@@ -35,6 +36,8 @@ function AgencyPortalContent({ children }: { children: React.ReactNode }) {
   const { agency, role, loading, error } = useAgency();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const features = agency?.enabledFeatures ?? { announcements: true, project_management: false };
+
   const sidebarLinks = [
     { label: "Overview", href: `/agency/${slug}`, icon: LayoutDashboard },
     { label: "Users", href: `/agency/${slug}/users`, icon: Users },
@@ -42,8 +45,8 @@ function AgencyPortalContent({ children }: { children: React.ReactNode }) {
     { label: "Cloud Memory", href: `/agency/${slug}/memory`, icon: Cloud },
     { label: "Activity", href: `/agency/${slug}/activity`, icon: Activity },
     { label: "Analytics", href: `/agency/${slug}/analytics`, icon: BarChart3 },
-    { label: "Projects", href: `/agency/${slug}/projects`, icon: FolderKanban },
-    { label: "Announcements", href: `/agency/${slug}/announcements`, icon: Megaphone },
+    { label: "Projects", href: `/agency/${slug}/projects`, icon: FolderKanban, locked: !features.project_management },
+    { label: "Announcements", href: `/agency/${slug}/announcements`, icon: Megaphone, locked: !features.announcements },
     { label: "Guide", href: `/agency/${slug}/guide`, icon: BookOpen },
     { label: "Settings", href: `/agency/${slug}/settings`, icon: Settings },
   ];
@@ -126,21 +129,26 @@ function AgencyPortalContent({ children }: { children: React.ReactNode }) {
               link.href === `/agency/${slug}`
                 ? pathname === `/agency/${slug}`
                 : pathname.startsWith(link.href);
+            const isLocked = "locked" in link && link.locked;
             return (
               <Link
                 key={link.href}
                 href={link.href}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  isActive
-                    ? "bg-terracotta/10 text-terracotta"
-                    : "text-warm-brown-light hover:bg-cream-dark hover:text-charcoal"
+                  isLocked
+                    ? "text-muted/50 hover:bg-cream-dark hover:text-muted"
+                    : isActive
+                      ? "bg-terracotta/10 text-terracotta"
+                      : "text-warm-brown-light hover:bg-cream-dark hover:text-charcoal"
                 }`}
               >
                 <link.icon size={18} />
                 {link.label}
-                {isActive && (
+                {isLocked ? (
+                  <Lock size={12} className="ml-auto opacity-40" />
+                ) : isActive ? (
                   <ChevronRight size={14} className="ml-auto opacity-50" />
-                )}
+                ) : null}
               </Link>
             );
           })}
@@ -224,22 +232,27 @@ function AgencyPortalContent({ children }: { children: React.ReactNode }) {
               link.href === `/agency/${slug}`
                 ? pathname === `/agency/${slug}`
                 : pathname.startsWith(link.href);
+            const isLocked = "locked" in link && link.locked;
             return (
               <Link
                 key={link.href}
                 href={link.href}
                 onClick={() => setMobileMenuOpen(false)}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  isActive
-                    ? "bg-terracotta/10 text-terracotta"
-                    : "text-warm-brown-light hover:bg-cream-dark hover:text-charcoal"
+                  isLocked
+                    ? "text-muted/50 hover:bg-cream-dark hover:text-muted"
+                    : isActive
+                      ? "bg-terracotta/10 text-terracotta"
+                      : "text-warm-brown-light hover:bg-cream-dark hover:text-charcoal"
                 }`}
               >
                 <link.icon size={18} />
                 {link.label}
-                {isActive && (
+                {isLocked ? (
+                  <Lock size={12} className="ml-auto opacity-40" />
+                ) : isActive ? (
                   <ChevronRight size={14} className="ml-auto opacity-50" />
-                )}
+                ) : null}
               </Link>
             );
           })}

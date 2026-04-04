@@ -78,6 +78,9 @@ export async function GET(
       .select("id", { count: "exact", head: true })
       .eq("agency_id", agency.id);
 
+    // Parse enabled_features (JSONB column from migration 010)
+    const enabledFeatures = agency.enabled_features ?? { announcements: true, project_management: false };
+
     return NextResponse.json({
       agency: {
         id: agency.id,
@@ -88,6 +91,7 @@ export async function GET(
         logoUrl: agency.logo_url,
         memberCount: memberCount ?? 0,
         createdAt: agency.created_at,
+        enabledFeatures,
       },
       role: isOwner ? "owner" : membership?.role ?? "member",
       userId: user.id,

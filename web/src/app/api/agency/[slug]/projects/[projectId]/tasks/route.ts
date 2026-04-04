@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase-server";
+import { checkAgencyFeature } from "@/lib/agency-features";
 
 async function getAgencyAccess(slug: string, userId: string) {
   const admin = getSupabaseAdmin();
@@ -59,6 +60,9 @@ export async function GET(
 
     const access = await getAgencyAccess(slug, user.id);
     if (!access) return NextResponse.json({ error: "Access denied" }, { status: 403 });
+
+    const { enabled } = await checkAgencyFeature(access.agency.id, "project_management");
+    if (!enabled) return NextResponse.json({ error: "Project Management feature is not enabled" }, { status: 403 });
 
     const admin = getSupabaseAdmin();
 
@@ -162,6 +166,9 @@ export async function POST(
     const access = await getAgencyAccess(slug, user.id);
     if (!access) return NextResponse.json({ error: "Access denied" }, { status: 403 });
 
+    const { enabled } = await checkAgencyFeature(access.agency.id, "project_management");
+    if (!enabled) return NextResponse.json({ error: "Project Management feature is not enabled" }, { status: 403 });
+
     const body = await req.json();
     const title = (body.title ?? "").trim();
     if (!title || title.length > 300) {
@@ -230,6 +237,9 @@ export async function PATCH(
     const access = await getAgencyAccess(slug, user.id);
     if (!access) return NextResponse.json({ error: "Access denied" }, { status: 403 });
 
+    const { enabled } = await checkAgencyFeature(access.agency.id, "project_management");
+    if (!enabled) return NextResponse.json({ error: "Project Management feature is not enabled" }, { status: 403 });
+
     const body = await req.json();
     const { task_id } = body;
     if (!task_id) return NextResponse.json({ error: "task_id required" }, { status: 400 });
@@ -282,6 +292,9 @@ export async function DELETE(
     if (!access || access.role === "member") {
       return NextResponse.json({ error: "Only owner/admin can delete tasks" }, { status: 403 });
     }
+
+    const { enabled } = await checkAgencyFeature(access.agency.id, "project_management");
+    if (!enabled) return NextResponse.json({ error: "Project Management feature is not enabled" }, { status: 403 });
 
     const taskId = req.nextUrl.searchParams.get("task_id");
     if (!taskId) return NextResponse.json({ error: "task_id required" }, { status: 400 });

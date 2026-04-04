@@ -1,5 +1,6 @@
 "use client";
 
+import FeatureGate from "@/components/agency/FeatureGate";
 import { useAgency } from "@/lib/agency-context";
 import { useEffect, useState, useCallback } from "react";
 import {
@@ -57,6 +58,14 @@ export default function AgencyAnnouncementsPage() {
   }, [fetchAnnouncements]);
 
   if (!agency) return null;
+
+  if (!agency.enabledFeatures?.announcements) {
+    return (
+      <FeatureGate feature="announcements" featureLabel="Announcements" addonPrice="Free">
+        <></>
+      </FeatureGate>
+    );
+  }
 
   async function handleTogglePin(ann: Announcement) {
     try {

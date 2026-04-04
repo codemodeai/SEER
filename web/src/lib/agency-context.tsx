@@ -3,6 +3,12 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useParams } from "next/navigation";
 
+export interface EnabledFeatures {
+  announcements: boolean;
+  project_management: boolean;
+  [key: string]: boolean;
+}
+
 interface AgencyData {
   agency: {
     id: string;
@@ -13,6 +19,7 @@ interface AgencyData {
     logoUrl: string | null;
     memberCount: number;
     createdAt: string;
+    enabledFeatures: EnabledFeatures;
   } | null;
   role: "owner" | "admin" | "member";
   userId: string;

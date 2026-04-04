@@ -1,5 +1,6 @@
 "use client";
 
+import FeatureGate from "@/components/agency/FeatureGate";
 import { useAgency } from "@/lib/agency-context";
 import {
   FolderKanban,
@@ -104,6 +105,14 @@ export default function ProjectsPage() {
   }, [agency]);
 
   if (!agency) return null;
+
+  if (!agency.enabledFeatures?.project_management) {
+    return (
+      <FeatureGate feature="project_management" featureLabel="Project Management" addonPrice="$5/mo">
+        <></>
+      </FeatureGate>
+    );
+  }
 
   // Merge cloud memory projects with PM projects by name
   const merged: MergedProject[] = [];

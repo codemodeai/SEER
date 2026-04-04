@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase-server";
+import { checkAgencyFeature } from "@/lib/agency-features";
 
 async function getAgencyAndRole(slug: string, userId: string) {
   const admin = getSupabaseAdmin();
@@ -58,6 +59,12 @@ export async function GET(
     const result = await getAgencyAndRole(slug, user.id);
     if (!result) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
+    // Feature gate
+    const { enabled } = await checkAgencyFeature(result.agency.id, "announcements");
+    if (!enabled) {
+      return NextResponse.json({ error: "Announcements feature is not enabled for this agency" }, { status: 403 });
     }
 
     const admin = getSupabaseAdmin();
@@ -122,6 +129,11 @@ export async function POST(
     const result = await getAgencyAndRole(slug, user.id);
     if (!result || result.role === "member") {
       return NextResponse.json({ error: "Only owner/admin can create announcements" }, { status: 403 });
+    }
+
+    const { enabled: featureEnabled } = await checkAgencyFeature(result.agency.id, "announcements");
+    if (!featureEnabled) {
+      return NextResponse.json({ error: "Announcements feature is not enabled" }, { status: 403 });
     }
 
     const body = await req.json();
@@ -191,6 +203,11 @@ export async function PATCH(
     const result = await getAgencyAndRole(slug, user.id);
     if (!result || result.role === "member") {
       return NextResponse.json({ error: "Only owner/admin can edit announcements" }, { status: 403 });
+    }
+
+    const { enabled: featureEnabled } = await checkAgencyFeature(result.agency.id, "announcements");
+    if (!featureEnabled) {
+      return NextResponse.json({ error: "Announcements feature is not enabled" }, { status: 403 });
     }
 
     const body = await req.json();
@@ -270,6 +287,11 @@ export async function DELETE(
     const result = await getAgencyAndRole(slug, user.id);
     if (!result || result.role === "member") {
       return NextResponse.json({ error: "Only owner/admin can delete announcements" }, { status: 403 });
+    }
+
+    const { enabled: featureEnabled } = await checkAgencyFeature(result.agency.id, "announcements");
+    if (!featureEnabled) {
+      return NextResponse.json({ error: "Announcements feature is not enabled" }, { status: 403 });
     }
 
     const announcementId = req.nextUrl.searchParams.get("announcement_id");
