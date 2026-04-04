@@ -74,7 +74,11 @@ export async function POST(req: NextRequest) {
       const DODO_API_URL = process.env.DODO_API_KEY?.startsWith("sk_live")
         ? "https://live.dodopayments.com"
         : "https://test.dodopayments.com";
-      const addonProductId = process.env.DODO_ADDON_PM_PRICE_ID ?? "";
+      const DODO_ADDON_PRODUCTS: Record<string, string> = {
+        project_management: process.env.DODO_ADDON_PM_PRICE_ID ?? "",
+        webhooks: process.env.DODO_ADDON_WEBHOOKS_PRICE_ID ?? "",
+      };
+      const addonProductId = DODO_ADDON_PRODUCTS[feature] ?? "";
 
       if (!addonProductId) {
         return NextResponse.json({ error: "Addon product not configured for Dodo" }, { status: 500 });
