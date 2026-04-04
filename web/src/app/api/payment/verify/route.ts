@@ -124,6 +124,29 @@ export async function POST(req: NextRequest) {
       console.error("Failed to create invoice:", invoiceError);
     }
 
+    // Handle addon payment — enable the feature on the agency
+    if (plan === "addon" && body.addonConfig) {
+      const { feature, agencySlug: addonSlug } = body.addonConfig;
+      if (feature && addonSlug) {
+        const { data: agency } = await admin
+          .from("agencies")
+          .select("id, enabled_features, addon_price")
+          .eq("slug", addonSlug)
+          .single();
+
+        if (agency) {
+          const features = agency.enabled_features ?? {};
+          features[feature] = true;
+          const addonPrice = (features.project_management ? 5 : 0);
+          await admin
+            .from("agencies")
+            .update({ enabled_features: features, addon_price: addonPrice })
+            .eq("id", agency.id);
+        }
+      }
+      return NextResponse.json({ success: true, plan: "addon" });
+    }
+
     // Auto-create agency for agency plan subscribers
     let agencySlug: string | null = null;
     if (plan === "agency") {

@@ -2,16 +2,31 @@
 
 import { useAgency } from "@/lib/agency-context";
 import { useState } from "react";
-import { Building2, Save, Loader2, Lock, ToggleLeft, ToggleRight, Megaphone, FolderKanban } from "lucide-react";
+import { Building2, Save, Loader2, Lock, ToggleLeft, ToggleRight, Megaphone, FolderKanban, CreditCard, X } from "lucide-react";
+import { useParams, useSearchParams } from "next/navigation";
+
+const PAID_ADDONS: Record<string, { label: string; price: string; priceUsd: number; description: string }> = {
+  project_management: {
+    label: "Project Management",
+    price: "$5/mo",
+    priceUsd: 5,
+    description: "Kanban boards, tasks, project tracking, and team assignment.",
+  },
+};
 
 export default function AgencySettingsPage() {
   const { agency, role } = useAgency();
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const slug = params?.slug as string;
+  const addonEnabled = searchParams.get("addon_enabled");
   const [name, setName] = useState("");
   const [features, setFeatures] = useState<Record<string, boolean>>({ announcements: true, project_management: false });
   const [saving, setSaving] = useState(false);
   const [savingFeatures, setSavingFeatures] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [featureMessage, setFeatureMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [addonModal, setAddonModal] = useState<string | null>(null);
 
   const canEdit = role === "owner";
 
@@ -20,7 +35,12 @@ export default function AgencySettingsPage() {
     if (agency) {
       setName(agency.name);
       if (agency.enabledFeatures) {
-        setFeatures(agency.enabledFeatures);
+        const f = { ...agency.enabledFeatures };
+        // If we just came back from addon payment, reflect the enabled state
+        if (addonEnabled && addonEnabled in f) {
+          f[addonEnabled] = true;
+        }
+        setFeatures(f);
       }
     }
   });
@@ -67,6 +87,16 @@ export default function AgencySettingsPage() {
             : "View agency settings. Only the owner can edit."}
         </p>
       </div>
+
+      {/* Addon enabled success banner */}
+      {addonEnabled && (
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6 max-w-xl">
+          <p className="text-sm text-green-700 font-medium">
+            Payment successful! The <span className="font-semibold">{addonEnabled.replace(/_/g, " ")}</span> feature
+            has been enabled for your agency. Reload to see it in the sidebar.
+          </p>
+        </div>
+      )}
 
       {/* Settings form */}
       <div className="bg-ivory border border-sand/60 rounded-2xl p-6 max-w-xl">
@@ -224,7 +254,16 @@ export default function AgencySettingsPage() {
               </div>
             </div>
             <button
-              onClick={() => canEdit && setFeatures(f => ({ ...f, project_management: !f.project_management }))}
+              onClick={() => {
+                if (!canEdit) return;
+                if (features.project_management) {
+                  // Disabling — free, just toggle off
+                  setFeatures(f => ({ ...f, project_management: false }));
+                } else {
+                  // Enabling — requires payment, show modal
+                  setAddonModal("project_management");
+                }
+              }}
               disabled={!canEdit}
               className="disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -286,6 +325,65 @@ export default function AgencySettingsPage() {
           </button>
         )}
       </div>
+
+      {/* Addon Payment Modal */}
+      {addonModal && PAID_ADDONS[addonModal] && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setAddonModal(null)}>
+          <div
+            className="bg-ivory border border-sand/60 rounded-2xl p-6 max-w-md w-full mx-4 shadow-xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-terracotta/10 flex items-center justify-center">
+                  <CreditCard size={20} className="text-terracotta" />
+                </div>
+                <h3 className="font-display text-lg text-charcoal">Enable Add-on</h3>
+              </div>
+              <button onClick={() => setAddonModal(null)} className="w-8 h-8 rounded-lg bg-cream-dark flex items-center justify-center text-muted hover:text-charcoal">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="px-4 py-4 rounded-xl bg-cream-dark border border-sand/50 mb-5">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-semibold text-charcoal">{PAID_ADDONS[addonModal].label}</p>
+                <span className="text-sm font-display text-terracotta">{PAID_ADDONS[addonModal].price}</span>
+              </div>
+              <p className="text-xs text-muted">{PAID_ADDONS[addonModal].description}</p>
+            </div>
+
+            <p className="text-xs text-muted mb-5">
+              You will be redirected to complete the payment. After successful payment,
+              the feature will be automatically enabled for your agency.
+            </p>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setAddonModal(null)}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-muted border border-sand/60 rounded-xl hover:bg-cream-dark transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  sessionStorage.setItem("seer_addon_config", JSON.stringify({
+                    feature: addonModal,
+                    label: PAID_ADDONS[addonModal].label,
+                    priceUsd: PAID_ADDONS[addonModal].priceUsd,
+                    agencySlug: slug,
+                  }));
+                  window.location.href = `/payment/checkout?plan=addon&feature=${addonModal}&slug=${slug}`;
+                }}
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-terracotta text-white rounded-xl text-sm font-semibold hover:bg-terracotta/90 transition-all"
+              >
+                <CreditCard size={16} />
+                Pay {PAID_ADDONS[addonModal].price}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

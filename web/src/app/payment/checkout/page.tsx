@@ -52,6 +52,13 @@ interface AgencyConfig {
   enabledFeatures: Record<string, boolean>;
 }
 
+interface AddonConfig {
+  feature: string;
+  label: string;
+  priceUsd: number;
+  agencySlug: string;
+}
+
 type Provider = "razorpay" | "dodo";
 
 function CheckoutContent() {
@@ -62,6 +69,7 @@ function CheckoutContent() {
   const [userEmail, setUserEmail] = useState("");
   const [priceInfo, setPriceInfo] = useState<PriceInfo | null>(null);
   const [agencyConfig, setAgencyConfig] = useState<AgencyConfig | null>(null);
+  const [addonConfig, setAddonConfig] = useState<AddonConfig | null>(null);
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState("");
@@ -69,7 +77,8 @@ function CheckoutContent() {
   const [selectedProvider, setSelectedProvider] = useState<Provider>("dodo");
 
   const isAgency = plan === "agency";
-  const planMeta = isAgency ? null : PLAN_INFO[plan];
+  const isAddon = plan === "addon";
+  const planMeta = isAgency || isAddon ? null : PLAN_INFO[plan];
 
   useEffect(() => {
     async function init() {
@@ -97,7 +106,16 @@ function CheckoutContent() {
 
       // Agency config from sessionStorage
       let totalUsd = planMeta?.priceUsd ?? 0;
-      if (isAgency) {
+      if (isAddon) {
+        const raw = sessionStorage.getItem("seer_addon_config");
+        if (!raw) {
+          window.location.href = "/dashboard";
+          return;
+        }
+        const config: AddonConfig = JSON.parse(raw);
+        setAddonConfig(config);
+        totalUsd = config.priceUsd;
+      } else if (isAgency) {
         const raw = sessionStorage.getItem("seer_agency_config");
         if (!raw) {
           window.location.href = "/agency/setup";
@@ -109,8 +127,8 @@ function CheckoutContent() {
       }
 
       // Fetch price info (INR breakdown)
-      const url = isAgency
-        ? `/api/payment/price-info?plan=agency&totalUsd=${totalUsd}`
+      const url = isAgency || isAddon
+        ? `/api/payment/price-info?plan=${plan}&totalUsd=${totalUsd}`
         : `/api/payment/price-info?plan=${plan}`;
       const res = await fetch(url);
       if (res.ok) {
@@ -132,7 +150,7 @@ function CheckoutContent() {
       script.async = true;
       document.head.appendChild(script);
     }
-  }, [plan, isAgency, planMeta?.priceUsd]);
+  }, [plan, isAgency, isAddon, planMeta?.priceUsd]);
 
   async function handlePay() {
     if (!priceInfo) return;
@@ -143,7 +161,18 @@ function CheckoutContent() {
       let apiUrl: string;
       let body: Record<string, unknown>;
 
-      if (isAgency && agencyConfig) {
+      if (isAddon && addonConfig) {
+        apiUrl = "/api/agency/addon-checkout";
+        body = {
+          userId,
+          email: userEmail,
+          feature: addonConfig.feature,
+          label: addonConfig.label,
+          priceUsd: addonConfig.priceUsd,
+          agencySlug: addonConfig.agencySlug,
+          preferredProvider: selectedProvider,
+        };
+      } else if (isAgency && agencyConfig) {
         apiUrl = "/api/agency/checkout";
         body = {
           userId,
@@ -215,9 +244,11 @@ function CheckoutContent() {
         key: data.razorpayKeyId,
         subscription_id: data.subscriptionId,
         name: "SEER",
-        description: isAgency
-          ? `Agency Plan — ${agencyConfig?.memberTier} members — $${agencyConfig?.totalPrice}/mo`
-          : `${data.planName} Plan — Monthly`,
+        description: isAddon && addonConfig
+          ? `${addonConfig.label} Add-on — $${addonConfig.priceUsd}/mo`
+          : isAgency
+            ? `Agency Plan — ${agencyConfig?.memberTier} members — $${agencyConfig?.totalPrice}/mo`
+            : `${data.planName} Plan — Monthly`,
         prefill: { email: userEmail },
         handler: async function (response: {
           razorpay_payment_id: string;
@@ -231,7 +262,12 @@ function CheckoutContent() {
               razorpay_signature: response.razorpay_signature,
               plan: currentPlan,
             };
-            if (isAgency && agencyConfig) {
+            if (isAddon && addonConfig) {
+              verifyBody.addonConfig = {
+                feature: addonConfig.feature,
+                agencySlug: addonConfig.agencySlug,
+              };
+            } else if (isAgency && agencyConfig) {
               verifyBody.agencyConfig = {
                 agencyName: agencyConfig.agencyName,
                 memberTier: agencyConfig.memberTier,
@@ -250,8 +286,14 @@ function CheckoutContent() {
             if (verifyRes.ok) {
               const verifyData = await verifyRes.json();
               sessionStorage.removeItem("seer_agency_config");
-              const agencyParam = verifyData.agencySlug ? `&agency=${verifyData.agencySlug}` : "";
-              window.location.href = `/payment/success?plan=${currentPlan}&price=${priceInfo?.priceUsd ?? 0}${agencyParam}`;
+              sessionStorage.removeItem("seer_addon_config");
+              if (isAddon && addonConfig) {
+                // Redirect back to agency settings with success
+                window.location.href = `/agency/${addonConfig.agencySlug}/settings?addon_enabled=${addonConfig.feature}`;
+              } else {
+                const agencyParam = verifyData.agencySlug ? `&agency=${verifyData.agencySlug}` : "";
+                window.location.href = `/payment/success?plan=${currentPlan}&price=${priceInfo?.priceUsd ?? 0}${agencyParam}`;
+              }
             } else {
               setError("Payment verification failed. Please contact support.");
               setLoading(false);
@@ -286,7 +328,7 @@ function CheckoutContent() {
     );
   }
 
-  if (!plan || (!planMeta && !isAgency)) {
+  if (!plan || (!planMeta && !isAgency && !isAddon)) {
     return (
       <div className="min-h-screen bg-cream flex items-center justify-center px-4">
         <div className="text-center">
@@ -299,10 +341,14 @@ function CheckoutContent() {
     );
   }
 
-  const displayName = isAgency ? `Agency — ${agencyConfig?.memberTier} members` : planMeta!.name;
-  const displayDesc = isAgency
-    ? `${agencyConfig?.agencyName} — Unlimited calls, shared memory, activity tracking`
-    : planMeta!.description;
+  const displayName = isAddon
+    ? `${addonConfig?.label} Add-on`
+    : isAgency ? `Agency — ${agencyConfig?.memberTier} members` : planMeta!.name;
+  const displayDesc = isAddon
+    ? `Add-on for your agency — billed monthly`
+    : isAgency
+      ? `${agencyConfig?.agencyName} — Unlimited calls, shared memory, activity tracking`
+      : planMeta!.description;
 
   const isDodo = selectedProvider === "dodo";
 
@@ -311,11 +357,11 @@ function CheckoutContent() {
       <div className="max-w-lg mx-auto px-4 py-12 sm:py-16">
         {/* Back link */}
         <Link
-          href={isAgency ? "/agency/setup" : "/dashboard/billing"}
+          href={isAddon && addonConfig ? `/agency/${addonConfig.agencySlug}/settings` : isAgency ? "/agency/setup" : "/dashboard/billing"}
           className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-charcoal transition-colors mb-8"
         >
           <ArrowLeft size={14} />
-          {isAgency ? "Back to setup" : "Back to billing"}
+          {isAddon ? "Back to settings" : isAgency ? "Back to setup" : "Back to billing"}
         </Link>
 
         {/* Header */}
@@ -331,7 +377,9 @@ function CheckoutContent() {
         <div className="bg-ivory border border-sand/60 rounded-2xl p-6 mb-4">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-xl bg-terracotta/10 flex items-center justify-center">
-              {isAgency ? (
+              {isAddon ? (
+                <Zap size={20} className="text-terracotta" />
+              ) : isAgency ? (
                 <Building2 size={20} className="text-terracotta" />
               ) : (
                 <Zap size={20} className="text-terracotta" />
