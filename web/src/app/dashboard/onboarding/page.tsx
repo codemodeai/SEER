@@ -93,15 +93,20 @@ export default function OnboardingPage() {
     setCompleting(true);
     try {
       await fetch("/api/auth/complete-onboarding", { method: "POST" });
-      router.push("/dashboard");
     } catch {
-      router.push("/dashboard");
+      // continue anyway
     }
+    // Full reload so DashboardProvider refetches with onboarding_completed = true
+    window.location.href = "/dashboard";
   }
 
   async function handleSkip() {
-    await fetch("/api/auth/complete-onboarding", { method: "POST" });
-    router.push("/dashboard");
+    try {
+      await fetch("/api/auth/complete-onboarding", { method: "POST" });
+    } catch {
+      // continue anyway
+    }
+    window.location.href = "/dashboard";
   }
 
   if (loading) {
