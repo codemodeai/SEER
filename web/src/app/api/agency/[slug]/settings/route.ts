@@ -67,6 +67,16 @@ export async function PATCH(
 
     // max_users is locked — set during plan purchase, not editable via settings
 
+    // Feature toggles
+    if (body.enabled_features !== undefined && typeof body.enabled_features === "object") {
+      const allowed = ["announcements", "project_management"];
+      const features: Record<string, boolean> = {};
+      for (const key of allowed) {
+        features[key] = body.enabled_features[key] === true;
+      }
+      updates.enabled_features = features;
+    }
+
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
     }

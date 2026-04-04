@@ -2,13 +2,16 @@
 
 import { useAgency } from "@/lib/agency-context";
 import { useState } from "react";
-import { Building2, Save, Loader2, Lock } from "lucide-react";
+import { Building2, Save, Loader2, Lock, ToggleLeft, ToggleRight, Megaphone, FolderKanban } from "lucide-react";
 
 export default function AgencySettingsPage() {
   const { agency, role } = useAgency();
   const [name, setName] = useState("");
+  const [features, setFeatures] = useState<Record<string, boolean>>({ announcements: true, project_management: false });
   const [saving, setSaving] = useState(false);
+  const [savingFeatures, setSavingFeatures] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [featureMessage, setFeatureMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const canEdit = role === "owner";
 
@@ -16,6 +19,9 @@ export default function AgencySettingsPage() {
   useState(() => {
     if (agency) {
       setName(agency.name);
+      if (agency.enabledFeatures) {
+        setFeatures(agency.enabledFeatures);
+      }
     }
   });
 
@@ -171,6 +177,114 @@ export default function AgencySettingsPage() {
             </button>
           )}
         </form>
+      </div>
+
+      {/* Feature Toggles */}
+      <div className="bg-ivory border border-sand/60 rounded-2xl p-6 max-w-xl mt-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-xl bg-terracotta/10 flex items-center justify-center">
+            <ToggleLeft size={20} className="text-terracotta" />
+          </div>
+          <div>
+            <h2 className="font-display text-lg text-charcoal">Feature Toggles</h2>
+            <p className="text-xs text-muted">Enable or disable portal features for your agency</p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          {/* Announcements toggle */}
+          <div className="flex items-center justify-between px-4 py-3.5 rounded-xl bg-cream-dark border border-sand/50">
+            <div className="flex items-center gap-3">
+              <Megaphone size={18} className="text-muted" />
+              <div>
+                <p className="text-sm font-medium text-charcoal">Announcements</p>
+                <p className="text-[11px] text-muted">Post updates visible to all agency members</p>
+              </div>
+            </div>
+            <button
+              onClick={() => canEdit && setFeatures(f => ({ ...f, announcements: !f.announcements }))}
+              disabled={!canEdit}
+              className="disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {features.announcements ? (
+                <ToggleRight size={32} className="text-terracotta" />
+              ) : (
+                <ToggleLeft size={32} className="text-muted" />
+              )}
+            </button>
+          </div>
+
+          {/* Project Management toggle */}
+          <div className="flex items-center justify-between px-4 py-3.5 rounded-xl bg-cream-dark border border-sand/50">
+            <div className="flex items-center gap-3">
+              <FolderKanban size={18} className="text-muted" />
+              <div>
+                <p className="text-sm font-medium text-charcoal">Project Management</p>
+                <p className="text-[11px] text-muted">Kanban boards, tasks, and project tracking ($5/mo addon)</p>
+              </div>
+            </div>
+            <button
+              onClick={() => canEdit && setFeatures(f => ({ ...f, project_management: !f.project_management }))}
+              disabled={!canEdit}
+              className="disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {features.project_management ? (
+                <ToggleRight size={32} className="text-terracotta" />
+              ) : (
+                <ToggleLeft size={32} className="text-muted" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Feature message */}
+        {featureMessage && (
+          <div
+            className={`mt-4 px-4 py-2.5 rounded-xl text-sm ${
+              featureMessage.type === "success"
+                ? "bg-green-50 text-green-700 border border-green-200"
+                : "bg-red-50 text-red-700 border border-red-200"
+            }`}
+          >
+            {featureMessage.text}
+          </div>
+        )}
+
+        {/* Save features button */}
+        {canEdit && (
+          <button
+            onClick={async () => {
+              setSavingFeatures(true);
+              setFeatureMessage(null);
+              try {
+                const res = await fetch(`/api/agency/${agency!.slug}/settings`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ enabled_features: features }),
+                });
+                if (res.ok) {
+                  setFeatureMessage({ type: "success", text: "Features updated. Reload the page to see changes in the sidebar." });
+                } else {
+                  const err = await res.json();
+                  setFeatureMessage({ type: "error", text: err.error || "Failed to update features." });
+                }
+              } catch {
+                setFeatureMessage({ type: "error", text: "Network error. Please try again." });
+              } finally {
+                setSavingFeatures(false);
+              }
+            }}
+            disabled={savingFeatures}
+            className="mt-4 inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-terracotta text-white rounded-xl text-sm font-medium hover:bg-terracotta/90 transition-colors disabled:opacity-50 w-fit"
+          >
+            {savingFeatures ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Save size={16} />
+            )}
+            {savingFeatures ? "Saving..." : "Save Features"}
+          </button>
+        )}
       </div>
     </div>
   );
