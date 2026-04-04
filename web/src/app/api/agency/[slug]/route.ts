@@ -79,7 +79,7 @@ export async function GET(
       .eq("agency_id", agency.id);
 
     // Parse enabled_features (JSONB column from migration 010)
-    const enabledFeatures = agency.enabled_features ?? { announcements: true, project_management: false };
+    const enabledFeatures = agency.enabled_features ?? { announcements: true, project_management: false, webhooks: false };
 
     return NextResponse.json({
       agency: {

@@ -17,6 +17,6 @@ export async function checkAgencyFeature(
 
   if (!agency) return { enabled: false, features: {} };
 
-  const features = agency.enabled_features ?? { announcements: true, project_management: false };
+  const features = agency.enabled_features ?? { announcements: true, project_management: false, webhooks: false };
   return { enabled: features[feature] === true, features };
 }

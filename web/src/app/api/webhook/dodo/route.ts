@@ -26,6 +26,32 @@ export async function POST(req: NextRequest) {
     switch (event.event_type) {
       case "subscription.active": {
         const userId = event.data?.metadata?.user_id;
+        const metadataType = event.data?.metadata?.type;
+
+        // Handle addon payment — enable feature on the agency
+        if (metadataType === "addon") {
+          const feature = event.data?.metadata?.feature;
+          const agencyId = event.data?.metadata?.agency_id;
+          if (feature && agencyId) {
+            const { data: agency } = await supabase
+              .from("agencies")
+              .select("id, enabled_features")
+              .eq("id", agencyId)
+              .single();
+
+            if (agency) {
+              const features = agency.enabled_features ?? {};
+              features[feature] = true;
+              const addonPrice = (features.project_management ? 5 : 0) + (features.webhooks ? 3 : 0);
+              await supabase
+                .from("agencies")
+                .update({ enabled_features: features, addon_price: addonPrice })
+                .eq("id", agency.id);
+            }
+          }
+          break;
+        }
+
         const plan = event.data?.metadata?.seer_plan ?? getPlanByDodoPriceId(event.data?.product_id ?? "");
         if (!userId || !plan) break;
 

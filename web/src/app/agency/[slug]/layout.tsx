@@ -37,7 +37,7 @@ function AgencyPortalContent({ children }: { children: React.ReactNode }) {
   const { agency, role, loading, error } = useAgency();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const features = agency?.enabledFeatures ?? { announcements: true, project_management: false };
+  const features = agency?.enabledFeatures ?? { announcements: true, project_management: false, webhooks: false };
 
   const sidebarLinks = [
     { label: "Overview", href: `/agency/${slug}`, icon: LayoutDashboard },
