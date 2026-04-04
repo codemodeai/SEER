@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
   let priceUsd: number;
 
-  if (plan === "agency" && totalUsdParam) {
+  if ((plan === "agency" || plan === "addon") && totalUsdParam) {
     priceUsd = parseFloat(totalUsdParam);
     if (isNaN(priceUsd) || priceUsd < 1 || priceUsd > 10000) {
       return NextResponse.json({ error: "Invalid price" }, { status: 400 });
