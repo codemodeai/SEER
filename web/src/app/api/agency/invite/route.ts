@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase-server";
+import { fireWebhooks } from "@/lib/webhook-deliver";
 import crypto from "crypto";
 
 function generateSeerApiKey(): string {
@@ -209,6 +210,13 @@ export async function POST(req: NextRequest) {
 
     // Mark invite as accepted
     await admin.from("agency_invites").update({ status: "accepted" }).eq("id", invite.id);
+
+    // Fire webhook
+    fireWebhooks(invite.agency_id, "member.joined", {
+      user_id: user.id,
+      email: user.email,
+      role: invite.role,
+    });
 
     return NextResponse.json({ success: true, agencySlug: agency.slug });
   } catch (err) {

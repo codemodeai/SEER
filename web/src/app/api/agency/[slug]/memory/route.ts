@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase-server";
+import { fireWebhooks } from "@/lib/webhook-deliver";
 import crypto from "crypto";
 
 function sha256(content: string): string {
@@ -223,6 +224,14 @@ export async function POST(
         return NextResponse.json({ error: "Failed to update memory" }, { status: 500 });
       }
 
+      // Fire webhook
+      fireWebhooks(agency.id, "memory.synced", {
+        project_name: projectName,
+        action: "updated",
+        version: newVersion,
+        synced_by: user.id,
+      });
+
       return NextResponse.json({
         success: true,
         action: "updated",
@@ -246,6 +255,14 @@ export async function POST(
         console.error("Insert memory error:", insertErr);
         return NextResponse.json({ error: "Failed to create project" }, { status: 500 });
       }
+
+      // Fire webhook
+      fireWebhooks(agency.id, "memory.synced", {
+        project_name: projectName,
+        action: "created",
+        version: 1,
+        synced_by: user.id,
+      });
 
       return NextResponse.json({
         success: true,

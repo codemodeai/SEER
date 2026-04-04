@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase-server";
 import { checkAgencyFeature } from "@/lib/agency-features";
+import { fireWebhooks } from "@/lib/webhook-deliver";
 
 async function getAgencyAccess(slug: string, userId: string) {
   const admin = getSupabaseAdmin();
@@ -270,6 +271,14 @@ export async function PATCH(
       .eq("agency_id", access.agency.id);
 
     if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
+
+    // Fire webhook
+    fireWebhooks(access.agency.id, "task.updated", {
+      task_id: body.task_id,
+      project_id: projectId,
+      updates,
+      updated_by: user.id,
+    });
 
     return NextResponse.json({ success: true });
   } catch (err) {

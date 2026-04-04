@@ -26,6 +26,7 @@ import {
   BookOpen,
   FolderKanban,
   Lock,
+  Webhook,
 } from "lucide-react";
 
 function AgencyPortalContent({ children }: { children: React.ReactNode }) {
@@ -47,6 +48,7 @@ function AgencyPortalContent({ children }: { children: React.ReactNode }) {
     { label: "Analytics", href: `/agency/${slug}/analytics`, icon: BarChart3 },
     { label: "Projects", href: `/agency/${slug}/projects`, icon: FolderKanban, locked: !features.project_management },
     { label: "Announcements", href: `/agency/${slug}/announcements`, icon: Megaphone, locked: !features.announcements },
+    { label: "Webhooks", href: `/agency/${slug}/webhooks`, icon: Webhook, locked: !features.webhooks },
     { label: "Guide", href: `/agency/${slug}/guide`, icon: BookOpen },
     { label: "Settings", href: `/agency/${slug}/settings`, icon: Settings },
   ];

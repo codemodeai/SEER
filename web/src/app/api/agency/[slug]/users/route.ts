@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase-server";
 import { sendInviteEmail } from "@/lib/send-invite-email";
+import { fireWebhooks } from "@/lib/webhook-deliver";
 import crypto from "crypto";
 
 function generateSeerApiKey(): string {
@@ -412,6 +413,12 @@ export async function DELETE(
       console.error("Remove member error:", deleteErr);
       return NextResponse.json({ error: "Failed to remove user" }, { status: 500 });
     }
+
+    // Fire webhook
+    fireWebhooks(agency.id, "member.removed", {
+      user_id: targetUserId,
+      removed_by: user.id,
+    });
 
     return NextResponse.json({ success: true });
   } catch (err) {

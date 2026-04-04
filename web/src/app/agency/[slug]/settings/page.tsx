@@ -2,7 +2,7 @@
 
 import { useAgency } from "@/lib/agency-context";
 import { useState } from "react";
-import { Building2, Save, Loader2, Lock, ToggleLeft, ToggleRight, Megaphone, FolderKanban, CreditCard, X } from "lucide-react";
+import { Building2, Save, Loader2, Lock, ToggleLeft, ToggleRight, Megaphone, FolderKanban, CreditCard, X, Webhook } from "lucide-react";
 import { useParams, useSearchParams } from "next/navigation";
 
 const PAID_ADDONS: Record<string, { label: string; price: string; priceUsd: number; description: string }> = {
@@ -11,6 +11,12 @@ const PAID_ADDONS: Record<string, { label: string; price: string; priceUsd: numb
     price: "$5/mo",
     priceUsd: 5,
     description: "Kanban boards, tasks, project tracking, and team assignment.",
+  },
+  webhooks: {
+    label: "Webhooks",
+    price: "$3/mo",
+    priceUsd: 3,
+    description: "HTTP notifications for agency events — member changes, announcements, tasks, and more.",
   },
 };
 
@@ -21,7 +27,7 @@ export default function AgencySettingsPage() {
   const slug = params?.slug as string;
   const addonEnabled = searchParams.get("addon_enabled");
   const [name, setName] = useState("");
-  const [features, setFeatures] = useState<Record<string, boolean>>({ announcements: true, project_management: false });
+  const [features, setFeatures] = useState<Record<string, boolean>>({ announcements: true, project_management: false, webhooks: false });
   const [saving, setSaving] = useState(false);
   const [savingFeatures, setSavingFeatures] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -268,6 +274,35 @@ export default function AgencySettingsPage() {
               className="disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {features.project_management ? (
+                <ToggleRight size={32} className="text-terracotta" />
+              ) : (
+                <ToggleLeft size={32} className="text-muted" />
+              )}
+            </button>
+          </div>
+
+          {/* Webhooks toggle */}
+          <div className="flex items-center justify-between px-4 py-3.5 rounded-xl bg-cream-dark border border-sand/50">
+            <div className="flex items-center gap-3">
+              <Webhook size={18} className="text-muted" />
+              <div>
+                <p className="text-sm font-medium text-charcoal">Webhooks</p>
+                <p className="text-[11px] text-muted">HTTP notifications for agency events ($3/mo addon)</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                if (!canEdit) return;
+                if (features.webhooks) {
+                  setFeatures(f => ({ ...f, webhooks: false }));
+                } else {
+                  setAddonModal("webhooks");
+                }
+              }}
+              disabled={!canEdit}
+              className="disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {features.webhooks ? (
                 <ToggleRight size={32} className="text-terracotta" />
               ) : (
                 <ToggleLeft size={32} className="text-muted" />
