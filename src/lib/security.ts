@@ -49,7 +49,7 @@ const OUTPUT_DANGER = [
   /sk-seer-[a-zA-Z0-9\-]{10,}/,
   /SUPABASE_(URL|KEY|SECRET)/i,
   /SUPABASE_SERVICE_ROLE/i,
-  /curl\s+https?:\/\//i,
+  /curl\s+https?:\/\/(?!seermcp\.com)/i,
   /\|\s*(bash|sh|zsh)/i,
   /rm\s+-rf/i,
   /~\/\.ssh\//i,
