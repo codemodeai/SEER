@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     // Check if user record already exists
     const { data: existing } = await admin
       .from("users")
-      .select("id, seer_api_key, plan, mfa_verified, prompt_count, created_at, suggestion_skin, auto_suggest, onboarding_completed")
+      .select("id, seer_api_key, plan, mfa_verified, prompt_count, created_at, suggestion_skin, auto_suggest, onboarding_completed, fs_access")
       .eq("id", user.id)
       .single();
 
@@ -160,6 +160,7 @@ export async function POST(req: NextRequest) {
         agencySlug,
         agencyName,
         agencyRole,
+        fsAccess: existing.fs_access ?? (currentPlan === "pro" || currentPlan === "agency"),
       });
     }
 
@@ -198,6 +199,7 @@ export async function POST(req: NextRequest) {
       autoSuggest: true,
       onboardingCompleted: false,
       agencySlug: null,
+      fsAccess: false,
     });
   } catch (err) {
     console.error("Setup user error:", err);

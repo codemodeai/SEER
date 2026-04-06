@@ -23,6 +23,7 @@ import {
   ShieldCheck,
   FileText,
   Building2,
+  Briefcase,
 } from "lucide-react";
 
 const sidebarLinks = [
@@ -49,17 +50,21 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, toggle } = useTheme();
-  const { userName, plan, usage, agencySlug } = useDashboard();
+  const { userName, plan, usage, agencySlug, fsAccess } = useDashboard();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Build dynamic sidebar links — add Agency Portal link for agency users
-  const allLinks = agencySlug
-    ? [
-        ...sidebarLinks.slice(0, 1),
-        { label: "Agency Portal", href: `/agency/${agencySlug}`, icon: Building2 },
-        ...sidebarLinks.slice(1),
-      ]
-    : sidebarLinks;
+  // Build dynamic sidebar links — add Agency Portal + Founder's Space for eligible users
+  const dynamicLinks: typeof sidebarLinks = [];
+  if (agencySlug) {
+    dynamicLinks.push({ label: "Agency Portal", href: `/agency/${agencySlug}`, icon: Building2 });
+  }
+  dynamicLinks.push({ label: "Founder's Space", href: "/dashboard/founders-space", icon: Briefcase });
+
+  const allLinks = [
+    ...sidebarLinks.slice(0, 1),
+    ...dynamicLinks,
+    ...sidebarLinks.slice(1),
+  ];
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });

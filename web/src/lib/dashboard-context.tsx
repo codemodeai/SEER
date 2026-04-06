@@ -13,6 +13,7 @@ interface DashboardData {
   agencySlug: string | null;
   agencyName: string | null;
   agencyRole: string | null;
+  fsAccess: boolean;
   loading: boolean;
 }
 
@@ -27,6 +28,7 @@ const DashboardContext = createContext<DashboardData>({
   agencySlug: null,
   agencyName: null,
   agencyRole: null,
+  fsAccess: false,
   loading: true,
 });
 
@@ -46,6 +48,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     agencySlug: null,
     agencyName: null,
     agencyRole: null,
+    fsAccess: false,
     loading: true,
   });
 
@@ -72,6 +75,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           agencySlug: userData.agencySlug ?? null,
           agencyName: userData.agencyName ?? null,
           agencyRole: userData.agencyRole ?? null,
+          fsAccess: userData.fsAccess ?? false,
           loading: false,
         });
       } catch (err) {
