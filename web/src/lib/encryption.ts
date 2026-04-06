@@ -86,9 +86,9 @@ export async function decrypt(
   combined.set(authTag, ciphertext.length);
 
   const decrypted = await crypto.subtle.decrypt(
-    { name: ALGORITHM, iv, tagLength: TAG_LENGTH },
+    { name: ALGORITHM, iv: iv.buffer as ArrayBuffer, tagLength: TAG_LENGTH },
     key,
-    combined.buffer
+    combined.buffer as ArrayBuffer
   );
 
   return new TextDecoder().decode(decrypted);
