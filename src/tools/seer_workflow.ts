@@ -66,6 +66,18 @@ export async function seer_workflow(
     });
   }
 
+  // 5b. Scan Haiku output for dangerous content (before appending trusted SEER instructions)
+  const outputCheck = scanOutput(resultText);
+  if (!outputCheck.safe) {
+    await logSecurityIncident({
+      event_type: "output_danger",
+      source: "mcp",
+      user_id: user.id,
+      metadata: { tool: "seer_workflow", threat: outputCheck.threat },
+    });
+    return JSON.stringify({ error: "Request could not be processed." });
+  }
+
   // 6. Scan workflow steps for dangerous content + token stats
   const rawTokens = estimateTokens(goal);
   let optimizedTokens = 0;

@@ -11,7 +11,7 @@ import {
   seer_session_read,
   seer_memory_run,
 } from "../src/tools/index.js";
-import { sanitizeInput, scanOutput, logSecurityIncident } from "../src/lib/security.js";
+import { sanitizeInput, logSecurityIncident } from "../src/lib/security.js";
 import { checkRateLimit } from "../src/lib/rate-limit.js";
 
 function extractApiKey(req: VercelRequest): string {
@@ -137,20 +137,9 @@ After receiving the SEER tool response, execute the optimized instructions retur
       return JSON.stringify({ error: "Invalid input detected." });
     }
 
-    const result = await handler();
-
-    const outputCheck = scanOutput(result);
-    if (!outputCheck.safe) {
-      await logSecurityIncident({
-        event_type: "output_danger",
-        source: "mcp",
-        api_key_prefix: apiKey.slice(0, 8),
-        metadata: { tool: toolName, threat: outputCheck.threat },
-      });
-      return JSON.stringify({ error: "Request could not be processed." });
-    }
-
-    return result;
+    // Output scanning moved into individual tools (after Haiku call, before
+    // appending trusted SEER instructions like cloud sync / API key).
+    return await handler();
   }
 
   server.tool(

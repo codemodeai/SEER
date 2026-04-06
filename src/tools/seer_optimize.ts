@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabase.js";
 import { callHaiku, estimateTokens, parseHaikuJson } from "../lib/haiku.js";
 import { logSeerCall } from "../lib/logger.js";
 import { formatOptimizeResult, buildUsageWarning } from "../lib/formatter.js";
-import { SECURITY_ANCHOR } from "../lib/security.js";
+import { SECURITY_ANCHOR, scanOutput, logSecurityIncident } from "../lib/security.js";
 import { appendMemoryLog } from "../lib/memory-log.js";
 import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
 import { checkTeamConflict } from "../lib/conflict-detect.js";
@@ -75,6 +75,18 @@ export async function seer_optimize(
       error: "Optimization failed.",
       detail: err instanceof Error ? err.message : "Unknown error",
     });
+  }
+
+  // 4b. Scan Haiku output for dangerous content (before appending trusted SEER instructions)
+  const outputCheck = scanOutput(resultText);
+  if (!outputCheck.safe) {
+    await logSecurityIncident({
+      event_type: "output_danger",
+      source: "mcp",
+      user_id: user.id,
+      metadata: { tool: "seer_optimize", threat: outputCheck.threat },
+    });
+    return JSON.stringify({ error: "Request could not be processed." });
   }
 
   // 5. Compute token stats

@@ -10,6 +10,7 @@ import { detectReopen } from "../lib/reopen.js";
 import { appendMemoryLog } from "../lib/memory-log.js";
 import { appendSuggestInstruction } from "../lib/suggest.js";
 import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
+import { scanOutput, logSecurityIncident } from "../lib/security.js";
 import { detectMarkDone } from "../lib/mark-done.js";
 import { checkTeamConflict } from "../lib/conflict-detect.js";
 import { seer_tools } from "./seer_tools.js";
@@ -270,6 +271,18 @@ export async function seer_run(
       error: "Optimization failed. Please try again.",
       detail: err instanceof Error ? err.message : "Unknown error",
     });
+  }
+
+  // 5a. Scan Haiku output for dangerous content (before appending trusted SEER instructions)
+  const outputCheck = scanOutput(resultText);
+  if (!outputCheck.safe) {
+    await logSecurityIncident({
+      event_type: "output_danger",
+      source: "mcp",
+      user_id: user.id,
+      metadata: { tool: "seer_run", threat: outputCheck.threat },
+    });
+    return JSON.stringify({ error: "Request could not be processed." });
   }
 
   // 5. Parse result and compute token savings
