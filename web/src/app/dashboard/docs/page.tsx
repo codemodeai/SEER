@@ -23,6 +23,7 @@ import {
   Star,
   Clock,
   Shield,
+  Briefcase,
 } from "lucide-react";
 
 /* ─── Tool data ─── */
@@ -39,7 +40,7 @@ interface Tool {
   borderColor: string;
   cost: "free" | "1 call";
   plans: string;
-  category: "core" | "memory" | "utility";
+  category: "core" | "memory" | "workspace" | "utility";
   example: string;
   exampleOutput: string;
   tips: string[];
@@ -254,6 +255,29 @@ const TOOLS: Tool[] = [
     ],
   },
   {
+    id: "seer_space",
+    name: "seer space",
+    command: "seer space <action> [--project NAME]",
+    description: "Founder's Space — tasks, credentials, docs, notes",
+    longDescription:
+      "Your operational workspace accessible from the terminal. Manage tasks, save encrypted credentials (AES-256), track documents with expiry alerts, and take project notes. 8 actions: add task, tasks, save key, key, docs, note, projects, new project. Use --team for agency shared items.",
+    icon: Briefcase,
+    color: "text-blue-600",
+    bgColor: "bg-blue-500/10",
+    borderColor: "border-blue-500/20",
+    cost: "1 call",
+    plans: "Starter+ ($1 addon) / Pro+",
+    category: "workspace",
+    example: "seer space add task --project SEER \"Build email notifications\"",
+    exampleOutput:
+      "Task created: Build email notifications\nProject: SEER | Status: open | Due: —",
+    tips: [
+      "8 actions: add task, tasks, save key, key, docs, note, projects, new project",
+      "Credentials are AES-256 encrypted — never shown in plaintext in terminal",
+      "Use --team flag to share items with your agency team",
+    ],
+  },
+  {
     id: "seer_tools",
     name: "seer tools",
     command: "seer tools",
@@ -282,6 +306,7 @@ const CATEGORIES = [
   { id: "all", label: "All Tools", count: TOOLS.length },
   { id: "core", label: "Core AI", count: TOOLS.filter((t) => t.category === "core").length },
   { id: "memory", label: "Memory", count: TOOLS.filter((t) => t.category === "memory").length },
+  { id: "workspace", label: "Workspace", count: TOOLS.filter((t) => t.category === "workspace").length },
   { id: "utility", label: "Utility", count: TOOLS.filter((t) => t.category === "utility").length },
 ];
 

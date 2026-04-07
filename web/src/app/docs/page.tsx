@@ -28,6 +28,7 @@ import {
   Play,
   Send,
   Loader2,
+  Briefcase,
   type LucideIcon,
 } from "lucide-react";
 
@@ -47,7 +48,7 @@ interface Tool {
   borderColor: string;
   cost: "free" | "1 call";
   plans: string;
-  category: "core" | "memory" | "utility";
+  category: "core" | "memory" | "workspace" | "utility";
   example: string;
   exampleOutput: string;
   tips: string[];
@@ -318,6 +319,39 @@ const TOOLS: Tool[] = [
       "SEER v1.1.0\n\n Plan: Free\n Usage: 12 / 50 this month\n Remaining: 38 calls\n AI Preference: Claude\n MFA: Not configured",
   },
   {
+    id: "seer_space",
+    name: "seer space",
+    command: "seer space <action> [--project NAME]",
+    description: "Founder's Space — tasks, credentials, docs, notes",
+    longDescription:
+      "Your operational workspace accessible from the terminal. Manage tasks, save encrypted credentials (AES-256), track documents with expiry alerts, and take project notes. Supports 8 actions: add task, tasks, save key, key, docs, note, projects, new project. Use --team flag for agency shared items.",
+    icon: Briefcase,
+    color: "text-blue-600",
+    bgColor: "bg-blue-500/10",
+    borderColor: "border-blue-500/20",
+    cost: "1 call",
+    plans: "Starter+ ($1 addon) / Pro+",
+    category: "workspace",
+    example: "seer space add task --project SEER \"Build email notifications\"",
+    exampleOutput:
+      "Task created: Build email notifications\nProject: SEER | Status: open | Due: —",
+    tips: [
+      "8 actions: add task, tasks, save key, key, docs, note, projects, new project",
+      "Credentials are AES-256 encrypted — never shown in plaintext in terminal",
+      "Use --team flag to share items with your agency team",
+    ],
+    playgroundPlaceholder: "Try: add task --project MyApp \"Fix login bug\"",
+    simulateOutput: (input: string) => {
+      if (input.toLowerCase().includes("task")) {
+        return `Task created: ${input.replace(/.*task\s*/i, "").replace(/--project\s+\S+\s*/i, "").trim() || "New task"}\nProject: MyProject | Status: open | Due: —`;
+      }
+      if (input.toLowerCase().includes("project")) {
+        return `Projects:\n- SEER (created 4/7/2026)\n- MyApp (created 4/5/2026)`;
+      }
+      return `Founder's Space action completed.\nUse: add task, tasks, save key, key, docs, note, projects, new project`;
+    },
+  },
+  {
     id: "seer_tools",
     name: "seer tools",
     command: "seer tools",
@@ -341,7 +375,7 @@ const TOOLS: Tool[] = [
     ],
     playgroundPlaceholder: "No input needed — lists all tools!",
     simulateOutput: () =>
-      "SEER Tools (10 total):\n\n Tool           Cost    Plans\n seer run       1 call  All\n seer optimize  1 call  All\n seer workflow  1 call  Starter+\n seer memory    1 call  Pro+\n seer status    Free    All\n seer tools     Free    All\n ... and 4 more",
+      "SEER Tools (11 total):\n\n Tool           Cost    Plans\n seer run       1 call  All\n seer optimize  1 call  All\n seer workflow  1 call  Starter+\n seer space     1 call  Starter+\n seer memory    1 call  Pro+\n seer status    Free    All\n seer tools     Free    All\n ... and 4 more",
   },
 ];
 
@@ -349,6 +383,7 @@ const CATEGORIES = [
   { id: "all", label: "All Tools", count: TOOLS.length },
   { id: "core", label: "Core AI", count: TOOLS.filter((t) => t.category === "core").length },
   { id: "memory", label: "Memory", count: TOOLS.filter((t) => t.category === "memory").length },
+  { id: "workspace", label: "Workspace", count: TOOLS.filter((t) => t.category === "workspace").length },
   { id: "utility", label: "Utility", count: TOOLS.filter((t) => t.category === "utility").length },
 ];
 

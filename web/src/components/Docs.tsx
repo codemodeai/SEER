@@ -23,6 +23,7 @@ import {
   Clock,
   Shield,
   Lock,
+  Briefcase,
 } from "lucide-react";
 
 /* ─── Tool data ─── */
@@ -39,7 +40,7 @@ interface Tool {
   borderColor: string;
   cost: "free" | "1 call";
   plans: string;
-  category: "core" | "memory" | "utility";
+  category: "core" | "memory" | "workspace" | "utility";
   example: string;
   exampleOutput: string;
 }
@@ -208,6 +209,24 @@ const TOOLS: Tool[] = [
       "SEER v1.1.0 | Plan: Starter\nUsage: 47 / 200 this month\nRemaining: 153 calls",
   },
   {
+    id: "seer_space",
+    name: "seer space",
+    command: "seer space <action> [--project NAME]",
+    description: "Founder's Space — tasks, credentials, docs, notes",
+    longDescription:
+      "Your operational workspace accessible from the terminal. Manage tasks, save encrypted credentials, track documents, and take notes — all scoped to projects. Supports 8 actions: add task, tasks, save key, key, docs, note, projects, new project.",
+    icon: Briefcase,
+    color: "text-blue-600",
+    bgColor: "bg-blue-500/10",
+    borderColor: "border-blue-500/20",
+    cost: "1 call",
+    plans: "Starter+ ($1 addon) / Pro+",
+    category: "workspace",
+    example: "seer space add task --project SEER \"Build email notifications\"",
+    exampleOutput:
+      "Task created: Build email notifications\nProject: SEER | Status: open | Due: —",
+  },
+  {
     id: "seer_tools",
     name: "seer tools",
     command: "seer tools",
@@ -231,6 +250,7 @@ const CATEGORIES = [
   { id: "all", label: "All Tools", count: TOOLS.length },
   { id: "core", label: "Core AI", count: TOOLS.filter((t) => t.category === "core").length },
   { id: "memory", label: "Memory", count: TOOLS.filter((t) => t.category === "memory").length },
+  { id: "workspace", label: "Workspace", count: TOOLS.filter((t) => t.category === "workspace").length },
   { id: "utility", label: "Utility", count: TOOLS.filter((t) => t.category === "utility").length },
 ];
 
@@ -482,8 +502,8 @@ export default function Docs() {
             <span className="text-warm-brown-light">explained</span>
           </h2>
           <p className="mt-5 text-warm-brown-light text-lg leading-relaxed">
-            10 powerful tools to optimize your prompts, manage project memory,
-            and supercharge your AI workflow. All accessible via simple commands.
+            11 powerful tools to optimize prompts, manage memory, run your
+            workspace, and supercharge your AI workflow. All via simple commands.
           </p>
         </motion.div>
 

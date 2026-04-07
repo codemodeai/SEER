@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Zap, GitBranch, Brain } from "lucide-react";
+import { Zap, GitBranch, Brain, Briefcase } from "lucide-react";
 
 const features = [
   {
@@ -31,6 +31,15 @@ const features = [
     color: "accent-sage",
     stats: { label: "Context recall", value: "95%" },
   },
+  {
+    icon: Briefcase,
+    title: "Founder's Space",
+    description:
+      "Your operational workspace — tasks, credentials, documents, and notes. Manage everything from dashboard or terminal via seer space.",
+    detail: "AES-256 encrypted credentials vault",
+    color: "accent-blue",
+    stats: { label: "Data modules", value: "4" },
+  },
 ];
 
 const containerVariants = {
@@ -58,7 +67,7 @@ export default function Features() {
           transition={{ duration: 0.6 }}
         >
           <span className="text-xs font-semibold tracking-widest uppercase text-terracotta">
-            Three Core Features
+            Core Features
           </span>
           <h2 className="mt-4 font-display text-4xl md:text-5xl lg:text-6xl tracking-tight text-charcoal leading-[1.05]">
             Intelligence between you
@@ -74,7 +83,7 @@ export default function Features() {
 
         {/* Cards */}
         <motion.div
-          className="grid md:grid-cols-3 gap-6 lg:gap-8"
+          className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8"
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
@@ -85,11 +94,13 @@ export default function Features() {
               terracotta: "bg-terracotta/10 text-terracotta border-terracotta/15",
               "accent-gold": "bg-accent-gold/10 text-accent-gold border-accent-gold/20",
               "accent-sage": "bg-accent-sage/10 text-accent-sage border-accent-sage/20",
+              "accent-blue": "bg-blue-500/10 text-blue-600 border-blue-500/20",
             };
             const statBgMap: Record<string, string> = {
               terracotta: "bg-terracotta text-white",
               "accent-gold": "bg-accent-gold text-white",
               "accent-sage": "bg-accent-sage text-white",
+              "accent-blue": "bg-blue-600 text-white",
             };
 
             return (
