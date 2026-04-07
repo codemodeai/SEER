@@ -34,13 +34,20 @@ function parseSpaceInput(input: string): ParsedAction {
   // Match known actions
   const actionMap: Record<string, string> = {
     "add task": "add_task",
+    "create task": "add_task",
     "tasks": "tasks",
     "save key": "save_key",
+    "save credential": "save_key",
+    "add credential": "save_key",
     "key": "key",
+    "credential": "key",
     "docs": "docs",
+    "documents": "docs",
     "note": "note",
     "projects": "projects",
     "new project": "new_project",
+    "create project": "new_project",
+    "add project": "new_project",
   };
 
   const lower = cleaned.toLowerCase();
