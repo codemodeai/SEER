@@ -20,6 +20,8 @@ import {
   FileText,
   KeyRound,
   Zap,
+  Users,
+  User,
 } from "lucide-react";
 import Link from "next/link";
 import CredentialsPanel from "./credentials-panel";
@@ -41,6 +43,8 @@ interface Task {
   project_id: string | null;
   created_via: string;
   created_at: string;
+  agency_id?: string | null;
+  users?: { email: string } | null;
 }
 
 interface Note {
@@ -48,6 +52,8 @@ interface Note {
   body: string;
   project_id: string | null;
   created_at: string;
+  agency_id?: string | null;
+  users?: { email: string } | null;
 }
 
 type Tab = "tasks" | "notes" | "credentials" | "documents";
@@ -97,10 +103,12 @@ function formatTimestamp(iso: string): string {
 /* ---------- Main Page ---------- */
 
 export default function FoundersSpacePage() {
-  const { plan, fsAccess, loading: ctxLoading } = useDashboard();
+  const { plan, fsAccess, agencySlug, loading: ctxLoading } = useDashboard();
+  const isAgency = !!agencySlug;
 
   /* --- State --- */
   const [activeTab, setActiveTab] = useState<Tab>("tasks");
+  const [teamMode, setTeamMode] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -140,9 +148,9 @@ export default function FoundersSpacePage() {
 
   const fetchTasks = useCallback(async () => {
     try {
-      const url = selectedProjectId
-        ? `/api/founders-space/tasks?project_id=${selectedProjectId}`
-        : "/api/founders-space/tasks";
+      const teamParam = teamMode ? "&team=true" : "";
+      const projectParam = selectedProjectId ? `project_id=${selectedProjectId}` : "";
+      const url = `/api/founders-space/tasks?${projectParam}${teamParam}`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -151,13 +159,13 @@ export default function FoundersSpacePage() {
     } catch (err) {
       console.error("Failed to fetch tasks:", err);
     }
-  }, [selectedProjectId]);
+  }, [selectedProjectId, teamMode]);
 
   const fetchNotes = useCallback(async () => {
     try {
-      const url = selectedProjectId
-        ? `/api/founders-space/notes?project_id=${selectedProjectId}`
-        : "/api/founders-space/notes";
+      const teamParam = teamMode ? "&team=true" : "";
+      const projectParam = selectedProjectId ? `project_id=${selectedProjectId}` : "";
+      const url = `/api/founders-space/notes?${projectParam}${teamParam}`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -166,7 +174,7 @@ export default function FoundersSpacePage() {
     } catch (err) {
       console.error("Failed to fetch notes:", err);
     }
-  }, [selectedProjectId]);
+  }, [selectedProjectId, teamMode]);
 
   useEffect(() => {
     if (!fsAccess || ctxLoading) return;
@@ -212,6 +220,7 @@ export default function FoundersSpacePage() {
           project_id: newTaskProjectId || selectedProjectId || null,
           due_date: newTaskDue || null,
           status: "open",
+          team: teamMode,
         }),
       });
       if (res.ok) {
@@ -230,7 +239,6 @@ export default function FoundersSpacePage() {
 
   async function cycleTaskStatus(task: Task) {
     const newStatus = nextStatus(task.status);
-    // Optimistic update
     setTasks((prev) =>
       prev.map((t) => (t.id === task.id ? { ...t, status: newStatus } : t))
     );
@@ -241,7 +249,6 @@ export default function FoundersSpacePage() {
         body: JSON.stringify({ status: newStatus }),
       });
       if (!res.ok) {
-        // Revert
         setTasks((prev) =>
           prev.map((t) => (t.id === task.id ? { ...t, status: task.status } : t))
         );
@@ -273,6 +280,7 @@ export default function FoundersSpacePage() {
         body: JSON.stringify({
           body: newNoteBody.trim(),
           project_id: selectedProjectId || null,
+          team: teamMode,
         }),
       });
       if (res.ok) {
@@ -361,14 +369,52 @@ export default function FoundersSpacePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="font-display text-3xl md:text-4xl text-charcoal tracking-tight">
-          Founder&apos;s Space
-        </h1>
-        <p className="mt-1 text-sm text-muted">
-          Your operational workspace — tasks, credentials, documents, and notes.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-3xl md:text-4xl text-charcoal tracking-tight">
+            Founder&apos;s Space
+          </h1>
+          <p className="mt-1 text-sm text-muted">
+            Your operational workspace — tasks, credentials, documents, and notes.
+          </p>
+        </div>
+
+        {/* Personal / Team toggle for agency users */}
+        {isAgency && (
+          <div className="flex items-center gap-1 bg-ivory rounded-xl border border-sand/60 p-1">
+            <button
+              onClick={() => setTeamMode(false)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                !teamMode
+                  ? "bg-white text-charcoal shadow-sm border border-sand/60"
+                  : "text-muted hover:text-charcoal"
+              }`}
+            >
+              <User size={14} />
+              Personal
+            </button>
+            <button
+              onClick={() => setTeamMode(true)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                teamMode
+                  ? "bg-white text-charcoal shadow-sm border border-sand/60"
+                  : "text-muted hover:text-charcoal"
+              }`}
+            >
+              <Users size={14} />
+              Team
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Team mode banner */}
+      {teamMode && (
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-700">
+          <Users size={16} />
+          <span>Viewing shared team items. Changes are visible to all agency members.</span>
+        </div>
+      )}
 
       {/* Project switcher */}
       <div className="flex flex-wrap items-center gap-3">
@@ -494,7 +540,7 @@ export default function FoundersSpacePage() {
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-terracotta text-white text-sm font-semibold hover:bg-terracotta/90 transition-all"
             >
               <Plus size={16} />
-              Add Task
+              Add Task{teamMode ? " (Team)" : ""}
             </button>
           ) : (
             <div className="bg-ivory rounded-2xl border border-sand/60 p-4 space-y-3">
@@ -531,6 +577,12 @@ export default function FoundersSpacePage() {
                     ))}
                   </select>
                 )}
+                {teamMode && (
+                  <span className="flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">
+                    <Users size={12} />
+                    Shared with team
+                  </span>
+                )}
                 <div className="flex items-center gap-2 ml-auto">
                   <button
                     onClick={createTask}
@@ -564,9 +616,11 @@ export default function FoundersSpacePage() {
               <div className="w-12 h-12 rounded-xl bg-terracotta/10 flex items-center justify-center mx-auto">
                 <Briefcase size={24} className="text-terracotta" />
               </div>
-              <h3 className="font-display text-lg text-charcoal">No tasks yet</h3>
+              <h3 className="font-display text-lg text-charcoal">
+                No {teamMode ? "team " : ""}tasks yet
+              </h3>
               <p className="text-sm text-muted max-w-sm mx-auto">
-                Create your first task to start organizing your work.
+                Create your first {teamMode ? "team " : ""}task to start organizing your work.
               </p>
             </div>
           ) : (
@@ -577,7 +631,6 @@ export default function FoundersSpacePage() {
                 const columnTasks = tasksByStatus[status];
                 return (
                   <div key={status} className="space-y-2">
-                    {/* Column header */}
                     <div className="flex items-center gap-2 px-1 pb-1">
                       <StatusIcon size={14} className={meta.color} />
                       <span className={`text-sm font-semibold ${meta.color}`}>
@@ -587,13 +640,13 @@ export default function FoundersSpacePage() {
                         {columnTasks.length}
                       </span>
                     </div>
-                    {/* Cards */}
                     <div className="space-y-2 min-h-[60px]">
                       {columnTasks.map((task) => (
                         <TaskCard
                           key={task.id}
                           task={task}
                           projectName={projectName(task.project_id)}
+                          teamMode={teamMode}
                           onCycleStatus={() => cycleTaskStatus(task)}
                           onDelete={() => deleteTask(task.id)}
                         />
@@ -615,40 +668,48 @@ export default function FoundersSpacePage() {
       {/* Notes panel */}
       {!loadingData && activeTab === "notes" && (
         <div className="space-y-4">
-          {/* Add note form */}
           <div className="bg-ivory rounded-2xl border border-sand/60 p-4 space-y-3">
             <textarea
               value={newNoteBody}
               onChange={(e) => setNewNoteBody(e.target.value)}
-              placeholder="Write a note..."
+              placeholder={teamMode ? "Write a team note..." : "Write a note..."}
               rows={3}
               className="w-full px-3 py-2 rounded-xl border border-sand/60 bg-white text-sm text-charcoal placeholder:text-muted/50 focus:outline-none focus:ring-2 focus:ring-terracotta/30 resize-none"
             />
-            <div className="flex justify-end">
-              <button
-                onClick={createNote}
-                disabled={creatingNote || !newNoteBody.trim()}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-terracotta text-white text-sm font-semibold hover:bg-terracotta/90 disabled:opacity-50 transition-all"
-              >
-                {creatingNote ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <>
-                    <Plus size={14} />
-                    Add Note
-                  </>
-                )}
-              </button>
+            <div className="flex items-center justify-between">
+              {teamMode && (
+                <span className="flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">
+                  <Users size={12} />
+                  Shared with team
+                </span>
+              )}
+              <div className={teamMode ? "" : "ml-auto"}>
+                <button
+                  onClick={createNote}
+                  disabled={creatingNote || !newNoteBody.trim()}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-terracotta text-white text-sm font-semibold hover:bg-terracotta/90 disabled:opacity-50 transition-all"
+                >
+                  {creatingNote ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <>
+                      <Plus size={14} />
+                      Add Note
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Notes list */}
           {notes.length === 0 ? (
             <div className="bg-ivory rounded-2xl border border-sand/60 p-8 text-center space-y-3">
               <div className="w-12 h-12 rounded-xl bg-terracotta/10 flex items-center justify-center mx-auto">
                 <StickyNote size={24} className="text-terracotta" />
               </div>
-              <h3 className="font-display text-lg text-charcoal">No notes yet</h3>
+              <h3 className="font-display text-lg text-charcoal">
+                No {teamMode ? "team " : ""}notes yet
+              </h3>
               <p className="text-sm text-muted max-w-sm mx-auto">
                 Add your first note above. Notes are append-only for an immutable log.
               </p>
@@ -670,6 +731,12 @@ export default function FoundersSpacePage() {
                         {projectName(note.project_id)}
                       </span>
                     )}
+                    {teamMode && note.users?.email && (
+                      <span className="flex items-center gap-1 bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
+                        <User size={10} />
+                        {note.users.email.split("@")[0]}
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -678,11 +745,11 @@ export default function FoundersSpacePage() {
         </div>
       )}
 
-      {/* Credentials tab — Phase 3 */}
-      {!loadingData && activeTab === "credentials" && <CredentialsPanel />}
+      {/* Credentials tab */}
+      {!loadingData && activeTab === "credentials" && <CredentialsPanel teamMode={teamMode} />}
 
-      {/* Documents tab — Phase 3 */}
-      {!loadingData && activeTab === "documents" && <DocumentsPanel />}
+      {/* Documents tab */}
+      {!loadingData && activeTab === "documents" && <DocumentsPanel teamMode={teamMode} />}
     </div>
   );
 }
@@ -692,11 +759,13 @@ export default function FoundersSpacePage() {
 function TaskCard({
   task,
   projectName,
+  teamMode,
   onCycleStatus,
   onDelete,
 }: {
   task: Task;
   projectName: string | null;
+  teamMode: boolean;
   onCycleStatus: () => void;
   onDelete: () => void;
 }) {
@@ -705,7 +774,6 @@ function TaskCard({
 
   return (
     <div className="bg-ivory rounded-xl border border-sand/60 p-3 space-y-2 group">
-      {/* Title row */}
       <div className="flex items-start gap-2">
         <button
           onClick={onCycleStatus}
@@ -726,7 +794,6 @@ function TaskCard({
         </button>
       </div>
 
-      {/* Meta row */}
       <div className="flex flex-wrap items-center gap-2 pl-6">
         {task.due_date && (
           <span className={`text-xs flex items-center gap-1 ${dueDateColor(task.due_date)}`}>
@@ -743,6 +810,12 @@ function TaskCard({
         {projectName && (
           <span className="text-xs bg-cream-dark px-1.5 py-0.5 rounded-full text-muted">
             {projectName}
+          </span>
+        )}
+        {teamMode && task.users?.email && (
+          <span className="text-xs flex items-center gap-1 bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full">
+            <User size={10} />
+            {task.users.email.split("@")[0]}
           </span>
         )}
       </div>

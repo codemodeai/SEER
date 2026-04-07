@@ -147,6 +147,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, plan: "addon" });
     }
 
+    // Handle Founder's Space addon — enable fs_access on user
+    if (plan === "fs_addon") {
+      await admin.from("users").update({ fs_access: true }).eq("id", user.id);
+      return NextResponse.json({ success: true, plan: "fs_addon" });
+    }
+
     // Auto-create agency for agency plan subscribers
     let agencySlug: string | null = null;
     if (plan === "agency") {

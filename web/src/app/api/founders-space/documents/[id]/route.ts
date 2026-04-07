@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, getSupabaseAdmin } from "@/lib/supabase-server";
+import { getAgencyMembership } from "@/lib/fs-team";
 
 export async function GET(
   req: NextRequest,
@@ -16,7 +17,6 @@ export async function GET(
 
     const admin = getSupabaseAdmin();
 
-    // Check fs_access
     const { data: userData } = await admin
       .from("users")
       .select("fs_access")
@@ -30,12 +30,11 @@ export async function GET(
       );
     }
 
-    // Fetch document metadata (must belong to user)
+    // Fetch document metadata
     const { data: doc, error } = await admin
       .from("fs_documents")
-      .select("storage_path, filename")
+      .select("storage_path, filename, user_id, agency_id")
       .eq("id", id)
-      .eq("user_id", user.id)
       .single();
 
     if (error || !doc) {
@@ -45,7 +44,16 @@ export async function GET(
       );
     }
 
-    // Generate signed URL (1 hour expiry)
+    // Authorization: own document or agency member for team documents
+    if (doc.agency_id) {
+      const membership = await getAgencyMembership(user.id);
+      if (!membership || membership.agencyId !== doc.agency_id) {
+        return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+      }
+    } else if (doc.user_id !== user.id) {
+      return NextResponse.json({ error: "Document not found" }, { status: 404 });
+    }
+
     const { data: signedData, error: signedError } = await admin.storage
       .from("fs-documents")
       .createSignedUrl(doc.storage_path, 3600);
@@ -86,7 +94,6 @@ export async function DELETE(
 
     const admin = getSupabaseAdmin();
 
-    // Check fs_access
     const { data: userData } = await admin
       .from("users")
       .select("fs_access")
@@ -100,37 +107,41 @@ export async function DELETE(
       );
     }
 
-    // Fetch storage_path before deleting
     const { data: doc, error: fetchError } = await admin
       .from("fs_documents")
-      .select("storage_path")
+      .select("storage_path, user_id, agency_id")
       .eq("id", id)
-      .eq("user_id", user.id)
       .single();
 
     if (fetchError || !doc) {
-      return NextResponse.json(
-        { error: "Document not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Document not found" }, { status: 404 });
     }
 
-    // Delete from storage
+    // Authorization
+    if (doc.agency_id) {
+      const membership = await getAgencyMembership(user.id);
+      if (!membership || membership.agencyId !== doc.agency_id || !membership.canWrite) {
+        return NextResponse.json(
+          { error: "Only agency owner/admin can delete shared documents" },
+          { status: 403 }
+        );
+      }
+    } else if (doc.user_id !== user.id) {
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+    }
+
     const { error: storageError } = await admin.storage
       .from("fs-documents")
       .remove([doc.storage_path]);
 
     if (storageError) {
       console.error("Storage delete error:", storageError);
-      // Continue to delete DB record even if storage fails
     }
 
-    // Delete from database
     const { error: dbError } = await admin
       .from("fs_documents")
       .delete()
-      .eq("id", id)
-      .eq("user_id", user.id);
+      .eq("id", id);
 
     if (dbError) {
       console.error("Document delete error:", dbError);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, getSupabaseAdmin } from "@/lib/supabase-server";
+import { getAgencyMembership } from "@/lib/fs-team";
 
 async function checkAccess(userId: string) {
   const admin = getSupabaseAdmin();
@@ -45,11 +46,32 @@ export async function PATCH(
     updates.updated_at = new Date().toISOString();
 
     const admin = getSupabaseAdmin();
-    const { data: task, error } = await admin
+
+    // Check if this is a team task
+    const { data: task } = await admin
+      .from("fs_tasks")
+      .select("user_id, agency_id")
+      .eq("id", id)
+      .single();
+
+    if (!task) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+
+    if (task.agency_id) {
+      // Team task — any agency member can update status
+      const membership = await getAgencyMembership(user.id);
+      if (!membership || membership.agencyId !== task.agency_id) {
+        return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+      }
+    } else if (task.user_id !== user.id) {
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+    }
+
+    const { data: updated, error } = await admin
       .from("fs_tasks")
       .update(updates)
       .eq("id", id)
-      .eq("user_id", user.id)
       .select()
       .single();
 
@@ -58,7 +80,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Failed to update task" }, { status: 500 });
     }
 
-    return NextResponse.json({ task });
+    return NextResponse.json({ task: updated });
   } catch (err) {
     console.error("Task update error:", err);
     return NextResponse.json({ error: "Failed to update task" }, { status: 500 });
@@ -80,11 +102,31 @@ export async function DELETE(
 
     const { id } = await params;
     const admin = getSupabaseAdmin();
+
+    // Check if team task — only owner/admin can delete
+    const { data: task } = await admin
+      .from("fs_tasks")
+      .select("user_id, agency_id")
+      .eq("id", id)
+      .single();
+
+    if (!task) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+
+    if (task.agency_id) {
+      const membership = await getAgencyMembership(user.id);
+      if (!membership || membership.agencyId !== task.agency_id || !membership.canWrite) {
+        return NextResponse.json({ error: "Only agency owner/admin can delete team tasks" }, { status: 403 });
+      }
+    } else if (task.user_id !== user.id) {
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+    }
+
     const { error } = await admin
       .from("fs_tasks")
       .delete()
-      .eq("id", id)
-      .eq("user_id", user.id);
+      .eq("id", id);
 
     if (error) {
       console.error("Task delete error:", error);

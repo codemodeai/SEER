@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, getSupabaseAdmin } from "@/lib/supabase-server";
+import { getAgencyMembership } from "@/lib/fs-team";
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,7 +13,6 @@ export async function GET(req: NextRequest) {
 
     const admin = getSupabaseAdmin();
 
-    // Check fs_access
     const { data: userData } = await admin
       .from("users")
       .select("fs_access")
@@ -28,6 +28,32 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const projectId = searchParams.get("project_id");
+    const team = searchParams.get("team") === "true";
+
+    if (team) {
+      const membership = await getAgencyMembership(user.id);
+      if (!membership) {
+        return NextResponse.json({ error: "Not part of an agency" }, { status: 403 });
+      }
+
+      let query = admin
+        .from("fs_documents")
+        .select(
+          "id, filename, doc_type, expiry_date, tags, file_size, created_at, project_id, fs_projects(name), user_id, users!fs_documents_user_id_fkey(email)"
+        )
+        .eq("agency_id", membership.agencyId)
+        .order("created_at", { ascending: false });
+
+      if (projectId) query = query.eq("project_id", projectId);
+
+      const { data, error } = await query;
+      if (error) {
+        console.error("Team documents list error:", error);
+        return NextResponse.json({ error: "Failed to fetch team documents" }, { status: 500 });
+      }
+
+      return NextResponse.json({ documents: data, team: true, canWrite: membership.canWrite });
+    }
 
     let query = admin
       .from("fs_documents")
@@ -35,11 +61,10 @@ export async function GET(req: NextRequest) {
         "id, filename, doc_type, expiry_date, tags, file_size, created_at, project_id, fs_projects(name)"
       )
       .eq("user_id", user.id)
+      .is("agency_id", null)
       .order("created_at", { ascending: false });
 
-    if (projectId) {
-      query = query.eq("project_id", projectId);
-    }
+    if (projectId) query = query.eq("project_id", projectId);
 
     const { data, error } = await query;
 
@@ -72,7 +97,6 @@ export async function POST(req: NextRequest) {
 
     const admin = getSupabaseAdmin();
 
-    // Check fs_access
     const { data: userData } = await admin
       .from("users")
       .select("fs_access")
@@ -92,12 +116,12 @@ export async function POST(req: NextRequest) {
     const projectId = formData.get("project_id") as string | null;
     const expiryDate = formData.get("expiry_date") as string | null;
     const tagsRaw = formData.get("tags") as string | null;
+    const teamFlag = formData.get("team") as string | null;
 
     if (!file) {
       return NextResponse.json({ error: "File is required" }, { status: 400 });
     }
 
-    // Validate file size (10MB max)
     const maxSize = 10 * 1024 * 1024;
     if (file.size > maxSize) {
       return NextResponse.json(
@@ -106,7 +130,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate doc_type
     const validTypes = ["agreement", "certificate", "invoice", "other"];
     if (!validTypes.includes(docType)) {
       return NextResponse.json(
@@ -115,16 +138,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Parse tags
     const tags: string[] = tagsRaw
       ? tagsRaw.split(",").map((t) => t.trim()).filter(Boolean)
       : [];
 
-    // Generate storage path: {user_id}/{uuid}/{filename}
+    let agencyId: string | null = null;
+    if (teamFlag === "true") {
+      const membership = await getAgencyMembership(user.id);
+      if (!membership) {
+        return NextResponse.json({ error: "Not part of an agency" }, { status: 403 });
+      }
+      if (!membership.canWrite) {
+        return NextResponse.json({ error: "Only agency owner/admin can upload shared documents" }, { status: 403 });
+      }
+      agencyId = membership.agencyId;
+    }
+
     const fileId = crypto.randomUUID();
     const storagePath = `${user.id}/${fileId}/${file.name}`;
 
-    // Upload to Supabase Storage
     const fileBuffer = Buffer.from(await file.arrayBuffer());
     const { error: uploadError } = await admin.storage
       .from("fs-documents")
@@ -141,7 +173,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Store metadata in database
     const { data, error } = await admin
       .from("fs_documents")
       .insert({
@@ -153,13 +184,13 @@ export async function POST(req: NextRequest) {
         tags,
         storage_path: storagePath,
         file_size: file.size,
+        agency_id: agencyId,
       })
       .select("id, filename, doc_type, expiry_date, tags, file_size, created_at")
       .single();
 
     if (error) {
       console.error("Document insert error:", error);
-      // Clean up uploaded file on db failure
       await admin.storage.from("fs-documents").remove([storagePath]);
       return NextResponse.json(
         { error: "Failed to save document metadata" },

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, getSupabaseAdmin } from "@/lib/supabase-server";
+import { getAgencyMembership } from "@/lib/fs-team";
 
 async function checkAccess(userId: string) {
   const admin = getSupabaseAdmin();
@@ -22,20 +23,42 @@ export async function GET(req: NextRequest) {
     }
 
     const projectId = req.nextUrl.searchParams.get("project_id");
+    const team = req.nextUrl.searchParams.get("team") === "true";
     const admin = getSupabaseAdmin();
+
+    if (team) {
+      const membership = await getAgencyMembership(user.id);
+      if (!membership) {
+        return NextResponse.json({ error: "Not part of an agency" }, { status: 403 });
+      }
+
+      let query = admin
+        .from("fs_notes")
+        .select("*, users!fs_notes_user_id_fkey(email)")
+        .eq("agency_id", membership.agencyId)
+        .order("created_at", { ascending: false });
+
+      if (projectId) query = query.eq("project_id", projectId);
+
+      const { data: notes, error } = await query;
+      if (error) {
+        console.error("Team notes fetch error:", error);
+        return NextResponse.json({ error: "Failed to fetch team notes" }, { status: 500 });
+      }
+
+      return NextResponse.json({ notes: notes ?? [], team: true });
+    }
 
     let query = admin
       .from("fs_notes")
       .select("*")
       .eq("user_id", user.id)
+      .is("agency_id", null)
       .order("created_at", { ascending: false });
 
-    if (projectId) {
-      query = query.eq("project_id", projectId);
-    }
+    if (projectId) query = query.eq("project_id", projectId);
 
     const { data: notes, error } = await query;
-
     if (error) {
       console.error("Notes fetch error:", error);
       return NextResponse.json({ error: "Failed to fetch notes" }, { status: 500 });
@@ -59,13 +82,23 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { body: noteBody, project_id } = body as {
+    const { body: noteBody, project_id, team } = body as {
       body: string;
       project_id?: string;
+      team?: boolean;
     };
 
     if (!noteBody?.trim()) {
       return NextResponse.json({ error: "Note body is required" }, { status: 400 });
+    }
+
+    let agencyId: string | null = null;
+    if (team) {
+      const membership = await getAgencyMembership(user.id);
+      if (!membership) {
+        return NextResponse.json({ error: "Not part of an agency" }, { status: 403 });
+      }
+      agencyId = membership.agencyId;
     }
 
     const admin = getSupabaseAdmin();
@@ -75,6 +108,7 @@ export async function POST(req: NextRequest) {
         user_id: user.id,
         body: noteBody.trim(),
         project_id: project_id || null,
+        agency_id: agencyId,
       })
       .select()
       .single();

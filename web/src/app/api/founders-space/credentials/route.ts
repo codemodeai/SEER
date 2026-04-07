@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, getSupabaseAdmin } from "@/lib/supabase-server";
 import { encrypt } from "@/lib/encryption";
+import { getAgencyMembership } from "@/lib/fs-team";
 
 export async function GET(req: NextRequest) {
   try {
@@ -13,7 +14,6 @@ export async function GET(req: NextRequest) {
 
     const admin = getSupabaseAdmin();
 
-    // Check fs_access
     const { data: userData } = await admin
       .from("users")
       .select("fs_access")
@@ -29,18 +29,44 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const projectId = searchParams.get("project_id");
+    const team = searchParams.get("team") === "true";
 
+    if (team) {
+      const membership = await getAgencyMembership(user.id);
+      if (!membership) {
+        return NextResponse.json({ error: "Not part of an agency" }, { status: 403 });
+      }
+
+      let query = admin
+        .from("fs_credentials")
+        .select(
+          "id, label, environment, project_id, created_at, last_used_at, fs_projects(name), user_id, users!fs_credentials_user_id_fkey(email)"
+        )
+        .eq("agency_id", membership.agencyId)
+        .order("created_at", { ascending: false });
+
+      if (projectId) query = query.eq("project_id", projectId);
+
+      const { data, error } = await query;
+      if (error) {
+        console.error("Team credentials list error:", error);
+        return NextResponse.json({ error: "Failed to fetch team credentials" }, { status: 500 });
+      }
+
+      return NextResponse.json({ credentials: data, team: true, canWrite: membership.canWrite });
+    }
+
+    // Personal mode
     let query = admin
       .from("fs_credentials")
       .select(
         "id, label, environment, project_id, created_at, last_used_at, fs_projects(name)"
       )
       .eq("user_id", user.id)
+      .is("agency_id", null)
       .order("created_at", { ascending: false });
 
-    if (projectId) {
-      query = query.eq("project_id", projectId);
-    }
+    if (projectId) query = query.eq("project_id", projectId);
 
     const { data, error } = await query;
 
@@ -73,7 +99,6 @@ export async function POST(req: NextRequest) {
 
     const admin = getSupabaseAdmin();
 
-    // Check fs_access
     const { data: userData } = await admin
       .from("users")
       .select("fs_access")
@@ -88,7 +113,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { label, value, project_id, environment } = body;
+    const { label, value, project_id, environment, team } = body;
 
     if (!label || !value) {
       return NextResponse.json(
@@ -97,7 +122,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate environment if provided
     const validEnvs = ["development", "staging", "production"];
     if (environment && !validEnvs.includes(environment)) {
       return NextResponse.json(
@@ -106,7 +130,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Encrypt the credential value
+    let agencyId: string | null = null;
+    if (team) {
+      const membership = await getAgencyMembership(user.id);
+      if (!membership) {
+        return NextResponse.json({ error: "Not part of an agency" }, { status: 403 });
+      }
+      if (!membership.canWrite) {
+        return NextResponse.json({ error: "Only agency owner/admin can create shared credentials" }, { status: 403 });
+      }
+      agencyId = membership.agencyId;
+    }
+
     const encrypted = await encrypt(value);
 
     const { data, error } = await admin
@@ -119,6 +154,7 @@ export async function POST(req: NextRequest) {
         auth_tag: encrypted.authTag,
         project_id: project_id || null,
         environment: environment || "production",
+        agency_id: agencyId,
       })
       .select("id, label, environment, project_id, created_at")
       .single();

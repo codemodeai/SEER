@@ -52,6 +52,15 @@ export async function POST(req: NextRequest) {
           break;
         }
 
+        // Handle Founder's Space addon — enable fs_access on user
+        if (metadataType === "fs_addon" && userId) {
+          await supabase
+            .from("users")
+            .update({ fs_access: true })
+            .eq("id", userId);
+          break;
+        }
+
         const plan = event.data?.metadata?.seer_plan ?? getPlanByDodoPriceId(event.data?.product_id ?? "");
         if (!userId || !plan) break;
 

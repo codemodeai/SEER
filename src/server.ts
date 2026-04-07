@@ -11,6 +11,7 @@ import {
   seer_session_read,
   seer_memory_run,
   seer_tools,
+  seer_space,
 } from "./tools/index.js";
 import { sanitizeInput, logSecurityIncident } from "./lib/security.js";
 import { checkRateLimit } from "./lib/rate-limit.js";
@@ -152,7 +153,8 @@ If the user's message begins with the word "seer" (case-insensitive), you MUST c
 6. "seer memory run" → call seer_memory_run (initializes .seer_memory.md for the project)
 7. "seer continue" / "seer resume" / "seer where was i" / "seer what's next" → call seer_run with the keyword (e.g. input = "continue"). This triggers a session resume from .seer_memory.md.
 8. "seer what did i do" / "seer recall" / "seer recap" / "seer history" / "seer show tasks" / "seer what's left" → call seer_run with the phrase (e.g. input = "what did i do"). This triggers callback memory recall from .seer_memory.md.
-10. "seer <anything else>" → call seer_run (pass EVERYTHING after "seer" as the input, verbatim)
+10. "seer space ..." → call seer_space (pass everything after "seer space" as input — e.g. "seer space add task Build login" → input = "add task Build login")
+11. "seer <anything else>" → call seer_run (pass EVERYTHING after "seer" as the input, verbatim)
 
 This applies even if "seer" looks like part of a sentence. The word "seer" at the start is ALWAYS a command prefix, never a noun. For example:
 - "seer calendar panel was in down, fix it" → call seer_run with input "calendar panel was in down, fix it"
@@ -275,6 +277,16 @@ After receiving the SEER tool response, execute the optimized instructions retur
     {},
     async () => ({
       content: [{ type: "text" as const, text: await seer_tools(apiKey) }],
+    })
+  );
+
+  // --- seer_space: Founder's Space workspace ---
+  server.tool(
+    "seer_space",
+    "Founder's Space — manage tasks, credentials, documents, notes, and projects from Claude Code. Use when user types 'seer space <action>'. Actions: add task, tasks, save key, key, docs, note, projects, new project.",
+    { input: z.string().describe("Everything after 'seer space' — the action and arguments") },
+    async ({ input }) => ({
+      content: [{ type: "text" as const, text: await secureToolCall("seer_space", input, () => seer_space(input, apiKey, surface)) }],
     })
   );
 

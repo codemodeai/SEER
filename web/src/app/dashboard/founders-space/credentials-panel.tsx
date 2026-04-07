@@ -30,11 +30,12 @@ const ENV_BADGES: Record<string, { bg: string; text: string; label: string }> = 
   production: { bg: "bg-emerald-100", text: "text-emerald-700", label: "Prod" },
 };
 
-export default function CredentialsPanel() {
+export default function CredentialsPanel({ teamMode = false }: { teamMode?: boolean }) {
   const { userId } = useDashboard();
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [canWrite, setCanWrite] = useState(true);
 
   // Reveal state
   const [revealId, setRevealId] = useState<string | null>(null);
@@ -57,17 +58,19 @@ export default function CredentialsPanel() {
 
   const fetchCredentials = useCallback(async () => {
     try {
-      const res = await fetch("/api/founders-space/credentials");
+      const teamParam = teamMode ? "?team=true" : "";
+      const res = await fetch(`/api/founders-space/credentials${teamParam}`);
       if (res.ok) {
         const data = await res.json();
         setCredentials(data.credentials || []);
+        if (data.canWrite !== undefined) setCanWrite(data.canWrite);
       }
     } catch (err) {
       console.error("Failed to fetch credentials:", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [teamMode]);
 
   useEffect(() => {
     fetchCredentials();
@@ -168,6 +171,7 @@ export default function CredentialsPanel() {
           value: formValue,
           project_id: formProject || null,
           environment: formEnv,
+          team: teamMode,
         }),
       });
 
@@ -220,13 +224,15 @@ export default function CredentialsPanel() {
             AES-256 Encrypted
           </span>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-terracotta text-white text-sm font-semibold hover:bg-terracotta/90 transition-all"
-        >
-          <Plus size={16} />
-          Add Credential
-        </button>
+        {(!teamMode || canWrite) && (
+          <button
+            onClick={() => setShowModal(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-terracotta text-white text-sm font-semibold hover:bg-terracotta/90 transition-all"
+          >
+            <Plus size={16} />
+            Add Credential{teamMode ? " (Team)" : ""}
+          </button>
+        )}
       </div>
 
       {/* Empty state */}

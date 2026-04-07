@@ -51,10 +51,11 @@ function getExpiryStatus(expiryDate: string | null): "ok" | "warning" | "expired
   return "ok";
 }
 
-export default function DocumentsPanel() {
+export default function DocumentsPanel({ teamMode = false }: { teamMode?: boolean }) {
   const { userId } = useDashboard();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
+  const [canWrite, setCanWrite] = useState(true);
 
   // Upload state
   const [showUpload, setShowUpload] = useState(false);
@@ -77,17 +78,19 @@ export default function DocumentsPanel() {
 
   const fetchDocuments = useCallback(async () => {
     try {
-      const res = await fetch("/api/founders-space/documents");
+      const teamParam = teamMode ? "?team=true" : "";
+      const res = await fetch(`/api/founders-space/documents${teamParam}`);
       if (res.ok) {
         const data = await res.json();
         setDocuments(data.documents || []);
+        if (data.canWrite !== undefined) setCanWrite(data.canWrite);
       }
     } catch (err) {
       console.error("Failed to fetch documents:", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [teamMode]);
 
   useEffect(() => {
     fetchDocuments();
@@ -131,6 +134,7 @@ export default function DocumentsPanel() {
       if (uploadProject) formData.append("project_id", uploadProject);
       if (uploadExpiry) formData.append("expiry_date", uploadExpiry);
       if (uploadTags) formData.append("tags", uploadTags);
+      if (teamMode) formData.append("team", "true");
 
       const res = await fetch("/api/founders-space/documents", {
         method: "POST",
@@ -217,13 +221,15 @@ export default function DocumentsPanel() {
             Supabase Storage
           </span>
         </div>
-        <button
-          onClick={() => setShowUpload(true)}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-terracotta text-white text-sm font-semibold hover:bg-terracotta/90 transition-all"
-        >
-          <Upload size={16} />
-          Upload Document
-        </button>
+        {(!teamMode || canWrite) && (
+          <button
+            onClick={() => setShowUpload(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-terracotta text-white text-sm font-semibold hover:bg-terracotta/90 transition-all"
+          >
+            <Upload size={16} />
+            Upload Document{teamMode ? " (Team)" : ""}
+          </button>
+        )}
       </div>
 
       {/* Empty state */}

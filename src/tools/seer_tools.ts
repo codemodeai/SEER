@@ -82,6 +82,13 @@ export async function seer_tools(apiKey: string): Promise<string> {
       cost: "1 call",
       plans: ["free", "starter", "pro", "agency"],
     },
+    {
+      name: "seer space",
+      usage: "`seer space <action>`",
+      description: "Founder's Space — manage tasks, credentials, docs, notes, projects from terminal",
+      cost: "1 call",
+      plans: ["starter", "pro", "agency"],
+    },
   ];
 
   // Features

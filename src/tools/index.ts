@@ -6,3 +6,4 @@ export { seer_status } from "./seer_status.js";
 export { seer_session_read } from "./seer_session_read.js";
 export { seer_memory_run } from "./seer_memory_run.js";
 export { seer_tools } from "./seer_tools.js";
+export { seer_space } from "./seer_space.js";

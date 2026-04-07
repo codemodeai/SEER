@@ -14,10 +14,13 @@ import { scanOutput, logSecurityIncident } from "../lib/security.js";
 import { detectMarkDone } from "../lib/mark-done.js";
 import { checkTeamConflict } from "../lib/conflict-detect.js";
 import { seer_tools } from "./seer_tools.js";
+import { seer_space } from "./seer_space.js";
 
 // --- Pattern matchers for zero-cost features (no Haiku call) ---
 
 const TOOLS_PATTERN = /^(tools|show tools|list tools|features|show features|what can you do|help)$/i;
+
+const SPACE_PATTERN = /^space\s+(.+)/i;
 
 const CONTINUE_PATTERNS = /^(continue|resume|pick up|where was i|where did i leave off|what's next|whats next)$/i;
 
@@ -131,6 +134,12 @@ export async function seer_run(
   // 1b. Route "seer tools" — zero Haiku cost, no usage increment
   if (TOOLS_PATTERN.test(trimmedInput)) {
     return seer_tools(apiKey);
+  }
+
+  // 1b2. Route "seer space ..." — delegate to seer_space tool
+  const spaceMatch = SPACE_PATTERN.exec(trimmedInput);
+  if (spaceMatch) {
+    return seer_space(spaceMatch[1], apiKey, surface);
   }
 
   // 1c. MFA enforcement — one-time auth, soft nudge every 5, hard block at 20

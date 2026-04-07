@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, getSupabaseAdmin } from "@/lib/supabase-server";
 import { decrypt } from "@/lib/encryption";
+import { getAgencyMembership } from "@/lib/fs-team";
 
 export async function GET(
   req: NextRequest,
@@ -17,7 +18,6 @@ export async function GET(
 
     const admin = getSupabaseAdmin();
 
-    // Check fs_access
     const { data: userData } = await admin
       .from("users")
       .select("fs_access")
@@ -31,12 +31,11 @@ export async function GET(
       );
     }
 
-    // Fetch the credential (must belong to user)
+    // Fetch the credential
     const { data: cred, error } = await admin
       .from("fs_credentials")
-      .select("value_encrypted, iv, auth_tag")
+      .select("value_encrypted, iv, auth_tag, user_id, agency_id")
       .eq("id", id)
-      .eq("user_id", user.id)
       .single();
 
     if (error || !cred) {
@@ -46,15 +45,28 @@ export async function GET(
       );
     }
 
-    // Decrypt the value
+    // Authorization: own credential or agency owner/admin for team credentials
+    if (cred.agency_id) {
+      const membership = await getAgencyMembership(user.id);
+      if (!membership || membership.agencyId !== cred.agency_id || !membership.canWrite) {
+        return NextResponse.json(
+          { error: "Only agency owner/admin can reveal shared credentials" },
+          { status: 403 }
+        );
+      }
+    } else if (cred.user_id !== user.id) {
+      return NextResponse.json(
+        { error: "Credential not found" },
+        { status: 404 }
+      );
+    }
+
     const plaintext = await decrypt(cred.value_encrypted, cred.iv, cred.auth_tag);
 
-    // Update last_used_at
     await admin
       .from("fs_credentials")
       .update({ last_used_at: new Date().toISOString() })
-      .eq("id", id)
-      .eq("user_id", user.id);
+      .eq("id", id);
 
     return NextResponse.json({ value: plaintext });
   } catch (err) {
@@ -81,7 +93,6 @@ export async function DELETE(
 
     const admin = getSupabaseAdmin();
 
-    // Check fs_access
     const { data: userData } = await admin
       .from("users")
       .select("fs_access")
@@ -95,11 +106,33 @@ export async function DELETE(
       );
     }
 
+    // Check ownership
+    const { data: cred } = await admin
+      .from("fs_credentials")
+      .select("user_id, agency_id")
+      .eq("id", id)
+      .single();
+
+    if (!cred) {
+      return NextResponse.json({ error: "Credential not found" }, { status: 404 });
+    }
+
+    if (cred.agency_id) {
+      const membership = await getAgencyMembership(user.id);
+      if (!membership || membership.agencyId !== cred.agency_id || !membership.canWrite) {
+        return NextResponse.json(
+          { error: "Only agency owner/admin can delete shared credentials" },
+          { status: 403 }
+        );
+      }
+    } else if (cred.user_id !== user.id) {
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+    }
+
     const { error } = await admin
       .from("fs_credentials")
       .delete()
-      .eq("id", id)
-      .eq("user_id", user.id);
+      .eq("id", id);
 
     if (error) {
       console.error("Credential delete error:", error);
