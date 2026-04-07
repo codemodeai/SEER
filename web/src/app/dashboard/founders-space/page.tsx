@@ -184,6 +184,13 @@ export default function FoundersSpacePage() {
     );
   }, [fsAccess, ctxLoading, fetchProjects, fetchTasks, fetchNotes]);
 
+  // Auto-select project when there's exactly one
+  useEffect(() => {
+    if (projects.length === 1 && !selectedProjectId) {
+      setSelectedProjectId(projects[0].id);
+    }
+  }, [projects, selectedProjectId]);
+
   /* --- Actions --- */
 
   async function createProject() {
