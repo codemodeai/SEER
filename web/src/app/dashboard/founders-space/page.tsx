@@ -56,7 +56,7 @@ interface Note {
   users?: { email: string } | null;
 }
 
-type Tab = "tasks" | "notes" | "credentials" | "documents";
+type Tab = "tasks" | "notes" | "credentials" | "documents" | "projects";
 
 const STATUSES = ["open", "in_progress", "done", "blocked"] as const;
 
@@ -107,7 +107,7 @@ export default function FoundersSpacePage() {
   const isAgency = !!agencySlug;
 
   /* --- State --- */
-  const [activeTab, setActiveTab] = useState<Tab>("tasks");
+  const [activeTab, setActiveTab] = useState<Tab>("projects");
   const [teamMode, setTeamMode] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -184,12 +184,7 @@ export default function FoundersSpacePage() {
     );
   }, [fsAccess, ctxLoading, fetchProjects, fetchTasks, fetchNotes]);
 
-  // Auto-select project when there's exactly one
-  useEffect(() => {
-    if (projects.length === 1 && !selectedProjectId) {
-      setSelectedProjectId(projects[0].id);
-    }
-  }, [projects, selectedProjectId]);
+  // Remove auto-select — we want "All Projects" as default overview
 
   /* --- Actions --- */
 
@@ -391,7 +386,22 @@ export default function FoundersSpacePage() {
     return projects.find((p) => p.id === id)?.name ?? null;
   };
 
+  // Group tasks: common first, then by project
+  const commonTasks = tasks.filter((t) => !t.project_id);
+  const tasksByProject = projects.map((p) => ({
+    project: p,
+    tasks: tasks.filter((t) => t.project_id === p.id),
+  }));
+
+  // Group notes: common first, then by project
+  const commonNotes = notes.filter((n) => !n.project_id);
+  const notesByProject = projects.map((p) => ({
+    project: p,
+    notes: notes.filter((n) => n.project_id === p.id),
+  }));
+
   const tabs: { key: Tab; label: string; icon: typeof Briefcase }[] = [
+    { key: "projects", label: "Projects", icon: FolderOpen },
     { key: "tasks", label: "Tasks", icon: CheckCircle2 },
     { key: "notes", label: "Notes", icon: StickyNote },
     { key: "credentials", label: "Credentials", icon: KeyRound },
@@ -535,30 +545,8 @@ export default function FoundersSpacePage() {
         )}
       </div>
 
-      {/* Empty state — no projects yet */}
-      {!loadingData && projects.length === 0 && !showNewProject && (
-        <div className="bg-ivory rounded-2xl border border-sand/60 p-8 text-center space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-terracotta/10 flex items-center justify-center mx-auto">
-            <FolderOpen size={28} className="text-terracotta" />
-          </div>
-          <h2 className="font-display text-xl text-charcoal">
-            Create your first project
-          </h2>
-          <p className="text-sm text-warm-brown-light max-w-md mx-auto">
-            Projects organize your tasks, credentials, documents, and notes. Start by creating a project to get going.
-          </p>
-          <button
-            onClick={() => setShowNewProject(true)}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-terracotta text-white text-sm font-semibold hover:bg-terracotta/90 transition-all"
-          >
-            <Plus size={16} />
-            New Project
-          </button>
-        </div>
-      )}
-
       {/* Tab navigation */}
-      <div className={`flex gap-1 border-b border-sand/60 ${!loadingData && projects.length === 0 && !showNewProject ? "hidden" : ""}`}>
+      <div className="flex gap-1 border-b border-sand/60 overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.key}
@@ -582,7 +570,98 @@ export default function FoundersSpacePage() {
         </div>
       )}
 
-      {/* Tasks panel */}
+      {/* ── Projects tab ── */}
+      {!loadingData && activeTab === "projects" && (
+        <div className="space-y-4">
+          {/* Common section */}
+          {!selectedProjectId && commonTasks.length + commonNotes.length > 0 && (
+            <div className="bg-ivory rounded-2xl border border-sand/60 p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <Briefcase size={16} className="text-muted" />
+                <h3 className="font-display text-base text-charcoal">Common (No Project)</h3>
+                <span className="text-xs text-muted bg-cream-dark px-2 py-0.5 rounded-full">
+                  {commonTasks.length} tasks · {commonNotes.length} notes
+                </span>
+              </div>
+              {commonTasks.length > 0 && (
+                <div className="space-y-1.5">
+                  {commonTasks.slice(0, 5).map((task) => {
+                    const meta = STATUS_META[task.status] ?? STATUS_META.open;
+                    const StatusIcon = meta.icon;
+                    return (
+                      <div key={task.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-cream/50">
+                        <button onClick={() => cycleTaskStatus(task)} className={meta.color}><StatusIcon size={14} /></button>
+                        <span className={`text-sm flex-1 ${task.status === "done" ? "line-through opacity-60" : "text-charcoal"}`}>{task.title}</span>
+                        {task.due_date && <span className={`text-xs ${dueDateColor(task.due_date)}`}>{formatDate(task.due_date)}</span>}
+                      </div>
+                    );
+                  })}
+                  {commonTasks.length > 5 && <p className="text-xs text-muted px-2">+{commonTasks.length - 5} more tasks</p>}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Project tiles */}
+          {projects.length === 0 && !showNewProject ? (
+            <div className="bg-ivory rounded-2xl border border-sand/60 p-8 text-center space-y-4">
+              <div className="w-14 h-14 rounded-2xl bg-terracotta/10 flex items-center justify-center mx-auto">
+                <FolderOpen size={28} className="text-terracotta" />
+              </div>
+              <h2 className="font-display text-xl text-charcoal">Create your first project</h2>
+              <p className="text-sm text-warm-brown-light max-w-md mx-auto">
+                Projects organize your tasks, credentials, documents, and notes.
+              </p>
+              <button
+                onClick={() => setShowNewProject(true)}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-terracotta text-white text-sm font-semibold hover:bg-terracotta/90 transition-all"
+              >
+                <Plus size={16} /> New Project
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {projects.map((p) => {
+                const pTasks = tasks.filter((t) => t.project_id === p.id);
+                const pNotes = notes.filter((n) => n.project_id === p.id);
+                const openCount = pTasks.filter((t) => t.status === "open").length;
+                const inProgressCount = pTasks.filter((t) => t.status === "in_progress").length;
+                const doneCount = pTasks.filter((t) => t.status === "done").length;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => {
+                      setSelectedProjectId(p.id);
+                      setActiveTab("tasks");
+                    }}
+                    className="text-left bg-ivory rounded-2xl border border-sand/60 p-5 hover:border-terracotta/40 hover:shadow-md transition-all space-y-3"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <FolderOpen size={18} className="text-terracotta" />
+                        <h3 className="font-display text-lg text-charcoal">{p.name}</h3>
+                      </div>
+                      <span className="text-xs text-muted">{formatDate(p.created_at)}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs">
+                      {openCount > 0 && <span className="flex items-center gap-1 text-blue-600"><Circle size={10} />{openCount} open</span>}
+                      {inProgressCount > 0 && <span className="flex items-center gap-1 text-amber-600"><Clock size={10} />{inProgressCount} active</span>}
+                      {doneCount > 0 && <span className="flex items-center gap-1 text-emerald-600"><CheckCircle2 size={10} />{doneCount} done</span>}
+                      {pTasks.length === 0 && <span className="text-muted">No tasks</span>}
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-muted">
+                      <span>{pTasks.length} tasks</span>
+                      <span>{pNotes.length} notes</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Tasks tab ── */}
       {!loadingData && activeTab === "tasks" && (
         <div className="space-y-4">
           {/* Add task button / form */}
@@ -618,67 +697,46 @@ export default function FoundersSpacePage() {
                     className="px-2 py-1.5 rounded-lg border border-sand/60 bg-white text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-terracotta/30"
                   />
                 </div>
-                {projects.length > 0 && (
+                {projects.length > 0 && !selectedProjectId && (
                   <select
                     value={newTaskProjectId ?? ""}
                     onChange={(e) => setNewTaskProjectId(e.target.value || null)}
                     className="px-2 py-1.5 rounded-lg border border-sand/60 bg-white text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-terracotta/30"
                   >
-                    <option value="">No project</option>
+                    <option value="">Common (no project)</option>
                     {projects.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
+                      <option key={p.id} value={p.id}>{p.name}</option>
                     ))}
                   </select>
                 )}
                 {teamMode && (
                   <span className="flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">
-                    <Users size={12} />
-                    Shared with team
+                    <Users size={12} /> Shared with team
                   </span>
                 )}
                 <div className="flex items-center gap-2 ml-auto">
-                  <button
-                    onClick={createTask}
-                    disabled={creatingTask || !newTaskTitle.trim()}
-                    className="px-4 py-1.5 rounded-xl bg-terracotta text-white text-sm font-medium hover:bg-terracotta/90 disabled:opacity-50 transition-all"
-                  >
-                    {creatingTask ? (
-                      <Loader2 size={14} className="animate-spin" />
-                    ) : (
-                      "Create"
-                    )}
+                  <button onClick={createTask} disabled={creatingTask || !newTaskTitle.trim()}
+                    className="px-4 py-1.5 rounded-xl bg-terracotta text-white text-sm font-medium hover:bg-terracotta/90 disabled:opacity-50 transition-all">
+                    {creatingTask ? <Loader2 size={14} className="animate-spin" /> : "Create"}
                   </button>
-                  <button
-                    onClick={() => {
-                      setShowNewTask(false);
-                      setNewTaskTitle("");
-                      setNewTaskDue("");
-                    }}
-                    className="px-3 py-1.5 text-sm text-muted hover:text-charcoal transition-all"
-                  >
-                    Cancel
-                  </button>
+                  <button onClick={() => { setShowNewTask(false); setNewTaskTitle(""); setNewTaskDue(""); }}
+                    className="px-3 py-1.5 text-sm text-muted hover:text-charcoal transition-all">Cancel</button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Kanban columns */}
+          {/* Task display */}
           {tasks.length === 0 ? (
             <div className="bg-ivory rounded-2xl border border-sand/60 p-8 text-center space-y-3">
               <div className="w-12 h-12 rounded-xl bg-terracotta/10 flex items-center justify-center mx-auto">
                 <Briefcase size={24} className="text-terracotta" />
               </div>
-              <h3 className="font-display text-lg text-charcoal">
-                No {teamMode ? "team " : ""}tasks yet
-              </h3>
-              <p className="text-sm text-muted max-w-sm mx-auto">
-                Create your first {teamMode ? "team " : ""}task to start organizing your work.
-              </p>
+              <h3 className="font-display text-lg text-charcoal">No {teamMode ? "team " : ""}tasks yet</h3>
+              <p className="text-sm text-muted max-w-sm mx-auto">Create your first task to start organizing your work.</p>
             </div>
-          ) : (
+          ) : selectedProjectId ? (
+            /* Single project: kanban columns */
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
               {STATUSES.map((status) => {
                 const meta = STATUS_META[status];
@@ -688,39 +746,61 @@ export default function FoundersSpacePage() {
                   <div key={status} className="space-y-2">
                     <div className="flex items-center gap-2 px-1 pb-1">
                       <StatusIcon size={14} className={meta.color} />
-                      <span className={`text-sm font-semibold ${meta.color}`}>
-                        {meta.label}
-                      </span>
-                      <span className="text-xs text-muted bg-cream-dark rounded-full px-2 py-0.5">
-                        {columnTasks.length}
-                      </span>
+                      <span className={`text-sm font-semibold ${meta.color}`}>{meta.label}</span>
+                      <span className="text-xs text-muted bg-cream-dark rounded-full px-2 py-0.5">{columnTasks.length}</span>
                     </div>
                     <div className="space-y-2 min-h-[60px]">
                       {columnTasks.map((task) => (
-                        <TaskCard
-                          key={task.id}
-                          task={task}
-                          projectName={projectName(task.project_id)}
-                          teamMode={teamMode}
-                          onCycleStatus={() => cycleTaskStatus(task)}
-                          onDelete={() => deleteTask(task.id)}
-                        />
+                        <TaskCard key={task.id} task={task} projectName={projectName(task.project_id)} teamMode={teamMode}
+                          onCycleStatus={() => cycleTaskStatus(task)} onDelete={() => deleteTask(task.id)} />
                       ))}
                       {columnTasks.length === 0 && (
-                        <div className="rounded-xl border border-dashed border-sand/60 p-4 text-center">
-                          <p className="text-xs text-muted/50">No tasks</p>
-                        </div>
+                        <div className="rounded-xl border border-dashed border-sand/60 p-4 text-center"><p className="text-xs text-muted/50">No tasks</p></div>
                       )}
                     </div>
                   </div>
                 );
               })}
             </div>
+          ) : (
+            /* All projects: grouped list — common first, then by project */
+            <div className="space-y-5">
+              {commonTasks.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 px-1">
+                    <Briefcase size={14} className="text-muted" />
+                    <span className="text-sm font-semibold text-charcoal">Common Tasks</span>
+                    <span className="text-xs text-muted bg-cream-dark rounded-full px-2 py-0.5">{commonTasks.length}</span>
+                  </div>
+                  <div className="space-y-2">
+                    {commonTasks.map((task) => (
+                      <TaskCard key={task.id} task={task} projectName={null} teamMode={teamMode}
+                        onCycleStatus={() => cycleTaskStatus(task)} onDelete={() => deleteTask(task.id)} />
+                    ))}
+                  </div>
+                </div>
+              )}
+              {tasksByProject.filter((g) => g.tasks.length > 0).map(({ project, tasks: pTasks }) => (
+                <div key={project.id} className="space-y-2">
+                  <div className="flex items-center gap-2 px-1">
+                    <FolderOpen size={14} className="text-terracotta" />
+                    <span className="text-sm font-semibold text-charcoal">{project.name}</span>
+                    <span className="text-xs text-muted bg-cream-dark rounded-full px-2 py-0.5">{pTasks.length}</span>
+                  </div>
+                  <div className="space-y-2">
+                    {pTasks.map((task) => (
+                      <TaskCard key={task.id} task={task} projectName={null} teamMode={teamMode}
+                        onCycleStatus={() => cycleTaskStatus(task)} onDelete={() => deleteTask(task.id)} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}
 
-      {/* Notes panel */}
+      {/* ── Notes tab ── */}
       {!loadingData && activeTab === "notes" && (
         <div className="space-y-4">
           <div className="bg-ivory rounded-2xl border border-sand/60 p-4 space-y-3">
@@ -734,24 +814,13 @@ export default function FoundersSpacePage() {
             <div className="flex items-center justify-between">
               {teamMode && (
                 <span className="flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">
-                  <Users size={12} />
-                  Shared with team
+                  <Users size={12} /> Shared with team
                 </span>
               )}
               <div className={teamMode ? "" : "ml-auto"}>
-                <button
-                  onClick={createNote}
-                  disabled={creatingNote || !newNoteBody.trim()}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-terracotta text-white text-sm font-semibold hover:bg-terracotta/90 disabled:opacity-50 transition-all"
-                >
-                  {creatingNote ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <>
-                      <Plus size={14} />
-                      Add Note
-                    </>
-                  )}
+                <button onClick={createNote} disabled={creatingNote || !newNoteBody.trim()}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-terracotta text-white text-sm font-semibold hover:bg-terracotta/90 disabled:opacity-50 transition-all">
+                  {creatingNote ? <Loader2 size={14} className="animate-spin" /> : <><Plus size={14} /> Add Note</>}
                 </button>
               </div>
             </div>
@@ -762,37 +831,66 @@ export default function FoundersSpacePage() {
               <div className="w-12 h-12 rounded-xl bg-terracotta/10 flex items-center justify-center mx-auto">
                 <StickyNote size={24} className="text-terracotta" />
               </div>
-              <h3 className="font-display text-lg text-charcoal">
-                No {teamMode ? "team " : ""}notes yet
-              </h3>
-              <p className="text-sm text-muted max-w-sm mx-auto">
-                Add your first note above. Notes are append-only for an immutable log.
-              </p>
+              <h3 className="font-display text-lg text-charcoal">No {teamMode ? "team " : ""}notes yet</h3>
+              <p className="text-sm text-muted max-w-sm mx-auto">Add your first note above.</p>
             </div>
-          ) : (
+          ) : selectedProjectId ? (
+            /* Single project notes */
             <div className="space-y-3">
               {notes.map((note) => (
-                <div
-                  key={note.id}
-                  className="bg-ivory rounded-2xl border border-sand/60 p-4 space-y-2"
-                >
-                  <p className="text-sm text-charcoal whitespace-pre-wrap">
-                    {note.body}
-                  </p>
+                <div key={note.id} className="bg-ivory rounded-2xl border border-sand/60 p-4 space-y-2">
+                  <p className="text-sm text-charcoal whitespace-pre-wrap">{note.body}</p>
                   <div className="flex items-center gap-3 text-xs text-muted">
                     <span>{formatTimestamp(note.created_at)}</span>
-                    {projectName(note.project_id) && (
-                      <span className="bg-cream-dark px-2 py-0.5 rounded-full">
-                        {projectName(note.project_id)}
-                      </span>
-                    )}
                     {teamMode && note.users?.email && (
                       <span className="flex items-center gap-1 bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
-                        <User size={10} />
-                        {note.users.email.split("@")[0]}
+                        <User size={10} />{note.users.email.split("@")[0]}
                       </span>
                     )}
                   </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* All projects: grouped — common first, then by project */
+            <div className="space-y-5">
+              {commonNotes.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 px-1">
+                    <Briefcase size={14} className="text-muted" />
+                    <span className="text-sm font-semibold text-charcoal">Common Notes</span>
+                    <span className="text-xs text-muted bg-cream-dark rounded-full px-2 py-0.5">{commonNotes.length}</span>
+                  </div>
+                  {commonNotes.map((note) => (
+                    <div key={note.id} className="bg-ivory rounded-2xl border border-sand/60 p-4 space-y-2">
+                      <p className="text-sm text-charcoal whitespace-pre-wrap">{note.body}</p>
+                      <div className="flex items-center gap-3 text-xs text-muted">
+                        <span>{formatTimestamp(note.created_at)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {notesByProject.filter((g) => g.notes.length > 0).map(({ project, notes: pNotes }) => (
+                <div key={project.id} className="space-y-2">
+                  <div className="flex items-center gap-2 px-1">
+                    <FolderOpen size={14} className="text-terracotta" />
+                    <span className="text-sm font-semibold text-charcoal">{project.name}</span>
+                    <span className="text-xs text-muted bg-cream-dark rounded-full px-2 py-0.5">{pNotes.length}</span>
+                  </div>
+                  {pNotes.map((note) => (
+                    <div key={note.id} className="bg-ivory rounded-2xl border border-sand/60 p-4 space-y-2">
+                      <p className="text-sm text-charcoal whitespace-pre-wrap">{note.body}</p>
+                      <div className="flex items-center gap-3 text-xs text-muted">
+                        <span>{formatTimestamp(note.created_at)}</span>
+                        {teamMode && note.users?.email && (
+                          <span className="flex items-center gap-1 bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
+                            <User size={10} />{note.users.email.split("@")[0]}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
@@ -801,10 +899,10 @@ export default function FoundersSpacePage() {
       )}
 
       {/* Credentials tab */}
-      {!loadingData && activeTab === "credentials" && <CredentialsPanel teamMode={teamMode} />}
+      {!loadingData && activeTab === "credentials" && <CredentialsPanel teamMode={teamMode} selectedProjectId={selectedProjectId} projects={projects} />}
 
       {/* Documents tab */}
-      {!loadingData && activeTab === "documents" && <DocumentsPanel teamMode={teamMode} />}
+      {!loadingData && activeTab === "documents" && <DocumentsPanel teamMode={teamMode} selectedProjectId={selectedProjectId} projects={projects} />}
     </div>
   );
 }

@@ -51,7 +51,7 @@ function getExpiryStatus(expiryDate: string | null): "ok" | "warning" | "expired
   return "ok";
 }
 
-export default function DocumentsPanel({ teamMode = false }: { teamMode?: boolean }) {
+export default function DocumentsPanel({ teamMode = false, selectedProjectId = null, projects = [] }: { teamMode?: boolean; selectedProjectId?: string | null; projects?: { id: string; name: string }[] }) {
   const { userId } = useDashboard();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,8 +78,11 @@ export default function DocumentsPanel({ teamMode = false }: { teamMode?: boolea
 
   const fetchDocuments = useCallback(async () => {
     try {
-      const teamParam = teamMode ? "?team=true" : "";
-      const res = await fetch(`/api/founders-space/documents${teamParam}`);
+      const params = new URLSearchParams();
+      if (teamMode) params.set("team", "true");
+      if (selectedProjectId) params.set("project_id", selectedProjectId);
+      const qs = params.toString() ? `?${params.toString()}` : "";
+      const res = await fetch(`/api/founders-space/documents${qs}`);
       if (res.ok) {
         const data = await res.json();
         setDocuments(data.documents || []);
@@ -90,7 +93,7 @@ export default function DocumentsPanel({ teamMode = false }: { teamMode?: boolea
     } finally {
       setLoading(false);
     }
-  }, [teamMode]);
+  }, [teamMode, selectedProjectId]);
 
   useEffect(() => {
     fetchDocuments();
@@ -525,13 +528,16 @@ export default function DocumentsPanel({ teamMode = false }: { teamMode?: boolea
                   Project{" "}
                   <span className="text-muted font-normal">(optional)</span>
                 </label>
-                <input
-                  type="text"
+                <select
                   value={uploadProject}
                   onChange={(e) => setUploadProject(e.target.value)}
-                  placeholder="Project ID"
-                  className="w-full px-3 py-2 rounded-xl border border-sand/60 bg-cream text-charcoal text-sm placeholder:text-muted/50 focus:outline-none focus:ring-2 focus:ring-terracotta/30 focus:border-terracotta/50"
-                />
+                  className="w-full px-3 py-2 rounded-xl border border-sand/60 bg-cream text-charcoal text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30 focus:border-terracotta/50"
+                >
+                  <option value="">Common (no project)</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
               </div>
             </div>
 

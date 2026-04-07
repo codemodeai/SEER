@@ -30,7 +30,7 @@ const ENV_BADGES: Record<string, { bg: string; text: string; label: string }> = 
   production: { bg: "bg-emerald-100", text: "text-emerald-700", label: "Prod" },
 };
 
-export default function CredentialsPanel({ teamMode = false }: { teamMode?: boolean }) {
+export default function CredentialsPanel({ teamMode = false, selectedProjectId = null, projects = [] }: { teamMode?: boolean; selectedProjectId?: string | null; projects?: { id: string; name: string }[] }) {
   const { userId } = useDashboard();
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,8 +58,11 @@ export default function CredentialsPanel({ teamMode = false }: { teamMode?: bool
 
   const fetchCredentials = useCallback(async () => {
     try {
-      const teamParam = teamMode ? "?team=true" : "";
-      const res = await fetch(`/api/founders-space/credentials${teamParam}`);
+      const params = new URLSearchParams();
+      if (teamMode) params.set("team", "true");
+      if (selectedProjectId) params.set("project_id", selectedProjectId);
+      const qs = params.toString() ? `?${params.toString()}` : "";
+      const res = await fetch(`/api/founders-space/credentials${qs}`);
       if (res.ok) {
         const data = await res.json();
         setCredentials(data.credentials || []);
@@ -70,7 +73,7 @@ export default function CredentialsPanel({ teamMode = false }: { teamMode?: bool
     } finally {
       setLoading(false);
     }
-  }, [teamMode]);
+  }, [teamMode, selectedProjectId]);
 
   useEffect(() => {
     fetchCredentials();
@@ -442,13 +445,16 @@ export default function CredentialsPanel({ teamMode = false }: { teamMode?: bool
                   Project{" "}
                   <span className="text-muted font-normal">(optional)</span>
                 </label>
-                <input
-                  type="text"
+                <select
                   value={formProject}
                   onChange={(e) => setFormProject(e.target.value)}
-                  placeholder="Project ID (leave empty for none)"
-                  className="w-full px-3 py-2 rounded-xl border border-sand/60 bg-cream text-charcoal text-sm placeholder:text-muted/50 focus:outline-none focus:ring-2 focus:ring-terracotta/30 focus:border-terracotta/50"
-                />
+                  className="w-full px-3 py-2 rounded-xl border border-sand/60 bg-cream text-charcoal text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30 focus:border-terracotta/50"
+                >
+                  <option value="">Common (no project)</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
               </div>
               <div className="flex gap-3 pt-2">
                 <button
