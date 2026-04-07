@@ -528,8 +528,30 @@ export default function FoundersSpacePage() {
         )}
       </div>
 
+      {/* Empty state — no projects yet */}
+      {!loadingData && projects.length === 0 && !showNewProject && (
+        <div className="bg-ivory rounded-2xl border border-sand/60 p-8 text-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-terracotta/10 flex items-center justify-center mx-auto">
+            <FolderOpen size={28} className="text-terracotta" />
+          </div>
+          <h2 className="font-display text-xl text-charcoal">
+            Create your first project
+          </h2>
+          <p className="text-sm text-warm-brown-light max-w-md mx-auto">
+            Projects organize your tasks, credentials, documents, and notes. Start by creating a project to get going.
+          </p>
+          <button
+            onClick={() => setShowNewProject(true)}
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-terracotta text-white text-sm font-semibold hover:bg-terracotta/90 transition-all"
+          >
+            <Plus size={16} />
+            New Project
+          </button>
+        </div>
+      )}
+
       {/* Tab navigation */}
-      <div className="flex gap-1 border-b border-sand/60">
+      <div className={`flex gap-1 border-b border-sand/60 ${!loadingData && projects.length === 0 && !showNewProject ? "hidden" : ""}`}>
         {tabs.map((tab) => (
           <button
             key={tab.key}
