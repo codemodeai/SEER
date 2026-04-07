@@ -260,6 +260,37 @@ export default function BillingPage() {
         })}
       </div>
 
+      {/* Founder's Space addon for Starter users */}
+      {currentPlan === "starter" && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="bg-ivory rounded-2xl border border-sand/60 p-4 sm:p-6"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold tracking-widest uppercase text-muted">
+                Add-on
+              </p>
+              <p className="mt-1 font-display text-lg sm:text-xl text-charcoal">
+                Founder&apos;s Space — $1/month
+              </p>
+              <p className="text-xs sm:text-sm text-muted mt-1">
+                Tasks, credentials, documents & notes workspace.
+              </p>
+            </div>
+            <button
+              onClick={() => { window.location.href = "/payment/checkout?plan=fs_addon"; }}
+              className="flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-full bg-terracotta text-white text-xs font-semibold hover:bg-terracotta/90 transition-all shrink-0"
+            >
+              Enable
+              <ArrowRight size={12} />
+            </button>
+          </div>
+        </motion.div>
+      )}
+
       {/* Invoices */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}

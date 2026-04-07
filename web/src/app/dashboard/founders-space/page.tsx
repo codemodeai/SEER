@@ -103,7 +103,7 @@ function formatTimestamp(iso: string): string {
 /* ---------- Main Page ---------- */
 
 export default function FoundersSpacePage() {
-  const { plan, fsAccess, agencySlug, loading: ctxLoading } = useDashboard();
+  const { plan, fsAccess, agencySlug, userId, loading: ctxLoading } = useDashboard();
   const isAgency = !!agencySlug;
 
   /* --- State --- */
@@ -330,13 +330,39 @@ export default function FoundersSpacePage() {
                 ? "Add Founder's Space to your Starter plan for just $1/month."
                 : "Founder's Space is included with your plan but hasn't been activated yet."}
           </p>
-          <Link
-            href="/dashboard/billing"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-terracotta text-white text-sm font-semibold hover:bg-terracotta/90 transition-all"
-          >
-            {plan === "free" ? "View Plans" : "Enable Addon"}
-            <ArrowRight size={16} />
-          </Link>
+          {plan === "starter" ? (
+            <Link
+              href="/payment/checkout?plan=fs_addon"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-terracotta text-white text-sm font-semibold hover:bg-terracotta/90 transition-all"
+            >
+              Enable Addon — $1/mo
+              <ArrowRight size={16} />
+            </Link>
+          ) : plan === "pro" || plan === "agency" ? (
+            <button
+              onClick={async () => {
+                const res = await fetch("/api/founders-space/addon-checkout", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ userId, email: "auto@enable", preferredProvider: "" }),
+                });
+                const data = await res.json();
+                if (data.enabled) window.location.reload();
+              }}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-terracotta text-white text-sm font-semibold hover:bg-terracotta/90 transition-all"
+            >
+              Activate Now (Included)
+              <ArrowRight size={16} />
+            </button>
+          ) : (
+            <Link
+              href="/dashboard/billing"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-terracotta text-white text-sm font-semibold hover:bg-terracotta/90 transition-all"
+            >
+              View Plans
+              <ArrowRight size={16} />
+            </Link>
+          )}
         </div>
       </div>
     );

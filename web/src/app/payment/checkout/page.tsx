@@ -78,7 +78,8 @@ function CheckoutContent() {
 
   const isAgency = plan === "agency";
   const isAddon = plan === "addon";
-  const planMeta = isAgency || isAddon ? null : PLAN_INFO[plan];
+  const isFsAddon = plan === "fs_addon";
+  const planMeta = isAgency || isAddon || isFsAddon ? null : PLAN_INFO[plan];
 
   useEffect(() => {
     async function init() {
@@ -104,9 +105,11 @@ function CheckoutContent() {
         // Default to dodo on error
       }
 
-      // Agency config from sessionStorage
+      // Config from sessionStorage
       let totalUsd = planMeta?.priceUsd ?? 0;
-      if (isAddon) {
+      if (isFsAddon) {
+        totalUsd = 1; // $1/mo Founder's Space addon
+      } else if (isAddon) {
         const raw = sessionStorage.getItem("seer_addon_config");
         if (!raw) {
           window.location.href = "/dashboard";
@@ -127,7 +130,7 @@ function CheckoutContent() {
       }
 
       // Fetch price info (INR breakdown)
-      const url = isAgency || isAddon
+      const url = isAgency || isAddon || isFsAddon
         ? `/api/payment/price-info?plan=${plan}&totalUsd=${totalUsd}`
         : `/api/payment/price-info?plan=${plan}`;
       const res = await fetch(url);
@@ -150,7 +153,7 @@ function CheckoutContent() {
       script.async = true;
       document.head.appendChild(script);
     }
-  }, [plan, isAgency, isAddon, planMeta?.priceUsd]);
+  }, [plan, isAgency, isAddon, isFsAddon, planMeta?.priceUsd]);
 
   async function handlePay() {
     if (!priceInfo) return;
@@ -161,7 +164,14 @@ function CheckoutContent() {
       let apiUrl: string;
       let body: Record<string, unknown>;
 
-      if (isAddon && addonConfig) {
+      if (isFsAddon) {
+        apiUrl = "/api/founders-space/addon-checkout";
+        body = {
+          userId,
+          email: userEmail,
+          preferredProvider: selectedProvider,
+        };
+      } else if (isAddon && addonConfig) {
         apiUrl = "/api/agency/addon-checkout";
         body = {
           userId,
@@ -244,11 +254,13 @@ function CheckoutContent() {
         key: data.razorpayKeyId,
         subscription_id: data.subscriptionId,
         name: "SEER",
-        description: isAddon && addonConfig
-          ? `${addonConfig.label} Add-on — $${addonConfig.priceUsd}/mo`
-          : isAgency
-            ? `Agency Plan — ${agencyConfig?.memberTier} members — $${agencyConfig?.totalPrice}/mo`
-            : `${data.planName} Plan — Monthly`,
+        description: isFsAddon
+          ? "Founder's Space Add-on — $1/mo"
+          : isAddon && addonConfig
+            ? `${addonConfig.label} Add-on — $${addonConfig.priceUsd}/mo`
+            : isAgency
+              ? `Agency Plan — ${agencyConfig?.memberTier} members — $${agencyConfig?.totalPrice}/mo`
+              : `${data.planName} Plan — Monthly`,
         prefill: { email: userEmail },
         handler: async function (response: {
           razorpay_payment_id: string;
@@ -287,7 +299,9 @@ function CheckoutContent() {
               const verifyData = await verifyRes.json();
               sessionStorage.removeItem("seer_agency_config");
               sessionStorage.removeItem("seer_addon_config");
-              if (isAddon && addonConfig) {
+              if (isFsAddon) {
+                window.location.href = "/dashboard/founders-space?addon_enabled=true";
+              } else if (isAddon && addonConfig) {
                 // Redirect back to agency settings with success
                 window.location.href = `/agency/${addonConfig.agencySlug}/settings?addon_enabled=${addonConfig.feature}`;
               } else {
@@ -328,7 +342,7 @@ function CheckoutContent() {
     );
   }
 
-  if (!plan || (!planMeta && !isAgency && !isAddon)) {
+  if (!plan || (!planMeta && !isAgency && !isAddon && !isFsAddon)) {
     return (
       <div className="min-h-screen bg-cream flex items-center justify-center px-4">
         <div className="text-center">
@@ -341,14 +355,18 @@ function CheckoutContent() {
     );
   }
 
-  const displayName = isAddon
-    ? `${addonConfig?.label} Add-on`
-    : isAgency ? `Agency — ${agencyConfig?.memberTier} members` : planMeta!.name;
-  const displayDesc = isAddon
-    ? `Add-on for your agency — billed monthly`
-    : isAgency
-      ? `${agencyConfig?.agencyName} — Unlimited calls, shared memory, activity tracking`
-      : planMeta!.description;
+  const displayName = isFsAddon
+    ? "Founder's Space Add-on"
+    : isAddon
+      ? `${addonConfig?.label} Add-on`
+      : isAgency ? `Agency — ${agencyConfig?.memberTier} members` : planMeta!.name;
+  const displayDesc = isFsAddon
+    ? "Tasks, credentials, documents & notes — billed monthly"
+    : isAddon
+      ? `Add-on for your agency — billed monthly`
+      : isAgency
+        ? `${agencyConfig?.agencyName} — Unlimited calls, shared memory, activity tracking`
+        : planMeta!.description;
 
   const isDodo = selectedProvider === "dodo";
 
@@ -357,11 +375,11 @@ function CheckoutContent() {
       <div className="max-w-lg mx-auto px-4 py-12 sm:py-16">
         {/* Back link */}
         <Link
-          href={isAddon && addonConfig ? `/agency/${addonConfig.agencySlug}/settings` : isAgency ? "/agency/setup" : "/dashboard/billing"}
+          href={isFsAddon ? "/dashboard/founders-space" : isAddon && addonConfig ? `/agency/${addonConfig.agencySlug}/settings` : isAgency ? "/agency/setup" : "/dashboard/billing"}
           className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-charcoal transition-colors mb-8"
         >
           <ArrowLeft size={14} />
-          {isAddon ? "Back to settings" : isAgency ? "Back to setup" : "Back to billing"}
+          {isFsAddon ? "Back to Founder's Space" : isAddon ? "Back to settings" : isAgency ? "Back to setup" : "Back to billing"}
         </Link>
 
         {/* Header */}
