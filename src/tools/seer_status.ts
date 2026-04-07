@@ -69,6 +69,7 @@ export async function seer_status(apiKey: string): Promise<string> {
 
   const result = formatStatusResult({
     version: "1.2.0",
+    email: user.email,
     plan: user.plan,
     usage_this_month: user.usage_this_month,
     limit: limit === Infinity ? "unlimited" : limit,

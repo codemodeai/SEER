@@ -152,7 +152,7 @@ export function formatWorkflowResult(parsed: SeerWorkflowResult): string {
 export function formatStatusResult(data: Record<string, unknown>): string {
   const lines: string[] = [];
 
-  lines.push(`SEER v${data.version} | Plan: ${data.plan} | Usage: ${data.usage_this_month}/${data.limit} | Remaining: ${data.remaining} | AI: ${data.ai_preference}`);
+  lines.push(`SEER v${data.version} | ${data.email} | Plan: ${data.plan} | Usage: ${data.usage_this_month}/${data.limit} | Remaining: ${data.remaining} | AI: ${data.ai_preference}`);
 
   if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
     lines.push(`Try: ${(data.suggestions as string[]).join(" | ")}`);
