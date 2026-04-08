@@ -20,7 +20,11 @@ const SHARED_RULES = `Rules for generating suggestions:
 - Do NOT suggest already-completed tasks (marked [x] in memory)
 - Do NOT suggest "seer status", "seer session read", or "seer memory run"
 - If .seer_memory.md doesn't exist, generate suggestions purely from what was just done
-- Present this AFTER all work is complete, not before`;
+- Present this AFTER all work is complete, not before
+- CRITICAL: If the Session Log shows the user deviated from the plan (entries with "PLAN-ADAPT:" or "(user-directed)" tasks), adapt suggestions to the user's ACTUAL trajectory — do not blindly follow the old plan
+- Blend remaining open tasks WITH the user's recent direction: at least 1 suggestion should continue what the user chose to work on, and at least 1 should reference a remaining open task (if any exist)
+- NEVER stop suggesting just because the user deviated from the plan — always generate suggestions
+- If all open tasks seem stale (user has been working on unrelated things for 3+ recent session log entries), generate suggestions based purely on recent session log activity`;
 
 function defaultSkin(): string {
   return `
@@ -30,9 +34,11 @@ SEER AUTO-SUGGEST — After you finish ALL work from the above instructions, pre
 STEP 1: Read .seer_memory.md from the project root (if it exists). Pay attention to:
 - "## 4. Open Tasks" — uncompleted [ ] tasks are high-priority suggestions
 - "## 2. Current Status" → next_action — this is the planned next step
-- "## 5. Session Log" — recent work, so you don't suggest what's already done
+- "## 5. Session Log" — recent work AND any "PLAN-ADAPT:" entries that show the user went off-plan
 
-STEP 2: Based on BOTH what you just completed AND the memory file context, generate 3-5 suggestions.
+STEP 2: Check for plan deviation. If the Session Log contains "PLAN-ADAPT:" entries or "## 4. Open Tasks" contains "(user-directed)" items, the user has gone off-plan. Weight your suggestions toward the user's actual recent work direction, not the original plan order.
+
+STEP 3: Based on BOTH what you just completed AND the memory file context (adjusted for any deviations), generate 3-5 suggestions.
 
 Display them in this EXACT format:
 
@@ -55,7 +61,7 @@ function compactSkin(): string {
 ---
 SEER AUTO-SUGGEST — After ALL work is complete, show 3 quick suggestions.
 
-Read .seer_memory.md (if it exists) for open tasks and next_action. Generate 3 suggestions.
+Read .seer_memory.md (if it exists) for open tasks, next_action, and session log. If session log shows plan deviations (PLAN-ADAPT entries), prioritize the user's actual direction over the old plan. Generate 3 suggestions.
 
 Display in this EXACT format:
 
@@ -72,7 +78,7 @@ function focusedSkin(): string {
 ---
 SEER AUTO-SUGGEST — After ALL work is complete, show the single best next step.
 
-Read .seer_memory.md (if it exists) for open tasks and next_action. Pick the ONE highest-priority suggestion.
+Read .seer_memory.md (if it exists) for open tasks, next_action, and session log. If session log shows plan deviations (PLAN-ADAPT entries), pick the ONE highest-priority suggestion based on what the user is ACTUALLY working on, not the original plan.
 
 Display in this EXACT format:
 
