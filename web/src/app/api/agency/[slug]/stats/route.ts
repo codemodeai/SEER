@@ -75,9 +75,9 @@ export async function GET(
     // Include owner in stats
     const allUserIds = [agency.owner_id, ...memberIds];
 
-    // Get current month usage per member from seer_logs
+    // Get current month usage per member from seer_logs (UTC month start)
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
 
     const { data: logs } = await admin
       .from("seer_logs")
@@ -89,8 +89,28 @@ export async function GET(
     const totalCalls = logs?.length ?? 0;
     const totalTokensSaved = (logs ?? []).reduce((sum: number, l: any) => sum + (l.tokens_saved ?? 0), 0);
 
-    // Per-member breakdown
-    const perMember = (members ?? []).map((m: any) => {
+    // Per-member breakdown (include owner if not already in agency_users)
+    const ownerInMembers = (members ?? []).some((m: any) => m.user_id === agency.owner_id);
+    let allMembers = [...(members ?? [])];
+
+    if (!ownerInMembers) {
+      const { data: ownerData } = await admin
+        .from("users")
+        .select("email, usage_this_month, seer_api_key")
+        .eq("id", agency.owner_id)
+        .single();
+
+      if (ownerData) {
+        allMembers.unshift({
+          user_id: agency.owner_id,
+          role: "owner",
+          assigned_plan: "agency",
+          users: ownerData,
+        } as any);
+      }
+    }
+
+    const perMember = allMembers.map((m: any) => {
       const memberLogs = (logs ?? []).filter((l: any) => l.user_id === m.user_id);
       return {
         user_id: m.user_id,

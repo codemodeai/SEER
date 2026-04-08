@@ -105,8 +105,8 @@ export async function POST(req: NextRequest) {
     const amountUsd = USD_PRICES[plan] ?? 0;
     const amountInr = await usdToInr(amountUsd);
     const now = new Date();
-    const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const periodEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
 
     const { error: invoiceError } = await admin.from("invoices").insert({
       user_id: user.id,

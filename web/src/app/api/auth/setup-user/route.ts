@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
 
     // Get usage count for current month
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
     const { count: usageCount } = await admin
       .from("seer_logs")
       .select("id", { count: "exact", head: true })
