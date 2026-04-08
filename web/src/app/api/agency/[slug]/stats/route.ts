@@ -67,7 +67,7 @@ export async function GET(
     // Get all member user IDs
     const { data: members } = await admin
       .from("agency_users")
-      .select("user_id, role, assigned_plan, users!inner(email, usage_this_month, seer_api_key)")
+      .select("user_id, role, assigned_plan, users!agency_users_user_id_fkey(email, usage_this_month, seer_api_key)")
       .eq("agency_id", agency.id);
 
     const memberIds = (members ?? []).map((m: any) => m.user_id);

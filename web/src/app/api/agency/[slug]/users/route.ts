@@ -79,6 +79,13 @@ export async function GET(
     }
 
     const admin = getSupabaseAdmin();
+
+    // Fetch agency created_at for owner's joined date
+    const { data: agencyMeta } = await admin
+      .from("agencies")
+      .select("created_at")
+      .eq("id", agency.id)
+      .single();
     const { data: members, error } = await admin
       .from("agency_users")
       .select(`
@@ -110,6 +117,31 @@ export async function GET(
         status: "active",
       };
     });
+
+    // Include owner if not already in agency_users
+    const ownerInMembers = formatted.some((m) => m.user_id === agency.owner_id);
+    if (!ownerInMembers) {
+      const { data: ownerData } = await admin
+        .from("users")
+        .select("email, usage_this_month, seer_api_key")
+        .eq("id", agency.owner_id)
+        .single();
+
+      if (ownerData) {
+        const ownerKey = ownerData.seer_api_key ?? "";
+        formatted.unshift({
+          user_id: agency.owner_id,
+          email: ownerData.email ?? "",
+          role: "owner",
+          assigned_plan: "agency",
+          usage_this_month: ownerData.usage_this_month ?? 0,
+          joined_at: agencyMeta?.created_at ?? new Date().toISOString(),
+          api_key_masked: ownerKey ? `${ownerKey.slice(0, 12)}...${ownerKey.slice(-4)}` : null,
+          has_api_key: !!ownerKey,
+          status: "active",
+        });
+      }
+    }
 
     // Also fetch pending invites
     const { data: pendingInvites } = await admin

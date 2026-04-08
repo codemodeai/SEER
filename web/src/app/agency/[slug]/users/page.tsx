@@ -639,12 +639,14 @@ export default function AgencyUsersPage() {
                     <td className="px-5 py-3.5">
                       <span
                         className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
-                          member.role === "admin"
+                          member.role === "owner"
+                            ? "bg-purple-500/20 text-purple-400 border border-purple-500/30"
+                            : member.role === "admin"
                             ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
                             : "bg-blue-500/15 text-blue-400 border border-blue-500/25"
                         }`}
                       >
-                        {member.role === "admin" ? (
+                        {member.role === "owner" || member.role === "admin" ? (
                           <Crown size={10} />
                         ) : (
                           <User size={10} />
@@ -693,7 +695,9 @@ export default function AgencyUsersPage() {
                     </td>
                     {canManage && (
                       <td className="px-5 py-3.5 text-right">
-                        {member.status === "pending" ? (
+                        {member.role === "owner" ? (
+                          <span className="text-[10px] text-muted italic">Agency owner</span>
+                        ) : member.status === "pending" ? (
                           <span className="text-[10px] text-muted italic">Awaiting response</span>
                         ) : (
                           <div className="flex items-center justify-end gap-2">
