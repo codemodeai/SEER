@@ -1,16 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, getSupabaseAdmin } from "@/lib/supabase-server";
 import { getAgencyMembership } from "@/lib/fs-team";
-
-async function checkAccess(userId: string) {
-  const admin = getSupabaseAdmin();
-  const { data } = await admin
-    .from("users")
-    .select("fs_access")
-    .eq("id", userId)
-    .single();
-  return data?.fs_access === true;
-}
+import { checkFsAccess } from "@/lib/fs-access";
 
 export async function GET(req: NextRequest) {
   try {
@@ -18,7 +9,7 @@ export async function GET(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-    if (!(await checkAccess(user.id))) {
+    if (!(await checkFsAccess(user.id))) {
       return NextResponse.json({ error: "Founder's Space access required" }, { status: 403 });
     }
 
@@ -79,7 +70,7 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-    if (!(await checkAccess(user.id))) {
+    if (!(await checkFsAccess(user.id))) {
       return NextResponse.json({ error: "Founder's Space access required" }, { status: 403 });
     }
 

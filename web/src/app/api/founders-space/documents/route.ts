@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, getSupabaseAdmin } from "@/lib/supabase-server";
 import { getAgencyMembership } from "@/lib/fs-team";
+import { checkFsAccess } from "@/lib/fs-access";
 
 export async function GET(req: NextRequest) {
   try {
@@ -11,21 +12,14 @@ export async function GET(req: NextRequest) {
     if (!user)
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-    const admin = getSupabaseAdmin();
-
-    const { data: userData } = await admin
-      .from("users")
-      .select("fs_access")
-      .eq("id", user.id)
-      .single();
-
-    if (!userData?.fs_access) {
+    if (!(await checkFsAccess(user.id))) {
       return NextResponse.json(
         { error: "Founder's Space access required" },
         { status: 403 }
       );
     }
 
+    const admin = getSupabaseAdmin();
     const { searchParams } = new URL(req.url);
     const projectId = searchParams.get("project_id");
     const team = searchParams.get("team") === "true";
@@ -95,21 +89,14 @@ export async function POST(req: NextRequest) {
     if (!user)
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-    const admin = getSupabaseAdmin();
-
-    const { data: userData } = await admin
-      .from("users")
-      .select("fs_access")
-      .eq("id", user.id)
-      .single();
-
-    if (!userData?.fs_access) {
+    if (!(await checkFsAccess(user.id))) {
       return NextResponse.json(
         { error: "Founder's Space access required" },
         { status: 403 }
       );
     }
 
+    const admin = getSupabaseAdmin();
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const docType = (formData.get("doc_type") as string) || "other";

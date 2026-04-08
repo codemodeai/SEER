@@ -103,8 +103,9 @@ function formatTimestamp(iso: string): string {
 /* ---------- Main Page ---------- */
 
 export default function FoundersSpacePage() {
-  const { plan, fsAccess, agencySlug, userId, loading: ctxLoading } = useDashboard();
+  const { plan, fsAccess, agencySlug, agencyRole, userId, loading: ctxLoading } = useDashboard();
   const isAgency = !!agencySlug;
+  const canWriteTeam = agencyRole === "owner" || agencyRole === "admin";
 
   /* --- State --- */
   const [activeTab, setActiveTab] = useState<Tab>("projects");
@@ -136,7 +137,8 @@ export default function FoundersSpacePage() {
 
   const fetchProjects = useCallback(async () => {
     try {
-      const res = await fetch("/api/founders-space/projects");
+      const teamParam = teamMode ? "?team=true" : "";
+      const res = await fetch(`/api/founders-space/projects${teamParam}`);
       if (res.ok) {
         const data = await res.json();
         setProjects(data.projects ?? []);
@@ -144,7 +146,7 @@ export default function FoundersSpacePage() {
     } catch (err) {
       console.error("Failed to fetch projects:", err);
     }
-  }, []);
+  }, [teamMode]);
 
   const fetchTasks = useCallback(async () => {
     try {
@@ -184,7 +186,21 @@ export default function FoundersSpacePage() {
     );
   }, [fsAccess, ctxLoading, fetchProjects, fetchTasks, fetchNotes]);
 
-  // Remove auto-select — we want "All Projects" as default overview
+  // Auto-refresh every 30s in team mode for real-time sync
+  useEffect(() => {
+    if (!teamMode || !fsAccess || ctxLoading) return;
+    const interval = setInterval(() => {
+      fetchProjects();
+      fetchTasks();
+      fetchNotes();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [teamMode, fsAccess, ctxLoading, fetchProjects, fetchTasks, fetchNotes]);
+
+  // Reset project selection when switching between personal/team
+  useEffect(() => {
+    setSelectedProjectId(null);
+  }, [teamMode]);
 
   /* --- Actions --- */
 
@@ -195,7 +211,7 @@ export default function FoundersSpacePage() {
       const res = await fetch("/api/founders-space/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newProjectName.trim() }),
+        body: JSON.stringify({ name: newProjectName.trim(), team: teamMode }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -453,9 +469,17 @@ export default function FoundersSpacePage() {
 
       {/* Team mode banner */}
       {teamMode && (
-        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-700">
-          <Users size={16} />
-          <span>Viewing shared team items. Changes are visible to all agency members.</span>
+        <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-700">
+          <div className="flex items-center gap-2">
+            <Users size={16} />
+            <span>
+              Viewing shared team items.{" "}
+              {canWriteTeam
+                ? "Changes are visible to all agency members."
+                : "You can view and add tasks/notes. Credentials and documents are read-only."}
+            </span>
+          </div>
+          <span className="text-xs text-blue-500 shrink-0 ml-3">Auto-syncs every 30s</span>
         </div>
       )}
 
@@ -507,13 +531,15 @@ export default function FoundersSpacePage() {
         </div>
 
         {!showNewProject ? (
+          (!teamMode || canWriteTeam) && (
           <button
             onClick={() => setShowNewProject(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm text-terracotta hover:bg-terracotta/5 transition-all"
           >
             <Plus size={16} />
-            New Project
+            New Project{teamMode ? " (Team)" : ""}
           </button>
+          )
         ) : (
           <div className="flex items-center gap-2">
             <input
@@ -608,16 +634,22 @@ export default function FoundersSpacePage() {
               <div className="w-14 h-14 rounded-2xl bg-terracotta/10 flex items-center justify-center mx-auto">
                 <FolderOpen size={28} className="text-terracotta" />
               </div>
-              <h2 className="font-display text-xl text-charcoal">Create your first project</h2>
+              <h2 className="font-display text-xl text-charcoal">
+                {teamMode ? "No team projects yet" : "Create your first project"}
+              </h2>
               <p className="text-sm text-warm-brown-light max-w-md mx-auto">
-                Projects organize your tasks, credentials, documents, and notes.
+                {teamMode
+                  ? "Team projects are shared with all agency members. Ask an admin to create one."
+                  : "Projects organize your tasks, credentials, documents, and notes."}
               </p>
-              <button
-                onClick={() => setShowNewProject(true)}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-terracotta text-white text-sm font-semibold hover:bg-terracotta/90 transition-all"
-              >
-                <Plus size={16} /> New Project
-              </button>
+              {(!teamMode || canWriteTeam) && (
+                <button
+                  onClick={() => setShowNewProject(true)}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-terracotta text-white text-sm font-semibold hover:bg-terracotta/90 transition-all"
+                >
+                  <Plus size={16} /> New {teamMode ? "Team " : ""}Project
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

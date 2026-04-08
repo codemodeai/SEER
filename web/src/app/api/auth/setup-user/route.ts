@@ -130,10 +130,8 @@ export async function POST(req: NextRequest) {
           const role = (membership as any).role ?? "member";
           agencyName = (membership as any).agencies?.name ?? null;
           agencyRole = role;
-          // Only owner/admin can access the agency portal — members see their own dashboard only
-          if (role === "admin") {
-            agencySlug = (membership as any).agencies?.slug ?? null;
-          }
+          // All agency members get slug for team features (Founder's Space, etc.)
+          agencySlug = (membership as any).agencies?.slug ?? null;
           // All agency members get unlimited access (agency plan)
           if (currentPlan !== "agency") {
             currentPlan = "agency";
