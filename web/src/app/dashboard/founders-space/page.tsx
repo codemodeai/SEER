@@ -22,10 +22,15 @@ import {
   Zap,
   Users,
   User,
+  MessageSquarePlus,
+  Send,
+  Check,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import CredentialsPanel from "./credentials-panel";
 import DocumentsPanel from "./documents-panel";
+import RequestsPanel from "./requests-panel";
 
 /* ---------- Types ---------- */
 
@@ -56,7 +61,7 @@ interface Note {
   users?: { email: string } | null;
 }
 
-type Tab = "tasks" | "notes" | "credentials" | "documents" | "projects";
+type Tab = "tasks" | "notes" | "credentials" | "documents" | "projects" | "requests";
 
 const STATUSES = ["open", "in_progress", "done", "blocked"] as const;
 
@@ -422,6 +427,7 @@ export default function FoundersSpacePage() {
     { key: "notes", label: "Notes", icon: StickyNote },
     { key: "credentials", label: "Credentials", icon: KeyRound },
     { key: "documents", label: "Documents", icon: FileText },
+    ...(isAgency ? [{ key: "requests" as Tab, label: "Requests", icon: MessageSquarePlus }] : []),
   ];
 
   /* --- Render --- */
@@ -935,6 +941,15 @@ export default function FoundersSpacePage() {
 
       {/* Documents tab */}
       {!loadingData && activeTab === "documents" && <DocumentsPanel teamMode={teamMode} selectedProjectId={selectedProjectId} projects={projects} />}
+
+      {/* Requests tab — agency only */}
+      {!loadingData && activeTab === "requests" && isAgency && (
+        <RequestsPanel
+          selectedProjectId={selectedProjectId}
+          projects={projects}
+          canWrite={canWriteTeam}
+        />
+      )}
     </div>
   );
 }
