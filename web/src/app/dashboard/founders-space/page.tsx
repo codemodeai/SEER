@@ -138,6 +138,9 @@ export default function FoundersSpacePage() {
   const [newNoteBody, setNewNoteBody] = useState("");
   const [creatingNote, setCreatingNote] = useState(false);
 
+  // Pending requests count (agency only)
+  const [pendingRequestCount, setPendingRequestCount] = useState(0);
+
   /* --- Data fetching --- */
 
   const fetchProjects = useCallback(async () => {
@@ -206,6 +209,28 @@ export default function FoundersSpacePage() {
   useEffect(() => {
     setSelectedProjectId(null);
   }, [teamMode]);
+
+  // Fetch pending request count for badge (agency only)
+  const fetchRequestCount = useCallback(async () => {
+    if (!isAgency) return;
+    try {
+      const res = await fetch("/api/founders-space/requests?x=1");
+      if (res.ok) {
+        const data = await res.json();
+        const pending = (data.requests ?? []).filter(
+          (r: any) => r.status === "pending" || r.status === "in_progress"
+        ).length;
+        setPendingRequestCount(pending);
+      }
+    } catch {}
+  }, [isAgency]);
+
+  useEffect(() => {
+    if (!fsAccess || ctxLoading || !isAgency) return;
+    fetchRequestCount();
+    const interval = setInterval(fetchRequestCount, 30000);
+    return () => clearInterval(interval);
+  }, [fsAccess, ctxLoading, isAgency, fetchRequestCount]);
 
   /* --- Actions --- */
 
@@ -591,6 +616,11 @@ export default function FoundersSpacePage() {
           >
             <tab.icon size={15} />
             {tab.label}
+            {tab.key === "requests" && pendingRequestCount > 0 && (
+              <span className="ml-1 min-w-[18px] h-[18px] px-1 rounded-full bg-terracotta text-white text-[10px] font-bold flex items-center justify-center">
+                {pendingRequestCount}
+              </span>
+            )}
           </button>
         ))}
       </div>
