@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Shield,
   ArrowLeft,
   Send,
   Clock,
@@ -13,9 +12,7 @@ import {
   Loader2,
   XCircle,
   ChevronDown,
-  LogOut,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase-browser";
 
 interface Ticket {
   id: string;
@@ -53,8 +50,6 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof
 };
 
 export default function AdminTicketsPage() {
-  const [authed, setAuthed] = useState(false);
-  const [checking, setChecking] = useState(true);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
@@ -63,19 +58,6 @@ export default function AdminTicketsPage() {
   const [replyText, setReplyText] = useState("");
   const [sendingReply, setSendingReply] = useState(false);
   const [filter, setFilter] = useState("all");
-
-  // Check admin auth
-  useEffect(() => {
-    async function checkAdmin() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user?.email?.toLowerCase() === "support@codemodeai.com") {
-        setAuthed(true);
-      }
-      setChecking(false);
-    }
-    checkAdmin();
-  }, []);
 
   const fetchTickets = useCallback(async () => {
     try {
@@ -91,8 +73,8 @@ export default function AdminTicketsPage() {
   }, []);
 
   useEffect(() => {
-    if (authed) fetchTickets();
-  }, [authed, fetchTickets]);
+    fetchTickets();
+  }, [fetchTickets]);
 
   async function openTicket(ticket: Ticket) {
     setSelectedTicket(ticket);
@@ -145,12 +127,6 @@ export default function AdminTicketsPage() {
     }
   }
 
-  async function handleLogout() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    window.location.href = "/login";
-  }
-
   function formatDate(dateStr: string) {
     return new Date(dateStr).toLocaleDateString("en-US", {
       month: "short",
@@ -169,69 +145,21 @@ export default function AdminTicketsPage() {
     return `${Math.floor(hrs / 24)}d ago`;
   }
 
-  // Loading state
-  if (checking) {
-    return (
-      <div className="min-h-screen bg-cream flex items-center justify-center">
-        <Loader2 size={28} className="animate-spin text-terracotta" />
-      </div>
-    );
-  }
-
-  // Not admin
-  if (!authed) {
-    return (
-      <div className="min-h-screen bg-cream flex items-center justify-center px-4">
-        <div className="text-center">
-          <Shield size={48} className="text-muted/20 mx-auto mb-4" />
-          <h1 className="font-display text-2xl text-charcoal">Access Denied</h1>
-          <p className="text-sm text-muted mt-2">This page is restricted to SEER admins only.</p>
-          <a
-            href="/"
-            className="mt-6 inline-block px-6 py-2.5 rounded-full bg-terracotta text-white text-sm font-semibold hover:bg-terracotta-dark transition-all"
-          >
-            Go Home
-          </a>
-        </div>
-      </div>
-    );
-  }
-
   const filtered = filter === "all" ? tickets : tickets.filter((t) => t.status === filter);
   const openCount = tickets.filter((t) => t.status === "open" || t.status === "waiting").length;
 
   return (
-    <div className="min-h-screen bg-cream">
-      {/* Top bar */}
-      <header className="bg-charcoal text-white sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-lg bg-terracotta flex items-center justify-center">
-              <span className="text-white font-display font-bold text-xs">S</span>
-            </div>
-            <span className="font-display text-lg tracking-tight">SEER Admin</span>
-            <span className="hidden sm:inline-block px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-semibold tracking-wider uppercase text-white/50">
-              Support Tickets
-            </span>
-          </div>
-          <div className="flex items-center gap-4">
-            {openCount > 0 && (
-              <span className="px-2.5 py-0.5 rounded-full bg-terracotta text-white text-xs font-bold">
-                {openCount} open
-              </span>
-            )}
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 text-white/50 hover:text-white text-sm transition-colors"
-            >
-              <LogOut size={14} />
-              <span className="hidden sm:inline">Logout</span>
-            </button>
-          </div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="font-display text-3xl text-charcoal">Support Tickets</h1>
+          <p className="text-sm text-muted mt-1">
+            {tickets.length} tickets{openCount > 0 && <span className="text-terracotta font-semibold ml-1">({openCount} open)</span>}
+          </p>
         </div>
-      </header>
+      </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <div>
         <AnimatePresence mode="wait">
           {!selectedTicket ? (
             <motion.div
@@ -456,3 +384,4 @@ export default function AdminTicketsPage() {
     </div>
   );
 }
+

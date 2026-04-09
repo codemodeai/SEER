@@ -46,9 +46,10 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protect dashboard and agency portal routes (except /agency/invite which is public)
+  // Protect dashboard, agency portal, and admin routes (except /agency/invite which is public)
   if (
     (request.nextUrl.pathname.startsWith("/dashboard") ||
+      request.nextUrl.pathname.startsWith("/admin") ||
       (request.nextUrl.pathname.startsWith("/agency") &&
         !request.nextUrl.pathname.startsWith("/agency/invite"))) &&
     !user
@@ -82,5 +83,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/agency/:path*", "/login", "/signup", "/api/:path*"],
+  matcher: ["/dashboard/:path*", "/agency/:path*", "/admin/:path*", "/login", "/signup", "/api/:path*"],
 };
