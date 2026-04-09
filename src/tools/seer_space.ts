@@ -6,6 +6,7 @@ import { buildUsageWarning } from "../lib/formatter.js";
 import { appendMemoryLog } from "../lib/memory-log.js";
 import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
 import { checkTeamConflict } from "../lib/conflict-detect.js";
+import { detectCredentials } from "../lib/credential-detect.js";
 
 // --- Action parser ---
 
@@ -14,6 +15,7 @@ interface ParsedAction {
   args: string;
   projectFlag: string | null;
   teamFlag: boolean;
+  commonFlag: boolean;
 }
 
 function parseSpaceInput(input: string): ParsedAction {
@@ -22,6 +24,10 @@ function parseSpaceInput(input: string): ParsedAction {
   // Extract --team flag
   const teamFlag = /--team\b/i.test(cleaned);
   cleaned = cleaned.replace(/--team\b/gi, "").trim();
+
+  // Extract --common flag (save credentials without project scope)
+  const commonFlag = /--common\b/i.test(cleaned);
+  cleaned = cleaned.replace(/--common\b/gi, "").trim();
 
   // Extract --project flag
   let projectFlag: string | null = null;
@@ -54,11 +60,11 @@ function parseSpaceInput(input: string): ParsedAction {
   for (const [pattern, action] of Object.entries(actionMap)) {
     if (lower.startsWith(pattern)) {
       const args = cleaned.slice(pattern.length).trim();
-      return { action, args, projectFlag, teamFlag };
+      return { action, args, projectFlag, teamFlag, commonFlag };
     }
   }
 
-  return { action: "unknown", args: cleaned, projectFlag, teamFlag };
+  return { action: "unknown", args: cleaned, projectFlag, teamFlag, commonFlag };
 }
 
 // --- Resolve project by name ---
@@ -72,6 +78,18 @@ async function resolveProject(userId: string, name: string | null): Promise<stri
     .limit(1)
     .single();
   return data?.id ?? null;
+}
+
+// --- Auto-resolve most recent project when none specified ---
+async function autoResolveProject(userId: string): Promise<{ id: string; name: string } | null> {
+  const { data } = await supabase
+    .from("fs_projects")
+    .select("id, name")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+  return data ?? null;
 }
 
 // --- Resolve user's agency_id ---
@@ -443,10 +461,10 @@ export async function seer_space(
     .eq("id", user.id);
 
   // 7. Parse action
-  const { action, args, projectFlag, teamFlag } = parseSpaceInput(input);
+  const { action, args, projectFlag, teamFlag, commonFlag } = parseSpaceInput(input);
 
-  // 8. Resolve project
-  const projectId = await resolveProject(user.id, projectFlag);
+  // 8. Resolve project (skip if --common flag is set)
+  const projectId = commonFlag ? null : await resolveProject(user.id, projectFlag);
 
   // 9. Resolve team context
   let agencyId: string | null = null;
@@ -462,7 +480,18 @@ export async function seer_space(
     isAdmin = await isAgencyAdmin(user.id, agencyId);
   }
 
-  // 10. Execute action
+  // 10. Auto-resolve project for save_key when --project not specified (skip if --common)
+  let resolvedProjectId = projectId;
+  let autoProjectName: string | null = null;
+  if (action === "save_key" && !projectId && !commonFlag) {
+    const autoProject = await autoResolveProject(user.id);
+    if (autoProject) {
+      resolvedProjectId = autoProject.id;
+      autoProjectName = autoProject.name;
+    }
+  }
+
+  // 11. Execute action
   let result: string;
   switch (action) {
     case "add_task":
@@ -472,7 +501,12 @@ export async function seer_space(
       result = await handleTasks(user.id, projectId, agencyId);
       break;
     case "save_key":
-      result = await handleSaveKey(user.id, args, projectId, agencyId, isAdmin);
+      result = await handleSaveKey(user.id, args, resolvedProjectId, agencyId, isAdmin);
+      if (commonFlag) {
+        result += `\n(Saved as **common** credential — not linked to any project)`;
+      } else if (autoProjectName) {
+        result += `\n(Auto-assigned to project: **${autoProjectName}**)`;
+      }
       break;
     case "key":
       result = await handleKey(user.id, args, projectId, agencyId);
@@ -493,18 +527,27 @@ export async function seer_space(
       result = `**Unknown action.** Available commands:\n
 - \`seer space add task <title> [--due YYYY-MM-DD] [--project name] [--team]\`
 - \`seer space tasks [--project name] [--team]\`
-- \`seer space save key LABEL=value [--env production] [--project name] [--team]\`
+- \`seer space save key LABEL=value [--env production] [--project name] [--common] [--team]\`
 - \`seer space key <LABEL> [--project name] [--team]\`
 - \`seer space docs [--project name] [--team]\`
 - \`seer space note <text> [--project name] [--team]\`
 - \`seer space projects\`
 - \`seer space new project <name>\`
 
-Use \`--team\` to share items with your agency team (Agency plan only).`;
+Use \`--team\` to share items with your agency team (Agency plan only).
+Use \`--common\` to save credentials globally (not linked to any project).`;
       break;
   }
 
-  // 11. Log
+  // 11a. Credential detection for non-save actions — suggest saving if credentials found in input
+  if (action !== "save_key") {
+    const credDetect = detectCredentials(input);
+    if (credDetect.found) {
+      result += credDetect.suggestion;
+    }
+  }
+
+  // 12. Log
   await logSeerCall({
     user_id: user.id,
     raw_input: `space ${input}`,

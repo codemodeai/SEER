@@ -13,6 +13,7 @@ import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
 import { scanOutput, logSecurityIncident } from "../lib/security.js";
 import { detectMarkDone } from "../lib/mark-done.js";
 import { checkTeamConflict } from "../lib/conflict-detect.js";
+import { detectCredentials } from "../lib/credential-detect.js";
 import { seer_tools } from "./seer_tools.js";
 import { seer_space } from "./seer_space.js";
 
@@ -360,6 +361,12 @@ export async function seer_run(
     if (markDone.shouldPrompt && markDone.markDoneInstruction) {
       finalResult += markDone.markDoneInstruction;
     }
+  }
+
+  // 11. Credential auto-detection — suggest saving to Seer Space
+  const credDetect = detectCredentials(input);
+  if (credDetect.found) {
+    finalResult += credDetect.suggestion;
   }
 
   return appendMemoryLog(conflict.warning + usageWarning + finalResult, "seer_run", input, user.suggestion_skin, user.auto_suggest, apiKey);

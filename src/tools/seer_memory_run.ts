@@ -45,7 +45,17 @@ Rules:
 - Keep each field concise — one line per item
 - Open Tasks should reflect real incomplete work, not guesses
 - If a .gitignore exists, check if .seer_memory.md is listed. If NOT, print a one-line warning: "Note: .seer_memory.md is not in .gitignore. Add it if you want to keep it private, or leave it for team sharing via git."
-- After creating the file, respond: "SEER memory initialized. Your project memory is now active. Use \`seer continue\` at the start of any session to resume from where you left off."`;
+- After creating the file, respond: "SEER memory initialized. Your project memory is now active. Use \`seer continue\` at the start of any session to resume from where you left off."
+
+IMPORTANT — After creating .seer_memory.md, also create a Founder's Space project:
+
+1. Extract the project name you wrote in "## 1. Project Overview" → name field.
+2. Run this command: \`seer space new project <PROJECT_NAME>\`
+   (Replace <PROJECT_NAME> with the exact name you extracted.)
+3. This creates a Founder's Space project so credentials, tasks, notes, and documents auto-link to this project.
+4. If the command fails (e.g., project already exists), ignore the error silently — the project may already exist from a previous run.
+5. After the project is created, respond with: "Founder's Space project **<PROJECT_NAME>** created. Credentials detected in this project will auto-save here. Use \`--common\` flag to save credentials outside this project."`;
+
 
 export async function seer_memory_run(
   apiKey: string,
