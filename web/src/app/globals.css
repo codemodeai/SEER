@@ -32,8 +32,8 @@
   --color-d-surface-hover: #333333;
   --color-d-border: #3D3D3D;
   --color-d-text: #F0F0F0;
-  --color-d-text-secondary: #B0B0B0;
-  --color-d-text-muted: #808080;
+  --color-d-text-secondary: #C0C0C0;
+  --color-d-text-muted: #A0A0A0;
 
   --font-display: "Instrument Serif", "Georgia", serif;
   --font-body: "DM Sans", "Helvetica Neue", sans-serif;
@@ -109,11 +109,21 @@
   /* Hover states */
   html[data-theme="dark"] .hover\:bg-cream-dark:hover { background-color: var(--color-d-surface-hover); }
   html[data-theme="dark"] .hover\:bg-sand:hover { background-color: var(--color-d-surface-hover); }
+  html[data-theme="dark"] .hover\:bg-sand\/30:hover { background-color: var(--color-d-surface-hover); }
   html[data-theme="dark"] .hover\:text-charcoal:hover { color: var(--color-d-text); }
 
+  /* Sand opacity variants */
+  html[data-theme="dark"] .bg-sand\/30 { background-color: color-mix(in srgb, var(--color-d-border) 50%, transparent); }
+  html[data-theme="dark"] .bg-sand\/40 { background-color: color-mix(in srgb, var(--color-d-border) 60%, transparent); }
+  html[data-theme="dark"] .bg-sand\/60 { background-color: color-mix(in srgb, var(--color-d-border) 80%, transparent); }
+
   /* Specific component overrides */
-  html[data-theme="dark"] .bg-cream-dark\/50 { background-color: color-mix(in srgb, var(--color-d-surface-hover) 50%, transparent); }
+  html[data-theme="dark"] .bg-cream\/50 { background-color: var(--color-d-surface-hover); }
+  html[data-theme="dark"] .bg-cream\/30 { background-color: color-mix(in srgb, var(--color-d-surface-hover) 60%, transparent); }
+  html[data-theme="dark"] .bg-cream-dark\/50 { background-color: var(--color-d-surface-hover); }
+  html[data-theme="dark"] .hover\:bg-cream\/30:hover { background-color: var(--color-d-surface-hover); }
   html[data-theme="dark"] .hover\:bg-cream-dark\/50:hover { background-color: color-mix(in srgb, var(--color-d-surface-hover) 70%, transparent); }
+  html[data-theme="dark"] .hover\:bg-red-50:hover { background-color: rgba(220, 38, 38, 0.15); }
 
   /* Shadow overrides */
   html[data-theme="dark"] .hover\:shadow-md:hover { --tw-shadow-color: rgba(0,0,0,0.3); }
