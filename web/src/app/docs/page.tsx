@@ -85,7 +85,7 @@ function simulateWorkflow(input: string): string {
 }
 
 function simulateMemory(input: string): string {
-  return `Query: "${input}"\n\nFound 3 matches:\n\n1. [0.94] Architecture: Remote HTTP MCP on Vercel\n   "Decided on StreamableHTTP transport for serverless..."\n\n2. [0.89] Decision: Haiku for AI calls only\n   "Max 800 tokens per call, ~$0.001 cost..."\n\n3. [0.85] Stack: TypeScript / Next.js / Supabase\n   "Supabase for auth + database with RLS..."`;
+  return `Query: "${input}"\n\nFound 3 matches:\n\n1. [0.94] Architecture decision\n   "Chose serverless MCP transport for scalability..."\n\n2. [0.89] Tech stack rationale\n   "Selected current stack for auth + database with RLS..."\n\n3. [0.85] Project conventions\n   "Established coding patterns and deployment workflow..."`;
 }
 
 const TOOLS: Tool[] = [
@@ -95,7 +95,7 @@ const TOOLS: Tool[] = [
     command: "seer <anything>",
     description: "Compress & optimize any prompt via AI",
     longDescription:
-      "The core SEER tool. Send any prompt and SEER compresses it using Haiku AI — reducing tokens while preserving intent. Ideal for long, messy prompts that need tightening.",
+      "The core SEER tool. Send any prompt and SEER compresses it using AI — reducing tokens while preserving intent. Ideal for long, messy prompts that need tightening.",
     icon: Zap,
     color: "text-terracotta",
     bgColor: "bg-terracotta/10",
@@ -180,9 +180,9 @@ const TOOLS: Tool[] = [
     category: "memory",
     example: "seer memory what architecture decisions were made",
     exampleOutput:
-      "Found 5 matches:\n1. Remote HTTP MCP on Vercel — relevance: 0.94\n2. Haiku ONLY for AI calls — relevance: 0.89\n3. Supabase for auth + DB — relevance: 0.87",
+      "Found 5 matches:\n1. Architecture: serverless MCP transport — relevance: 0.94\n2. AI optimization pipeline design — relevance: 0.89\n3. Auth + database setup — relevance: 0.87",
     tips: [
-      "Uses OpenAI text-embedding-3-small for vector search",
+      "Uses AI-powered vector search for semantic matching",
       "Returns relevance scores (0-1) for each result",
       "Requires .seer_memory.md to be initialized first",
     ],
@@ -325,7 +325,7 @@ const TOOLS: Tool[] = [
     command: "seer space <action> [--project NAME]",
     description: "Founder's Space — tasks, credentials, docs, notes",
     longDescription:
-      "Your operational workspace accessible from the terminal. Manage tasks, save encrypted credentials (AES-256), track documents with expiry alerts, and take project notes. Supports 8 actions: add task, tasks, save key, key, docs, note, projects, new project. Use --team flag for agency shared items.",
+      "Your operational workspace accessible from the terminal. Manage tasks, save encrypted credentials, track documents with expiry alerts, and take project notes. Supports 8 actions: add task, tasks, save key, key, docs, note, projects, new project. Use --team flag for agency shared items.",
     icon: Briefcase,
     color: "text-blue-600",
     bgColor: "bg-blue-500/10",
@@ -338,7 +338,7 @@ const TOOLS: Tool[] = [
       "Task created: Build email notifications\nProject: SEER | Status: open | Due: —",
     tips: [
       "8 actions: add task, tasks, save key, key, docs, note, projects, new project",
-      "Credentials are AES-256 encrypted — never shown in plaintext in terminal",
+      "Credentials are securely encrypted — never shown in plaintext in terminal",
       "Use --team flag to share items with your agency team",
     ],
     playgroundPlaceholder: "Try: add task --project MyApp \"Fix login bug\"",
@@ -373,11 +373,11 @@ const TOOLS: Tool[] = [
       "Scans .env, .env.local, .env.production, .env.staging, and config files",
       "Skips placeholders, comments, and SEER's own API key",
       "Auto-detects environment from filename and value prefix (sk_test_ = dev)",
-      "All credentials are AES-256-GCM encrypted before storage",
+      "All credentials are securely encrypted before storage",
     ],
     playgroundPlaceholder: "No input needed — scans your project automatically!",
     simulateOutput: () =>
-      "Found 5 credentials across 2 files:\n\n # | Label                    | Env         | Source\n 1 | STRIPE_SECRET_KEY        | production  | .env\n 2 | DATABASE_URL             | development | .env.local\n 3 | OPENAI_API_KEY           | production  | .env\n 4 | RESEND_API_KEY           | development | .env.local\n 5 | REDIS_URL                | development | .env.local\n\nSave all 5 to Founder's Space? (AES-256-GCM encrypted)\nType yes to save all, or specific numbers (e.g. 1,3,5)",
+      "Found 5 credentials across 2 files:\n\n # | Label                    | Env         | Source\n 1 | STRIPE_SECRET_KEY        | production  | .env\n 2 | DATABASE_URL             | development | .env.local\n 3 | OPENAI_API_KEY           | production  | .env\n 4 | RESEND_API_KEY           | development | .env.local\n 5 | REDIS_URL                | development | .env.local\n\nSave all 5 to Founder's Space? (securely encrypted)\nType yes to save all, or specific numbers (e.g. 1,3,5)",
   },
   {
     id: "seer_tools",
@@ -635,7 +635,7 @@ function Playground() {
         </div>
 
         <p className="text-[10px] text-muted text-center">
-          This is a simulated demo. Actual SEER results use Haiku AI for real-time optimization.{" "}
+          This is a simulated demo. Actual SEER results use AI for real-time optimization.{" "}
           <Link href="/signup" className="text-terracotta hover:underline font-medium">
             Sign up free
           </Link>{" "}

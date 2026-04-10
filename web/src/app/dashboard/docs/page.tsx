@@ -54,7 +54,7 @@ const TOOLS: Tool[] = [
     command: "seer <anything>",
     description: "Compress & optimize any prompt via AI",
     longDescription:
-      "The core SEER tool. Send any prompt and SEER compresses it using Haiku AI — reducing tokens while preserving intent. Ideal for long, messy prompts that need tightening before sending to Claude, GPT, or Gemini.",
+      "The core SEER tool. Send any prompt and SEER compresses it using AI — reducing tokens while preserving intent. Ideal for long, messy prompts that need tightening before sending to Claude, GPT, or Gemini.",
     icon: Zap,
     color: "text-terracotta",
     bgColor: "bg-terracotta/10",
@@ -133,9 +133,9 @@ const TOOLS: Tool[] = [
     category: "memory",
     example: "seer memory what architecture decisions were made",
     exampleOutput:
-      "Found 5 matches:\n1. Remote HTTP MCP on Vercel (not stdio) — relevance: 0.94\n2. Haiku ONLY for AI calls — relevance: 0.89\n3. Supabase for auth + database — relevance: 0.87",
+      "Found 5 matches:\n1. Architecture: serverless MCP transport — relevance: 0.94\n2. AI optimization pipeline design — relevance: 0.89\n3. Auth + database setup — relevance: 0.87",
     tips: [
-      "Uses OpenAI text-embedding-3-small for vector search",
+      "Uses AI-powered vector search for semantic matching",
       "Returns relevance scores (0-1) for each result",
       "Requires .seer_memory.md to be initialized first",
     ],
@@ -261,7 +261,7 @@ const TOOLS: Tool[] = [
     command: "seer space <action> [--project NAME]",
     description: "Founder's Space — tasks, credentials, docs, notes",
     longDescription:
-      "Your operational workspace accessible from the terminal. Manage tasks, save encrypted credentials (AES-256), track documents with expiry alerts, and take project notes. 8 actions: add task, tasks, save key, key, docs, note, projects, new project. Use --team for agency shared items.",
+      "Your operational workspace accessible from the terminal. Manage tasks, save encrypted credentials, track documents with expiry alerts, and take project notes. 8 actions: add task, tasks, save key, key, docs, note, projects, new project. Use --team for agency shared items.",
     icon: Briefcase,
     color: "text-blue-600",
     bgColor: "bg-blue-500/10",
@@ -274,7 +274,7 @@ const TOOLS: Tool[] = [
       "Task created: Build email notifications\nProject: SEER | Status: open | Due: —",
     tips: [
       "8 actions: add task, tasks, save key, key, docs, note, projects, new project",
-      "Credentials are AES-256 encrypted — never shown in plaintext in terminal",
+      "Credentials are securely encrypted — never shown in plaintext in terminal",
       "Use --team flag to share items with your agency team",
     ],
   },
@@ -299,7 +299,7 @@ const TOOLS: Tool[] = [
       "Scans .env, .env.local, .env.production, .env.staging, and config files",
       "Skips placeholders, comments, and SEER's own API key",
       "Auto-detects environment from filename and value prefix (sk_test_ = dev)",
-      "All credentials are AES-256-GCM encrypted before storage",
+      "All credentials are securely encrypted before storage",
     ],
   },
   {

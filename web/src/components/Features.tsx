@@ -36,7 +36,7 @@ const features = [
     title: "Founder's Space",
     description:
       "Your operational workspace — tasks, credentials, documents, and notes. Manage everything from dashboard or terminal via seer space.",
-    detail: "AES-256 encrypted credentials vault",
+    detail: "Encrypted credentials vault",
     color: "accent-blue",
     stats: { label: "Data modules", value: "4" },
   },

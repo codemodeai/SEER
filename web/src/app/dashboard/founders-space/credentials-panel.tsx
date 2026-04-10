@@ -224,7 +224,7 @@ export default function CredentialsPanel({ teamMode = false, selectedProjectId =
             Credentials Vault
           </h3>
           <span className="text-xs text-muted bg-cream-dark px-2 py-0.5 rounded-full">
-            AES-256 Encrypted
+            Encrypted
           </span>
         </div>
         {(!teamMode || canWrite) && (
@@ -248,7 +248,7 @@ export default function CredentialsPanel({ teamMode = false, selectedProjectId =
             No credentials yet
           </h3>
           <p className="text-sm text-muted max-w-sm mx-auto">
-            Store API keys, passwords, and secrets securely with AES-256
+            Store API keys, passwords, and secrets with end-to-end
             encryption. Only you can decrypt them.
           </p>
         </div>

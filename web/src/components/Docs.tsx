@@ -52,7 +52,7 @@ const TOOLS: Tool[] = [
     command: "seer <anything>",
     description: "Compress & optimize any prompt via AI",
     longDescription:
-      "The core SEER tool. Send any prompt and SEER compresses it using Haiku AI — reducing tokens while preserving intent.",
+      "The core SEER tool. Send any prompt and SEER compresses it using AI — reducing tokens while preserving intent.",
     icon: Zap,
     color: "text-terracotta",
     bgColor: "bg-terracotta/10",
@@ -116,7 +116,7 @@ const TOOLS: Tool[] = [
     category: "memory",
     example: "seer memory what architecture decisions were made",
     exampleOutput:
-      "Found 5 matches:\n1. Remote HTTP MCP on Vercel — relevance: 0.94\n2. Haiku ONLY for AI calls — relevance: 0.89\n3. Supabase for auth + DB — relevance: 0.87",
+      "Found 5 matches:\n1. Architecture: serverless MCP transport — relevance: 0.94\n2. AI optimization pipeline design — relevance: 0.89\n3. Auth + database setup — relevance: 0.87",
   },
   {
     id: "seer_memory_run",

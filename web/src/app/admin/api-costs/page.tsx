@@ -62,7 +62,7 @@ export default function AdminApiCostsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-3xl text-charcoal">API Costs & Usage</h1>
-        <p className="text-sm text-muted mt-1">Anthropic Haiku API usage tracking and cost projection</p>
+        <p className="text-sm text-muted mt-1">AI API usage tracking and cost projection</p>
       </div>
 
       {/* KPI cards */}

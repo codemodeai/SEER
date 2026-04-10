@@ -159,7 +159,7 @@ const featureComparison = [
 const faqs = [
   {
     q: "What counts as a 'call'?",
-    a: "Each seer command that uses Haiku AI (prompt optimization, workflow generation, memory search) counts as 1 call. Free commands like 'seer status' and 'seer tools' don't count. Session continue, recall, and session read each cost 1 call.",
+    a: "Each seer command that uses AI (prompt optimization, workflow generation, memory search) counts as 1 call. Free commands like 'seer status' and 'seer tools' don't count. Session continue, recall, and session read each cost 1 call.",
   },
   {
     q: "What are my Claude Code API costs?",
@@ -167,7 +167,7 @@ const faqs = [
   },
   {
     q: "What is Founder's Space?",
-    a: "Founder's Space is an encrypted vault for your project credentials, tasks, notes, and documents. It uses AES-256-GCM encryption. On Starter, it's a $1/mo addon. On Pro and Agency, it's included free.",
+    a: "Founder's Space is a securely encrypted vault for your project credentials, tasks, notes, and documents. On Starter, it's a $1/mo addon. On Pro and Agency, it's included free.",
   },
   {
     q: "How does the Agency team workspace work?",
@@ -187,7 +187,7 @@ const faqs = [
   },
   {
     q: "What models does SEER use?",
-    a: "SEER uses Claude Haiku 4.5 for fast, cost-efficient prompt optimization (~$0.001 per call). Your Claude Code instance continues using whatever model you've configured (Opus, Sonnet, etc.).",
+    a: "SEER uses fast, purpose-built AI for prompt optimization. Your Claude Code instance continues using whatever model you've configured (Opus, Sonnet, etc.) — SEER optimizes the prompt before it reaches your model.",
   },
 ];
 
@@ -494,7 +494,7 @@ export default function PricingPage() {
                 Built-in intelligence at every level
               </h2>
               <p className="mt-3 text-warm-brown-light text-base max-w-xl mx-auto">
-                Automatic features that work behind the scenes — no extra commands needed.
+                Automatic features that work seamlessly — no extra commands needed.
               </p>
             </motion.div>
 
@@ -595,7 +595,7 @@ export default function PricingPage() {
                   title: "With SEER Pro",
                   items: [
                     "First-try success rate >85%",
-                    "~$0.001 per SEER optimization",
+                    "Negligible cost per optimization",
                     "$49/mo flat — saves $40–175/mo",
                     "Persistent project memory",
                     "Auto-generated workflows",
