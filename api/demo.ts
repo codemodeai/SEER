@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { callHaiku, estimateTokens, parseHaikuJson } from "../lib/haiku.js";
-import { SECURITY_ANCHOR } from "../lib/security.js";
+import { callHaiku, estimateTokens, parseHaikuJson } from "../src/lib/haiku.js";
+import { SECURITY_ANCHOR } from "../src/lib/security.js";
 
 // In-memory rate limit: max 2 calls per IP per 24h
 const ipUsage = new Map<string, { count: number; resetAt: number }>();
