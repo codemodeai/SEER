@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /agency/
+Disallow: /api/
+Disallow: /onboarding/
+Disallow: /payment/
+Disallow: /reset-password
+
+Sitemap: https://seermcp.com/sitemap.xml
