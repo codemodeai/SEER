@@ -29,6 +29,7 @@ import {
   Send,
   Loader2,
   Briefcase,
+  ScanSearch,
   type LucideIcon,
 } from "lucide-react";
 
@@ -352,6 +353,33 @@ const TOOLS: Tool[] = [
     },
   },
   {
+    id: "seer_record_credentials",
+    name: "seer record credentials",
+    command: "seer record credentials",
+    description: "Scan project files and batch-save credentials",
+    longDescription:
+      "Scans your project for credential files (.env, .env.local, .env.production, etc.), extracts API keys, tokens, passwords, and connection strings, then batch-saves them to your Founder's Space encrypted vault. Detects 30+ credential patterns including Stripe, AWS, OpenAI, Razorpay, Supabase, and more. Auto-detects environment (dev/staging/prod) from filename and value prefixes.",
+    icon: ScanSearch,
+    color: "text-emerald-600",
+    bgColor: "bg-emerald-500/10",
+    borderColor: "border-emerald-500/20",
+    cost: "1 call",
+    plans: "Starter+ ($1 addon) / Pro+",
+    category: "workspace",
+    example: "seer record credentials",
+    exampleOutput:
+      "Found 9 credentials across 1 file:\n\n # | Label                    | Env  | Source\n 1 | STRIPE_SECRET_KEY        | prod | .env\n 2 | DATABASE_URL             | dev  | .env.local\n 3 | RESEND_API_KEY           | dev  | .env.local\n\nSave all 9 to Founder's Space? (yes/no)",
+    tips: [
+      "Scans .env, .env.local, .env.production, .env.staging, and config files",
+      "Skips placeholders, comments, and SEER's own API key",
+      "Auto-detects environment from filename and value prefix (sk_test_ = dev)",
+      "All credentials are AES-256-GCM encrypted before storage",
+    ],
+    playgroundPlaceholder: "No input needed — scans your project automatically!",
+    simulateOutput: () =>
+      "Found 5 credentials across 2 files:\n\n # | Label                    | Env         | Source\n 1 | STRIPE_SECRET_KEY        | production  | .env\n 2 | DATABASE_URL             | development | .env.local\n 3 | OPENAI_API_KEY           | production  | .env\n 4 | RESEND_API_KEY           | development | .env.local\n 5 | REDIS_URL                | development | .env.local\n\nSave all 5 to Founder's Space? (AES-256-GCM encrypted)\nType yes to save all, or specific numbers (e.g. 1,3,5)",
+  },
+  {
     id: "seer_tools",
     name: "seer tools",
     command: "seer tools",
@@ -375,7 +403,7 @@ const TOOLS: Tool[] = [
     ],
     playgroundPlaceholder: "No input needed — lists all tools!",
     simulateOutput: () =>
-      "SEER Tools (11 total):\n\n Tool           Cost    Plans\n seer run       1 call  All\n seer optimize  1 call  All\n seer workflow  1 call  Starter+\n seer space     1 call  Starter+\n seer memory    1 call  Pro+\n seer status    Free    All\n seer tools     Free    All\n ... and 4 more",
+      "SEER Tools (12 total):\n\n Tool                    Cost    Plans\n seer run                1 call  All\n seer optimize           1 call  All\n seer workflow            1 call  Starter+\n seer space              1 call  Starter+\n seer record credentials 1 call  Starter+\n seer memory             1 call  Pro+\n seer status             Free    All\n seer tools              Free    All\n ... and 4 more",
   },
 ];
 

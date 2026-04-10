@@ -120,6 +120,7 @@
   /* Specific component overrides */
   html[data-theme="dark"] .bg-cream\/50 { background-color: var(--color-d-surface-hover); }
   html[data-theme="dark"] .bg-cream\/30 { background-color: color-mix(in srgb, var(--color-d-surface-hover) 60%, transparent); }
+  html[data-theme="dark"] .bg-cream-dark\/40 { background-color: var(--color-d-surface-hover); }
   html[data-theme="dark"] .bg-cream-dark\/50 { background-color: var(--color-d-surface-hover); }
   html[data-theme="dark"] .hover\:bg-cream\/30:hover { background-color: var(--color-d-surface-hover); }
   html[data-theme="dark"] .hover\:bg-cream-dark\/50:hover { background-color: color-mix(in srgb, var(--color-d-surface-hover) 70%, transparent); }
