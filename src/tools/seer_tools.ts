@@ -89,6 +89,13 @@ export async function seer_tools(apiKey: string): Promise<string> {
       cost: "1 call",
       plans: ["starter", "pro", "agency"],
     },
+    {
+      name: "seer record credentials",
+      usage: "`seer record credentials`",
+      description: "Scan project files (.env, configs) for credentials and batch-save to Founder's Space",
+      cost: "1 call",
+      plans: ["starter", "pro", "agency"],
+    },
   ];
 
   // Features
@@ -159,6 +166,7 @@ export async function seer_tools(apiKey: string): Promise<string> {
   output += `- Break down goal: \`seer workflow deploy to production\`\n`;
   output += `- Initialize memory: \`seer memory run\`\n`;
   output += `- Save session: \`seer session read\`\n`;
+  output += `- Record credentials: \`seer record credentials\`\n`;
 
   return output;
 }

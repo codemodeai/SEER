@@ -27,6 +27,8 @@ const CONTINUE_PATTERNS = /^(continue|resume|pick up|where was i|where did i lea
 
 const CALLBACK_MEMORY_PATTERNS = /^(what did i do|what have i done|recall|recap|history|show memory|show session|what was my last task|what happened|summary|what did we do|what was i working on|last session|previous session|show progress|what's done|whats done|show tasks|open tasks|what's left|whats left|remaining tasks)$/i;
 
+const RECORD_CREDENTIALS_PATTERN = /^record\s*cred(ential)?s?$/i;
+
 const CONTINUE_INSTRUCTION = `SEER INSTRUCTION — Resume from where you left off
 
 Read .seer_memory.md from the project root. Then present a concise resume brief:
@@ -93,6 +95,94 @@ After answering, also update .seer_memory.md:
 1. Append under "## 5. Session Log": [${timestamp}] seer_callback_memory — ${query}
 2. Update "## 2. Current Status" → last_updated to ${timestamp}`;
 }
+
+// --- Record credentials instruction (scans project files for credentials → saves to Founder's Space) ---
+
+const RECORD_CREDENTIALS_INSTRUCTION = `SEER INSTRUCTION — Scan project files for credentials and save them to Founder's Space
+
+You will scan the user's project for credential files, extract all credentials, and batch-save them to the encrypted Founder's Space vault.
+
+**STEP 1 — Find credential files**
+
+Use the Glob tool to find these files in the project root:
+- \`.env\`, \`.env.local\`, \`.env.development\`, \`.env.production\`, \`.env.staging\`, \`.env.test\`
+- \`.env.example\` (skip this — it usually has placeholder values)
+- Any file matching \`*.env\`, \`.env.*\` (except \`.env.example\`, \`.env.sample\`, \`.env.template\`)
+- \`docker-compose.yml\`, \`docker-compose.yaml\` (may contain environment variables)
+
+**STEP 2 — Read and extract credentials**
+
+For each file found, read its contents and extract key=value pairs where the key suggests a credential:
+- Keys containing: API_KEY, SECRET, TOKEN, PASSWORD, PASS, PWD, AUTH, CREDENTIAL, ACCESS_KEY, PRIVATE_KEY, CLIENT_SECRET, APP_SECRET, WEBHOOK_SECRET, SIGNING_SECRET, ENCRYPTION_KEY, DATABASE_URL, REDIS_URL, MONGODB_URI, CONNECTION_STRING
+- Provider-specific values: \`sk_live_\`, \`sk_test_\`, \`pk_live_\`, \`AKIA\`, \`sk-\`, \`ghp_\`, \`github_pat_\`, \`SG.\`, \`re_\`, \`rzp_\`, \`AIza\`, \`eyJhbGci\`
+- Connection strings: \`mongodb://\`, \`postgres://\`, \`mysql://\`, \`redis://\`, \`amqp://\`
+
+**Skip these:**
+- Empty values, placeholder values (\`your_key_here\`, \`xxx\`, \`changeme\`, \`TODO\`, \`REPLACE_ME\`, \`<your-key>\`)
+- Comments (lines starting with #)
+- SEER's own API key (\`sk-seer-*\`)
+- Keys that are clearly non-sensitive: \`NODE_ENV\`, \`PORT\`, \`HOST\`, \`NEXT_PUBLIC_*\` (unless they contain a real secret value)
+
+**STEP 3 — Detect environment**
+
+For each credential, determine the environment:
+- If from \`.env.production\` → production
+- If from \`.env.development\` or \`.env.local\` → development
+- If from \`.env.staging\` → staging
+- If value starts with \`sk_test_\`, \`rzp_test_\`, \`pk_test_\` → development
+- Default → production
+
+**STEP 4 — Present findings and confirm**
+
+Display to the user:
+
+---
+**🔐 SEER — Credential Scan Results**
+
+Found **[N]** credentials across **[M]** files:
+
+| # | Label | Environment | Source File |
+|---|-------|-------------|-------------|
+| 1 | STRIPE_SECRET_KEY | production | .env |
+| 2 | DATABASE_URL | development | .env.local |
+| ... | ... | ... | ... |
+
+**Save all [N] credentials to Founder's Space?** (AES-256-GCM encrypted)
+- Type **yes** to save all
+- Type the numbers to save specific ones (e.g., "1, 3, 5")
+- Type **no** to cancel
+
+> Credentials will be auto-assigned to your most recent Founder's Space project.
+> Values are encrypted and NEVER displayed in the terminal after saving.
+
+---
+
+**STEP 5 — Save on confirmation**
+
+When the user confirms:
+- For "yes" / "all" / "save" / "go ahead": save ALL found credentials
+- For specific numbers: save only those credentials
+- For "no" / "cancel" / "skip": cancel and do nothing
+
+To save each credential, call the seer_run MCP tool with input:
+\`space save key LABEL=value --env [environment]\`
+
+Save them one by one. After all saves complete, display:
+
+---
+**✅ Saved [N] credentials to Founder's Space**
+
+All credentials are AES-256-GCM encrypted. View and manage them at:
+seermcp.com/dashboard/founders-space
+
+---
+
+**Rules:**
+- NEVER display credential values in full — mask them (show first 4 + last 4 chars, e.g., \`sk_l...xY9z\`)
+- If no credential files are found, say: "No credential files found in this project. Create a \`.env\` file or use \`seer space save key LABEL=value\` to save credentials manually."
+- If no credentials are found in the files, say: "Found credential files but no secrets detected. All values appear to be placeholders or non-sensitive."
+- Do NOT save the same credential twice — if a label already exists in Founder's Space, skip it and note "(already saved)"
+- After saving, wait for user's next instruction`;
 
 // --- System prompts for Haiku compression ---
 
@@ -195,6 +285,39 @@ export async function seer_run(
     const instruction = buildCallbackInstruction(trimmedInput);
     const callbackResult = appendSuggestInstruction(instruction, "seer_callback_memory", trimmedInput, user.suggestion_skin, user.auto_suggest);
     return conflict.warning + usageWarning + (mfa.nudge ? callbackResult + mfa.nudge : callbackResult);
+  }
+
+  // 1f. Route "seer record credentials" — 1 call, no Haiku cost
+  if (RECORD_CREDENTIALS_PATTERN.test(trimmedInput)) {
+    const limit = PLAN_LIMITS[user.plan] ?? 0;
+    if (user.usage_this_month >= limit) {
+      return JSON.stringify({ error: `Limit reached (${user.usage_this_month}/${limit}). Upgrade at seer.ai/upgrade` });
+    }
+
+    // Check fs_access — requires Founder's Space
+    if (!user.fs_access) {
+      const addon = user.plan === "starter"
+        ? "Add it for $1/mo: seermcp.com/dashboard/founders-space"
+        : user.plan === "free"
+          ? "Available on Starter ($8/mo + $1/mo addon), Pro ($19/mo, included), or Agency ($39/mo, included)."
+          : "Your plan includes it — contact support to enable.";
+      return `**Error:** Founder's Space is required for credential recording.\n\n${addon}`;
+    }
+
+    await supabase.from("users").update({ usage_this_month: user.usage_this_month + 1 }).eq("id", user.id);
+    await logSeerCall({
+      user_id: user.id,
+      raw_input: trimmedInput,
+      raw_tokens: 0,
+      optimized_tokens: 0,
+      tokens_saved: 0,
+      pct_saved: 0,
+      tool_used: "seer_record_credentials",
+      surface,
+    });
+    const usageWarning = buildUsageWarning(user.plan, user.usage_this_month + 1, limit);
+    const recordResult = appendSuggestInstruction(RECORD_CREDENTIALS_INSTRUCTION, "seer_record_credentials", trimmedInput, user.suggestion_skin, user.auto_suggest);
+    return appendMemoryLog(conflict.warning + usageWarning + (mfa.nudge ? recordResult + mfa.nudge : recordResult), "seer_record_credentials", trimmedInput, user.suggestion_skin, user.auto_suggest, apiKey);
   }
 
   // 2. Check plan limit
