@@ -8,4 +8,4 @@ Disallow: /onboarding/
 Disallow: /payment/
 Disallow: /reset-password
 
-Sitemap: https://seermcp.com/sitemap.xml
+Sitemap: https://www.seermcp.com/sitemap.xml
