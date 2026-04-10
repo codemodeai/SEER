@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Copy, Check, ArrowRight, Terminal, Loader2 } from "lucide-react";
 
-const DEMO_API = "https://mcp.seermcp.com/api/demo";
+const DEMO_API = "/api/demo";
 const MAX_DEMOS = 2;
 const STORAGE_KEY = "seer_demo_usage";
 
