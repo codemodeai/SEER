@@ -24,6 +24,7 @@ import {
   FileText,
   Building2,
   Briefcase,
+  Bug,
 } from "lucide-react";
 
 const sidebarLinks = [
@@ -36,6 +37,7 @@ const sidebarLinks = [
   { label: "Security", href: "/dashboard/security", icon: ShieldCheck },
   { label: "Billing", href: "/dashboard/billing", icon: CreditCard },
   { label: "Updates", href: "/dashboard/updates", icon: Zap },
+  { label: "Debug", href: "/dashboard/debug", icon: Bug },
   { label: "Help & Support", href: "/dashboard/help", icon: HelpCircle },
 ];
 
