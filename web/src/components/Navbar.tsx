@@ -27,11 +27,13 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         {/* Logo */}
         <a href="/" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-lg bg-terracotta flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-            <span className="text-white font-display font-bold text-sm tracking-tight">
-              S
-            </span>
-          </div>
+          <img
+            src="/logo.png"
+            alt="SEER"
+            width={32}
+            height={32}
+            className="rounded-lg shadow-sm group-hover:shadow-md transition-shadow"
+          />
           <span className="font-display text-xl text-charcoal tracking-tight">
             SEER
           </span>

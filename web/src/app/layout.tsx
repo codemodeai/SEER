@@ -5,6 +5,41 @@ export const metadata: Metadata = {
   title: "SEER — AI Prompt Intelligence Platform",
   description:
     "Optimize every prompt. Structure every workflow. Remember every context. SEER is the MCP server that makes Claude Code smarter.",
+  icons: {
+    icon: [
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
+  manifest: "/site.webmanifest",
+  openGraph: {
+    title: "SEER — AI Prompt Intelligence Platform",
+    description:
+      "Optimize every prompt. Structure every workflow. Remember every context. SEER is the MCP server that makes Claude Code smarter.",
+    url: "https://seermcp.com",
+    siteName: "SEER",
+    images: [
+      {
+        url: "https://seermcp.com/og-image.png",
+        width: 250,
+        height: 250,
+        alt: "SEER Logo",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "SEER — AI Prompt Intelligence Platform",
+    description:
+      "Optimize every prompt. Structure every workflow. Remember every context.",
+    images: ["https://seermcp.com/og-image.png"],
+  },
+  other: {
+    "theme-color": "#D97757",
+  },
 };
 
 export default function RootLayout({
