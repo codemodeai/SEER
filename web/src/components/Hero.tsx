@@ -92,56 +92,6 @@ export default function Hero() {
           </a>
         </motion.div>
 
-        {/* Terminal preview */}
-        <motion.div
-          className="mt-16 max-w-2xl mx-auto"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.55 }}
-        >
-          <div className="relative rounded-2xl overflow-hidden bg-charcoal shadow-2xl shadow-charcoal/15 border border-charcoal-light/30">
-            <div className="flex items-center gap-2 px-5 py-3 border-b border-white/5">
-              <div className="w-3 h-3 rounded-full bg-red-400/70" />
-              <div className="w-3 h-3 rounded-full bg-yellow-400/70" />
-              <div className="w-3 h-3 rounded-full bg-green-400/70" />
-              <span className="ml-3 text-[11px] text-white/30 font-mono">
-                claude-code
-              </span>
-            </div>
-            <div className="p-6 font-mono text-sm leading-relaxed">
-              <div className="text-white/40">
-                <span className="text-accent-sage">$</span> seer build the
-                login page with OAuth
-              </div>
-              <div className="mt-4 text-white/60">
-                <span className="text-terracotta-light">SEER</span>{" "}
-                <span className="text-white/30">|</span> Optimizing prompt...
-              </div>
-              <div className="mt-1 text-white/60">
-                <span className="text-terracotta-light">SEER</span>{" "}
-                <span className="text-white/30">|</span> Tokens:{" "}
-                <span className="text-white/80">47 → 28</span>{" "}
-                <span className="text-accent-sage">(-40%)</span>
-              </div>
-              <div className="mt-1 text-white/60">
-                <span className="text-terracotta-light">SEER</span>{" "}
-                <span className="text-white/30">|</span> Workflow: 5 steps
-                generated
-              </div>
-              <div className="mt-1 text-white/60">
-                <span className="text-terracotta-light">SEER</span>{" "}
-                <span className="text-white/30">|</span> Context: 3 memories
-                injected
-              </div>
-              <div className="mt-3 text-white/30">
-                ───────────────────────────────
-              </div>
-              <div className="mt-2 text-accent-sage/80">
-                ✓ Claude Code executing optimized workflow...
-              </div>
-            </div>
-          </div>
-        </motion.div>
       </div>
     </section>
   );

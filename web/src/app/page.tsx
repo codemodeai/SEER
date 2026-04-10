@@ -1,5 +1,6 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
+import TerminalDemo from "@/components/TerminalDemo";
 import Features from "@/components/Features";
 import HowItWorks from "@/components/HowItWorks";
 import Surfaces from "@/components/Surfaces";
@@ -13,6 +14,7 @@ export default function Home() {
       <Navbar />
       <main>
         <Hero />
+        <TerminalDemo />
         <Features />
         <HowItWorks />
         <Surfaces />
