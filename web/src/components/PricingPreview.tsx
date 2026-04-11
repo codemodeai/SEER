@@ -1,12 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Check, Star, ArrowRight } from "lucide-react";
 
 const plans = [
   {
     name: "Free",
-    price: 0,
+    monthlyPrice: 0,
+    annualPrice: 0,
     period: "forever",
     calls: "50 calls/mo",
     features: ["Prompt optimization", "Basic dashboard", "1 surface"],
@@ -14,7 +16,8 @@ const plans = [
   },
   {
     name: "Starter",
-    price: 19,
+    monthlyPrice: 19,
+    annualPrice: 15,
     period: "/month",
     calls: "200 calls/mo",
     features: ["Workflows", "Founder's Space", "All 4 surfaces"],
@@ -22,7 +25,8 @@ const plans = [
   },
   {
     name: "Pro",
-    price: 49,
+    monthlyPrice: 49,
+    annualPrice: 39,
     period: "/month",
     calls: "1,000 calls/mo",
     features: ["Context memory", "Founder's Space", "Priority support"],
@@ -30,7 +34,8 @@ const plans = [
   },
   {
     name: "Agency",
-    price: 59,
+    monthlyPrice: 59,
+    annualPrice: 47,
     period: "/month",
     calls: "Unlimited",
     features: ["Team workspace", "Shared memory", "Activity tracking"],
@@ -39,11 +44,13 @@ const plans = [
 ];
 
 export default function PricingPreview() {
+  const [isAnnual, setIsAnnual] = useState(false);
+
   return (
     <section id="pricing" className="py-28 md:py-36 relative bg-ivory grain">
       <div className="relative z-10 max-w-7xl mx-auto px-6">
         <motion.div
-          className="text-center max-w-2xl mx-auto mb-16"
+          className="text-center max-w-2xl mx-auto mb-10"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
@@ -59,6 +66,52 @@ export default function PricingPreview() {
             Each failed Claude Code prompt costs ~$1.00–1.50 in API calls. SEER
             eliminates retries — paying for itself in the first week.
           </p>
+        </motion.div>
+
+        {/* Billing Toggle */}
+        <motion.div
+          className="flex items-center justify-center gap-4 mb-12"
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          <span
+            className={`text-sm font-medium transition-colors ${
+              !isAnnual ? "text-charcoal" : "text-muted"
+            }`}
+          >
+            Monthly
+          </span>
+          <button
+            onClick={() => setIsAnnual(!isAnnual)}
+            className={`relative w-14 h-7 rounded-full transition-colors ${
+              isAnnual ? "bg-terracotta" : "bg-sand"
+            }`}
+            aria-label="Toggle annual billing"
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-6 h-6 rounded-full bg-white shadow-md transition-transform ${
+                isAnnual ? "translate-x-7" : "translate-x-0"
+              }`}
+            />
+          </button>
+          <span
+            className={`text-sm font-medium transition-colors ${
+              isAnnual ? "text-charcoal" : "text-muted"
+            }`}
+          >
+            Annual
+          </span>
+          {isAnnual && (
+            <motion.span
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="ml-1 px-2.5 py-0.5 rounded-full bg-accent-sage/15 text-accent-sage text-xs font-semibold"
+            >
+              Save ~20%
+            </motion.span>
+          )}
         </motion.div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -94,14 +147,28 @@ export default function PricingPreview() {
                 <span
                   className={`font-display text-4xl md:text-5xl tracking-tight ${plan.popular ? "text-white" : "text-charcoal"}`}
                 >
-                  ${plan.price}
+                  ${isAnnual ? plan.annualPrice : plan.monthlyPrice}
                 </span>
                 <span
                   className={`text-sm ${plan.popular ? "text-white/50" : "text-muted"}`}
                 >
-                  {plan.period}
+                  {plan.monthlyPrice === 0
+                    ? plan.period
+                    : isAnnual
+                      ? "/mo, billed yearly"
+                      : plan.period}
                 </span>
               </div>
+
+              {isAnnual && plan.monthlyPrice > 0 && (
+                <div className="mt-1">
+                  <span
+                    className={`text-sm line-through ${plan.popular ? "text-white/30" : "text-muted/60"}`}
+                  >
+                    ${plan.monthlyPrice}/mo
+                  </span>
+                </div>
+              )}
 
               <div
                 className={`mt-5 inline-flex self-start px-3 py-1 rounded-lg text-xs font-semibold ${

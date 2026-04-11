@@ -40,12 +40,14 @@ export async function POST(req: NextRequest) {
       razorpay_subscription_id,
       razorpay_signature,
       plan,
+      billing = "monthly",
       agencyConfig,
     } = body as {
       razorpay_payment_id: string;
       razorpay_subscription_id: string;
       razorpay_signature: string;
       plan: string;
+      billing?: "monthly" | "annual";
       agencyConfig?: {
         agencyName: string;
         memberTier: string;
@@ -55,6 +57,8 @@ export async function POST(req: NextRequest) {
         enabledFeatures: Record<string, boolean>;
       };
     };
+
+    const isAnnual = billing === "annual";
 
     if (!razorpay_payment_id || !razorpay_subscription_id || !razorpay_signature || !plan) {
       return NextResponse.json({ error: "Missing payment details" }, { status: 400 });
@@ -91,6 +95,7 @@ export async function POST(req: NextRequest) {
         provider_sub_id: razorpay_subscription_id,
         plan,
         status: "active",
+        billing_cycle: billing,
       },
       { onConflict: "user_id,provider" }
     );
@@ -101,12 +106,16 @@ export async function POST(req: NextRequest) {
 
     // Create invoice for this payment
     const agencyTotal = agencyConfig ? agencyConfig.basePrice + agencyConfig.addonPrice : 0;
-    const USD_PRICES: Record<string, number> = { starter: 19, pro: 49, agency: agencyTotal || 59 };
-    const amountUsd = USD_PRICES[plan] ?? 0;
+    const USD_MONTHLY: Record<string, number> = { starter: 19, pro: 49, agency: agencyTotal || 59 };
+    const USD_ANNUAL: Record<string, number> = { starter: 15, pro: 39, agency: agencyTotal || 47 };
+    const monthlyUsd = (isAnnual ? USD_ANNUAL : USD_MONTHLY)[plan] ?? 0;
+    const amountUsd = isAnnual ? monthlyUsd * 12 : monthlyUsd;
     const amountInr = await usdToInr(amountUsd);
     const now = new Date();
     const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-    const periodEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
+    const periodEnd = isAnnual
+      ? new Date(Date.UTC(now.getUTCFullYear() + 1, now.getUTCMonth(), 0))
+      : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
 
     const { error: invoiceError } = await admin.from("invoices").insert({
       user_id: user.id,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PLANS } from "@/lib/plans";
+import { PLANS, type BillingCycle, getEffectivePrice, getTotalCharge } from "@/lib/plans";
 import { getUsdToInr } from "@/lib/exchange-rate";
 
 // Use test.dodopayments.com for test keys, live.dodopayments.com for production
@@ -15,11 +15,12 @@ function isConfigured(): boolean {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { plan, userId, email, preferredProvider } = body as {
+    const { plan, userId, email, preferredProvider, billing = "monthly" } = body as {
       plan: string;
       userId: string;
       email: string;
       preferredProvider?: "razorpay" | "dodo";
+      billing?: BillingCycle;
     };
 
     const planConfig = PLANS[plan];
@@ -31,13 +32,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Free plan needs no payment" }, { status: 400 });
     }
 
+    const isAnnual = billing === "annual";
+    const effectiveMonthlyUsd = getEffectivePrice(planConfig, billing);
+    const totalChargeUsd = getTotalCharge(planConfig, billing);
+
     // --- DEMO MODE: when payment keys aren't configured ---
     if (!isConfigured()) {
       return NextResponse.json({
         provider: "demo",
         plan: planConfig.name,
-        priceUsd: planConfig.priceUsd,
-        message: `Payment gateway not configured yet. In production, this will redirect to checkout for the ${planConfig.name} plan at $${planConfig.priceUsd}/mo.`,
+        priceUsd: effectiveMonthlyUsd,
+        billing,
+        message: `Payment gateway not configured yet. In production, this will redirect to checkout for the ${planConfig.name} plan at $${effectiveMonthlyUsd}/mo${isAnnual ? ` (billed $${totalChargeUsd}/yr)` : ""}.`,
       });
     }
 
@@ -63,6 +69,9 @@ export async function POST(req: NextRequest) {
       useRazorpay = hasRazorpay && (isIndia || !hasDodo || isDev);
     }
 
+    const razorpayPlanId = isAnnual ? planConfig.razorpayAnnualPlanId : planConfig.razorpayPlanId;
+    const dodoPriceId = isAnnual ? planConfig.dodoAnnualPriceId : planConfig.dodoPriceId;
+
     console.log("Checkout routing:", {
       country,
       hasRazorpay,
@@ -71,7 +80,8 @@ export async function POST(req: NextRequest) {
       isIndia,
       useRazorpay,
       plan,
-      planId: planConfig.razorpayPlanId,
+      billing,
+      planId: razorpayPlanId,
     });
 
     if (useRazorpay) {
@@ -87,8 +97,8 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      if (!planConfig.razorpayPlanId) {
-        console.error("Razorpay plan ID missing for plan:", plan);
+      if (!razorpayPlanId) {
+        console.error("Razorpay plan ID missing for plan:", plan, "billing:", billing);
         return NextResponse.json(
           { error: `Plan configuration error for ${planConfig.name}. Please contact support.` },
           { status: 500 }
@@ -106,10 +116,10 @@ export async function POST(req: NextRequest) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          plan_id: planConfig.razorpayPlanId,
-          total_count: 12,
+          plan_id: razorpayPlanId,
+          total_count: isAnnual ? 1 : 12,
           quantity: 1,
-          notes: { user_id: userId, email, seer_plan: plan },
+          notes: { user_id: userId, email, seer_plan: plan, billing },
         }),
       });
 
@@ -118,7 +128,7 @@ export async function POST(req: NextRequest) {
         console.error("Razorpay subscription error:", {
           status: subRes.status,
           body: errText,
-          planId: planConfig.razorpayPlanId,
+          planId: razorpayPlanId,
           keyPrefix: razorpayKey?.substring(0, 12),
         });
         let detail = "";
@@ -144,10 +154,11 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      console.log("Razorpay subscription created:", { subscriptionId: sub.id, plan });
+      console.log("Razorpay subscription created:", { subscriptionId: sub.id, plan, billing });
 
       const rate = await getUsdToInr();
-      const subtotalInr = Math.round(planConfig.priceUsd * rate);
+      const chargeUsd = isAnnual ? totalChargeUsd : effectiveMonthlyUsd;
+      const subtotalInr = Math.round(chargeUsd * rate);
       const gstAmount = Math.round(subtotalInr * 0.18);
       const totalInrWithGst = subtotalInr + gstAmount;
 
@@ -158,7 +169,9 @@ export async function POST(req: NextRequest) {
         amount: totalInrWithGst * 100,
         currency: "INR",
         planName: planConfig.name,
-        priceUsd: planConfig.priceUsd,
+        priceUsd: effectiveMonthlyUsd,
+        totalChargeUsd: chargeUsd,
+        billing,
         subtotalInr,
         gstAmount,
         totalInr: totalInrWithGst,
@@ -172,10 +185,10 @@ export async function POST(req: NextRequest) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          product_cart: [{ product_id: planConfig.dodoPriceId, quantity: 1 }],
+          product_cart: [{ product_id: dodoPriceId, quantity: 1 }],
           customer: { email, name: email.split("@")[0] },
-          return_url: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/payment/success?plan=${plan}&price=${planConfig.priceUsd}`,
-          metadata: { user_id: userId, seer_plan: plan },
+          return_url: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/payment/success?plan=${plan}&price=${effectiveMonthlyUsd}&billing=${billing}`,
+          metadata: { user_id: userId, seer_plan: plan, billing },
         }),
       });
 
@@ -196,6 +209,7 @@ export async function POST(req: NextRequest) {
         provider: "dodo",
         checkoutUrl: dodoData.checkout_url,
         sessionId: dodoData.session_id,
+        billing,
       });
     }
   } catch (err) {

@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
       totalPrice,
       enabledFeatures,
       preferredProvider,
+      billing = "monthly",
     } = body as {
       userId: string;
       email: string;
@@ -33,7 +34,10 @@ export async function POST(req: NextRequest) {
       totalPrice: number;
       enabledFeatures: Record<string, boolean>;
       preferredProvider?: "razorpay" | "dodo";
+      billing?: "monthly" | "annual";
     };
+
+    const isAnnual = billing === "annual";
 
     // Validate
     if (!userId || !email) {
@@ -71,7 +75,7 @@ export async function POST(req: NextRequest) {
     if (!isConfigured()) {
       return NextResponse.json({
         provider: "demo",
-        message: `Agency "${agencyName}" — ${memberTier} members — $${totalPrice}/mo. Configure payment keys to proceed.`,
+        message: `Agency "${agencyName}" — ${memberTier} members — $${totalPrice}/${isAnnual ? "yr" : "mo"}. Configure payment keys to proceed.`,
       });
     }
 
@@ -92,6 +96,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Agency product not configured for Dodo" }, { status: 500 });
       }
 
+      const dodoAnnualProductId = process.env.DODO_AGENCY_ANNUAL_PRICE_ID ?? "";
+      const productId = isAnnual && dodoAnnualProductId ? dodoAnnualProductId : dodoAgencyProductId;
+
       const dodoRes = await fetch(`${DODO_API_URL}/checkouts`, {
         method: "POST",
         headers: {
@@ -99,12 +106,13 @@ export async function POST(req: NextRequest) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          product_cart: [{ product_id: dodoAgencyProductId, quantity: 1 }],
+          product_cart: [{ product_id: productId, quantity: 1 }],
           customer: { email, name: email.split("@")[0] },
-          return_url: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/payment/success?plan=agency&price=${totalPrice}`,
+          return_url: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/payment/success?plan=agency&price=${totalPrice}&billing=${billing}`,
           metadata: {
             user_id: userId,
             seer_plan: "agency",
+            billing,
             agency_name: agencyName,
             member_tier: memberTier,
             max_users: String(maxUsers),
@@ -145,7 +153,8 @@ export async function POST(req: NextRequest) {
 
     const auth = Buffer.from(`${razorpayKey}:${razorpaySecret}`).toString("base64");
     const rate = await getUsdToInr();
-    const subtotalInr = Math.round(totalPrice * rate);
+    const chargeUsd = isAnnual ? totalPrice * 12 : totalPrice;
+    const subtotalInr = Math.round(chargeUsd * rate);
     const gstAmount = Math.round(subtotalInr * 0.18);
     const totalInrWithGst = subtotalInr + gstAmount;
     const amountPaise = totalInrWithGst * 100;
@@ -158,16 +167,19 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        period: "monthly",
+        period: isAnnual ? "yearly" : "monthly",
         interval: 1,
         item: {
-          name: `SEER Agency — ${memberTier} members`,
+          name: `SEER Agency — ${memberTier} members${isAnnual ? " (Annual)" : ""}`,
           amount: amountPaise,
           currency: "INR",
-          description: `Agency plan: ${agencyName} (${memberTier} members, $${totalPrice}/mo)`,
+          description: isAnnual
+            ? `Agency plan: ${agencyName} (${memberTier} members, $${totalPrice}/mo billed annually)`
+            : `Agency plan: ${agencyName} (${memberTier} members, $${totalPrice}/mo)`,
         },
         notes: {
           seer_plan: "agency",
+          billing,
           member_tier: memberTier,
           max_users: String(maxUsers),
           addon_price: String(addonPrice),
@@ -196,12 +208,13 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         plan_id: plan.id,
-        total_count: 12,
+        total_count: isAnnual ? 1 : 12,
         quantity: 1,
         notes: {
           user_id: userId,
           email,
           seer_plan: "agency",
+          billing,
           agency_name: agencyName,
           member_tier: memberTier,
           max_users: String(maxUsers),
@@ -246,6 +259,8 @@ export async function POST(req: NextRequest) {
       currency: "INR",
       planName: `Agency — ${memberTier} members`,
       priceUsd: totalPrice,
+      totalChargeUsd: chargeUsd,
+      billing,
       subtotalInr,
       gstAmount,
       totalInr: totalInrWithGst,

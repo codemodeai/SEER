@@ -24,7 +24,8 @@ const plans = [
   {
     id: "free",
     name: "Free",
-    price: 0,
+    monthlyPrice: 0,
+    annualPrice: 0,
     period: "forever",
     tagline: "Try SEER with basic optimization",
     calls: "50 calls/mo",
@@ -50,7 +51,8 @@ const plans = [
   {
     id: "starter",
     name: "Starter",
-    price: 19,
+    monthlyPrice: 19,
+    annualPrice: 15,
     period: "/month",
     tagline: "Workflows & Founder's Space for serious projects",
     calls: "200 calls/mo",
@@ -75,7 +77,8 @@ const plans = [
   {
     id: "pro",
     name: "Pro",
-    price: 49,
+    monthlyPrice: 49,
+    annualPrice: 39,
     period: "/month",
     tagline: "Full power — memory, workflows, everything",
     calls: "1,000 calls/mo",
@@ -97,7 +100,8 @@ const plans = [
   {
     id: "agency",
     name: "Agency",
-    price: 59,
+    monthlyPrice: 59,
+    annualPrice: 47,
     period: "/month",
     tagline: "Team portal with shared memory & activity tracking",
     calls: "Unlimited calls",
@@ -174,6 +178,10 @@ const faqs = [
     a: "Agency includes 1–5 team members with shared project memory, real-time activity tracking, and conflict detection. When two members work on the same feature, SEER warns them automatically. Need more members? Add +$50 per 5 extra seats.",
   },
   {
+    q: "How does annual billing work?",
+    a: "Annual billing saves you ~20% compared to monthly. You pay upfront for the full year at the discounted rate. For example, Pro is $39/mo billed annually ($468/yr) instead of $49/mo ($588/yr) — saving you $120. You can switch between monthly and annual at any time.",
+  },
+  {
     q: "Can I upgrade or downgrade anytime?",
     a: "Yes. Upgrade takes effect immediately with prorated billing. Downgrade takes effect at the end of your current billing cycle. You keep access to all features until then.",
   },
@@ -197,6 +205,7 @@ export default function PricingPage() {
   const [loading, setLoading] = useState<string | null>(null);
   const [userId, setUserId] = useState("");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [isAnnual, setIsAnnual] = useState(false);
 
   useEffect(() => {
     async function fetchUser() {
@@ -210,20 +219,23 @@ export default function PricingPage() {
   }, []);
 
   function handleCheckout(planId: string) {
+    const billing = isAnnual ? "annual" : "monthly";
     if (planId === "free") {
       window.location.href = "/signup?plan=free";
       return;
     }
     if (planId === "agency") {
-      window.location.href = userId ? "/agency/setup" : "/signup?plan=agency";
+      window.location.href = userId
+        ? `/agency/setup${isAnnual ? "?billing=annual" : ""}`
+        : `/signup?plan=agency&billing=${billing}`;
       return;
     }
     if (!userId) {
-      window.location.href = `/signup?plan=${planId}`;
+      window.location.href = `/signup?plan=${planId}&billing=${billing}`;
       return;
     }
     setLoading(planId);
-    window.location.href = `/payment/checkout?plan=${planId}`;
+    window.location.href = `/payment/checkout?plan=${planId}&billing=${billing}`;
   }
 
   return (
@@ -265,6 +277,53 @@ export default function PricingPage() {
           </div>
         </section>
 
+        {/* ─── Billing Toggle ─── */}
+        <section className="pb-8 px-6">
+          <motion.div
+            className="flex items-center justify-center gap-4"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            <span
+              className={`text-sm font-medium transition-colors ${
+                !isAnnual ? "text-charcoal" : "text-muted"
+              }`}
+            >
+              Monthly
+            </span>
+            <button
+              onClick={() => setIsAnnual(!isAnnual)}
+              className={`relative w-14 h-7 rounded-full transition-colors ${
+                isAnnual ? "bg-terracotta" : "bg-sand"
+              }`}
+              aria-label="Toggle annual billing"
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-6 h-6 rounded-full bg-white shadow-md transition-transform ${
+                  isAnnual ? "translate-x-7" : "translate-x-0"
+                }`}
+              />
+            </button>
+            <span
+              className={`text-sm font-medium transition-colors ${
+                isAnnual ? "text-charcoal" : "text-muted"
+              }`}
+            >
+              Annual
+            </span>
+            {isAnnual && (
+              <motion.span
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="ml-1 px-2.5 py-0.5 rounded-full bg-accent-sage/15 text-accent-sage text-xs font-semibold"
+              >
+                Save ~20%
+              </motion.span>
+            )}
+          </motion.div>
+        </section>
+
         {/* ─── Plan Cards ─── */}
         <section className="pb-20 px-6">
           <div className="max-w-7xl mx-auto grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -299,14 +358,37 @@ export default function PricingPage() {
                   <span
                     className={`font-display text-4xl md:text-5xl tracking-tight ${plan.popular ? "text-white" : "text-charcoal"}`}
                   >
-                    ${plan.price}
+                    ${isAnnual ? plan.annualPrice : plan.monthlyPrice}
                   </span>
                   <span
                     className={`text-sm ${plan.popular ? "text-white/50" : "text-muted"}`}
                   >
-                    {plan.period}
+                    {plan.monthlyPrice === 0
+                      ? plan.period
+                      : isAnnual
+                        ? "/mo, billed yearly"
+                        : plan.period}
                   </span>
                 </div>
+
+                {isAnnual && plan.monthlyPrice > 0 && (
+                  <div className="mt-1 flex items-center gap-2">
+                    <span
+                      className={`text-sm line-through ${plan.popular ? "text-white/30" : "text-muted/60"}`}
+                    >
+                      ${plan.monthlyPrice}/mo
+                    </span>
+                    <span
+                      className={`text-xs font-semibold px-1.5 py-0.5 rounded ${
+                        plan.popular
+                          ? "bg-terracotta/30 text-terracotta-light"
+                          : "bg-accent-sage/15 text-accent-sage"
+                      }`}
+                    >
+                      Save ${(plan.monthlyPrice - plan.annualPrice) * 12}/yr
+                    </span>
+                  </div>
+                )}
 
                 <p
                   className={`mt-2 text-sm ${plan.popular ? "text-white/60" : "text-warm-brown-light"}`}

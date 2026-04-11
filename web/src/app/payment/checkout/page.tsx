@@ -27,13 +27,15 @@ declare global {
   }
 }
 
-const PLAN_INFO: Record<string, { name: string; description: string; priceUsd: number }> = {
-  starter: { name: "Starter", description: "200 calls/mo — workflows, all surfaces, email support", priceUsd: 19 },
-  pro: { name: "Pro", description: "1,000 calls/mo — context memory, priority support", priceUsd: 49 },
+const PLAN_INFO: Record<string, { name: string; description: string; priceUsd: number; annualPriceUsd: number }> = {
+  starter: { name: "Starter", description: "200 calls/mo — workflows, all surfaces, email support", priceUsd: 19, annualPriceUsd: 15 },
+  pro: { name: "Pro", description: "1,000 calls/mo — context memory, priority support", priceUsd: 49, annualPriceUsd: 39 },
 };
 
 interface PriceInfo {
   priceUsd: number;
+  chargeUsd?: number;
+  billing?: string;
   exchangeRate: number;
   subtotalInr: number;
   gstPercent: number;
@@ -61,9 +63,14 @@ interface AddonConfig {
 
 type Provider = "razorpay" | "dodo";
 
+type BillingCycle = "monthly" | "annual";
+
 function CheckoutContent() {
   const searchParams = useSearchParams();
   const plan = searchParams.get("plan") ?? "";
+  const billingParam = searchParams.get("billing") as BillingCycle | null;
+  const billing: BillingCycle = billingParam === "annual" ? "annual" : "monthly";
+  const isAnnual = billing === "annual";
 
   const [userId, setUserId] = useState("");
   const [userEmail, setUserEmail] = useState("");
@@ -106,7 +113,7 @@ function CheckoutContent() {
       }
 
       // Config from sessionStorage
-      let totalUsd = planMeta?.priceUsd ?? 0;
+      let totalUsd = isAnnual ? (planMeta?.annualPriceUsd ?? 0) : (planMeta?.priceUsd ?? 0);
       if (isFsAddon) {
         totalUsd = 1; // $1/mo Founder's Space addon
       } else if (isAddon) {
@@ -131,8 +138,8 @@ function CheckoutContent() {
 
       // Fetch price info (INR breakdown)
       const url = isAgency || isAddon || isFsAddon
-        ? `/api/payment/price-info?plan=${plan}&totalUsd=${totalUsd}`
-        : `/api/payment/price-info?plan=${plan}`;
+        ? `/api/payment/price-info?plan=${plan}&totalUsd=${totalUsd}&billing=${billing}`
+        : `/api/payment/price-info?plan=${plan}&billing=${billing}`;
       const res = await fetch(url);
       if (res.ok) {
         setPriceInfo(await res.json());
@@ -153,7 +160,7 @@ function CheckoutContent() {
       script.async = true;
       document.head.appendChild(script);
     }
-  }, [plan, isAgency, isAddon, isFsAddon, planMeta?.priceUsd]);
+  }, [plan, isAgency, isAddon, isFsAddon, billing, isAnnual, planMeta?.priceUsd, planMeta?.annualPriceUsd]);
 
   async function handlePay() {
     if (!priceInfo) return;
@@ -195,10 +202,11 @@ function CheckoutContent() {
           totalPrice: agencyConfig.totalPrice,
           enabledFeatures: agencyConfig.enabledFeatures,
           preferredProvider: selectedProvider,
+          billing,
         };
       } else {
         apiUrl = "/api/checkout";
-        body = { plan, userId, email: userEmail, preferredProvider: selectedProvider };
+        body = { plan, userId, email: userEmail, preferredProvider: selectedProvider, billing };
       }
 
       const res = await fetch(apiUrl, {
@@ -259,8 +267,8 @@ function CheckoutContent() {
           : isAddon && addonConfig
             ? `${addonConfig.label} Add-on — $${addonConfig.priceUsd}/mo`
             : isAgency
-              ? `Agency Plan — ${agencyConfig?.memberTier} members — $${agencyConfig?.totalPrice}/mo`
-              : `${data.planName} Plan — Monthly`,
+              ? `Agency Plan — ${agencyConfig?.memberTier} members — $${agencyConfig?.totalPrice}/${isAnnual ? "mo (annual)" : "mo"}`
+              : `${data.planName} Plan — ${isAnnual ? "Annual" : "Monthly"}`,
         prefill: { email: userEmail },
         handler: async function (response: {
           razorpay_payment_id: string;
@@ -273,6 +281,7 @@ function CheckoutContent() {
               razorpay_subscription_id: response.razorpay_subscription_id,
               razorpay_signature: response.razorpay_signature,
               plan: currentPlan,
+              billing,
             };
             if (isAddon && addonConfig) {
               verifyBody.addonConfig = {
@@ -360,13 +369,14 @@ function CheckoutContent() {
     : isAddon
       ? `${addonConfig?.label} Add-on`
       : isAgency ? `Agency — ${agencyConfig?.memberTier} members` : planMeta!.name;
+  const billingLabel = isAnnual ? "billed annually" : "billed monthly";
   const displayDesc = isFsAddon
     ? "Tasks, credentials, documents & notes — billed monthly"
     : isAddon
       ? `Add-on for your agency — billed monthly`
       : isAgency
-        ? `${agencyConfig?.agencyName} — Unlimited calls, shared memory, activity tracking`
-        : planMeta!.description;
+        ? `${agencyConfig?.agencyName} — Unlimited calls, shared memory — ${billingLabel}`
+        : `${planMeta!.description} — ${billingLabel}`;
 
   const isDodo = selectedProvider === "dodo";
 
@@ -457,7 +467,7 @@ function CheckoutContent() {
                   </span>
                 </div>
                 <p className="text-[11px] text-muted mt-0.5">
-                  Dodo Payments — Card, PayPal & more — ${priceInfo?.priceUsd ?? 0}/mo
+                  Dodo Payments — Card, PayPal & more — {isAnnual ? `$${(priceInfo?.priceUsd ?? 0) * 12}/yr` : `$${priceInfo?.priceUsd ?? 0}/mo`}
                 </p>
               </div>
               {isDodo && <Check size={16} className="text-terracotta shrink-0" />}
@@ -487,7 +497,7 @@ function CheckoutContent() {
                     </span>
                   </div>
                   <p className="text-[11px] text-muted mt-0.5">
-                    Razorpay — UPI, Cards, Net Banking — ₹{priceInfo?.totalInr.toLocaleString("en-IN") ?? 0}/mo
+                    Razorpay — UPI, Cards, Net Banking — ₹{priceInfo?.totalInr.toLocaleString("en-IN") ?? 0}{isAnnual ? "/yr" : "/mo"}
                   </p>
                 </div>
                 {!isDodo && <Check size={16} className="text-terracotta shrink-0" />}
@@ -502,14 +512,20 @@ function CheckoutContent() {
             <div className="flex items-center gap-2 mb-5">
               <Receipt size={16} className="text-terracotta-light" />
               <h3 className="text-xs font-semibold tracking-widest uppercase text-white/50">
-                Price Breakdown (INR)
+                Price Breakdown (INR){isAnnual ? " — Annual" : ""}
               </h3>
             </div>
             <div className="flex flex-col gap-3 text-sm">
+              {isAnnual && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-white/40">Monthly equivalent</span>
+                  <span className="text-white/40">${priceInfo.priceUsd}/mo x 12 months</span>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <span className="text-white/70">Subtotal</span>
                 <div className="text-right">
-                  <span className="font-medium">${priceInfo.priceUsd}</span>
+                  <span className="font-medium">${priceInfo.chargeUsd ?? priceInfo.priceUsd}</span>
                   <span className="text-white/40 mx-1.5">=</span>
                   <span className="font-medium">₹{priceInfo.subtotalInr.toLocaleString("en-IN")}</span>
                 </div>
@@ -528,7 +544,7 @@ function CheckoutContent() {
                   <span className="font-display text-2xl text-terracotta-light">
                     ₹{priceInfo.totalInr.toLocaleString("en-IN")}
                   </span>
-                  <span className="text-white/40 text-xs">/mo</span>
+                  <span className="text-white/40 text-xs">{isAnnual ? "/yr" : "/mo"}</span>
                 </div>
               </div>
             </div>
@@ -538,14 +554,20 @@ function CheckoutContent() {
             <div className="flex items-center gap-2 mb-5">
               <Receipt size={16} className="text-terracotta-light" />
               <h3 className="text-xs font-semibold tracking-widest uppercase text-white/50">
-                Price Summary (USD)
+                Price Summary (USD){isAnnual ? " — Annual" : ""}
               </h3>
             </div>
             <div className="flex flex-col gap-3 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-white/70">Plan price</span>
+                <span className="text-white/70">{isAnnual ? "Monthly rate" : "Plan price"}</span>
                 <span className="font-medium">${priceInfo?.priceUsd ?? 0}/mo</span>
               </div>
+              {isAnnual && (
+                <div className="flex items-center justify-between">
+                  <span className="text-white/70">Annual charge</span>
+                  <span className="font-medium">${(priceInfo?.priceUsd ?? 0) * 12}/yr</span>
+                </div>
+              )}
               <div className="flex items-center justify-between text-xs">
                 <span className="text-white/40">Taxes & fees</span>
                 <span className="text-white/40">Handled by Dodo Payments (MoR)</span>
@@ -554,9 +576,9 @@ function CheckoutContent() {
                 <span className="text-white font-semibold">Total</span>
                 <div className="flex items-center gap-2">
                   <span className="font-display text-2xl text-terracotta-light">
-                    ${priceInfo?.priceUsd ?? 0}
+                    ${isAnnual ? (priceInfo?.priceUsd ?? 0) * 12 : priceInfo?.priceUsd ?? 0}
                   </span>
-                  <span className="text-white/40 text-xs">/mo</span>
+                  <span className="text-white/40 text-xs">{isAnnual ? "/yr" : "/mo"}</span>
                 </div>
               </div>
             </div>
@@ -588,12 +610,12 @@ function CheckoutContent() {
           ) : isDodo ? (
             <>
               <DollarSign size={18} />
-              Pay ${priceInfo?.priceUsd ?? 0}/mo
+              Pay ${isAnnual ? (priceInfo?.priceUsd ?? 0) * 12 : priceInfo?.priceUsd ?? 0}{isAnnual ? "/yr" : "/mo"}
             </>
           ) : priceInfo ? (
             <>
               <IndianRupee size={18} />
-              Pay ₹{priceInfo.totalInr.toLocaleString("en-IN")}/mo
+              Pay ₹{priceInfo.totalInr.toLocaleString("en-IN")}{isAnnual ? "/yr" : "/mo"}
             </>
           ) : (
             "Loading..."

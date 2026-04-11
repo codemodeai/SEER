@@ -14,6 +14,8 @@ export async function POST(req: NextRequest) {
 
     const plan = req.nextUrl.searchParams.get("plan") ?? "";
     const price = req.nextUrl.searchParams.get("price") ?? "0";
+    const billing = req.nextUrl.searchParams.get("billing") ?? "monthly";
+    const isAnnual = billing === "annual";
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
     if (!razorpay_payment_id || !razorpay_subscription_id || !razorpay_signature || !plan) {
@@ -78,6 +80,7 @@ export async function POST(req: NextRequest) {
         provider_sub_id: razorpay_subscription_id,
         plan,
         status: "active",
+        billing_cycle: billing,
       },
       { onConflict: "user_id,provider" }
     );
@@ -87,12 +90,16 @@ export async function POST(req: NextRequest) {
     }
 
     // Create invoice
-    const USD_PRICES: Record<string, number> = { starter: 19, pro: 49, agency: 99 };
-    const amountUsd = USD_PRICES[plan] ?? 0;
+    const USD_MONTHLY: Record<string, number> = { starter: 19, pro: 49, agency: 99 };
+    const USD_ANNUAL: Record<string, number> = { starter: 15, pro: 39, agency: 79 };
+    const monthlyUsd = (isAnnual ? USD_ANNUAL : USD_MONTHLY)[plan] ?? 0;
+    const amountUsd = isAnnual ? monthlyUsd * 12 : monthlyUsd;
     const amountInr = await usdToInr(amountUsd);
     const now = new Date();
     const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-    const periodEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
+    const periodEnd = isAnnual
+      ? new Date(Date.UTC(now.getUTCFullYear() + 1, now.getUTCMonth(), 0))
+      : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
 
     const { error: invoiceError } = await admin.from("invoices").insert({
       user_id: user.id,
@@ -110,7 +117,7 @@ export async function POST(req: NextRequest) {
       console.error("Failed to create invoice:", invoiceError);
     }
 
-    return NextResponse.redirect(`${appUrl}/payment/success?plan=${plan}&price=${price}`, 303);
+    return NextResponse.redirect(`${appUrl}/payment/success?plan=${plan}&price=${price}&billing=${billing}`, 303);
   } catch (err) {
     console.error("Payment callback error:", err);
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";

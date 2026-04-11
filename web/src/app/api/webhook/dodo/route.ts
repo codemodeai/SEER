@@ -62,6 +62,7 @@ export async function POST(req: NextRequest) {
         }
 
         const plan = event.data?.metadata?.seer_plan ?? getPlanByDodoPriceId(event.data?.product_id ?? "");
+        const billingCycle = event.data?.metadata?.billing ?? "monthly";
         if (!userId || !plan) break;
 
         // Update user plan
@@ -78,6 +79,7 @@ export async function POST(req: NextRequest) {
             provider_sub_id: event.data.subscription_id,
             plan,
             status: "active",
+            billing_cycle: billingCycle,
             current_period_end: event.data.current_period_end,
           },
           { onConflict: "user_id,provider" }
