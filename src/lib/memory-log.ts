@@ -4,7 +4,7 @@
 import { appendSuggestInstruction, type SuggestionSkin } from "./suggest.js";
 import { buildCredentialWatchInstruction } from "./credential-detect.js";
 
-const API_BASE = process.env["SEER_WEB_URL"] ?? "https://seermcp.com";
+const API_BASE = process.env["SEER_WEB_URL"] ?? "https://www.seermcp.com";
 
 export function appendMemoryLog(
   toolResult: string,

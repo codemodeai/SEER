@@ -2,7 +2,7 @@
 // When a seer command's input closely matches an open [ ] task in the features aspect,
 // appends an instruction for Claude to prompt the user to mark it done.
 
-const API_BASE = process.env["SEER_WEB_URL"] ?? "https://seermcp.com";
+const API_BASE = process.env["SEER_WEB_URL"] ?? "https://www.seermcp.com";
 
 export interface MarkDoneResult {
   shouldPrompt: boolean;

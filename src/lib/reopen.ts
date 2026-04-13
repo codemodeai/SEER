@@ -1,4 +1,4 @@
-const API_BASE = process.env["SEER_WEB_URL"] ?? "https://seermcp.com";
+const API_BASE = process.env["SEER_WEB_URL"] ?? "https://www.seermcp.com";
 
 export interface ReopenResult {
   shouldReopen: boolean;

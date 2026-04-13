@@ -17,7 +17,7 @@ import { detectCredentials } from "../lib/credential-detect.js";
 import { seer_tools } from "./seer_tools.js";
 import { seer_space } from "./seer_space.js";
 
-const API_BASE = process.env["SEER_WEB_URL"] ?? "https://seermcp.com";
+const API_BASE = process.env["SEER_WEB_URL"] ?? "https://www.seermcp.com";
 
 // --- Pattern matchers for zero-cost features (no Haiku call) ---
 

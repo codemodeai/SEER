@@ -6,7 +6,7 @@ import { appendSuggestInstruction } from "../lib/suggest.js";
 import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
 import { checkTeamConflict } from "../lib/conflict-detect.js";
 
-const API_BASE = process.env["SEER_WEB_URL"] ?? "https://seermcp.com";
+const API_BASE = process.env["SEER_WEB_URL"] ?? "https://www.seermcp.com";
 
 function buildMemoryRunInstruction(apiKey: string): string {
   return `switch to sonnet now. this entire response uses sonnet only.

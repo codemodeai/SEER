@@ -139,7 +139,7 @@ export async function seer_workflow(
       const taskLines = parsed.steps
         .map((s: { step?: number; title?: string }) => `- [ ] Step ${s.step}: ${s.title}`)
         .join("\n");
-      const API_BASE = process.env["SEER_WEB_URL"] ?? "https://seermcp.com";
+      const API_BASE = process.env["SEER_WEB_URL"] ?? "https://www.seermcp.com";
       workflowStoreInstruction = `
 ---
 SEER WORKFLOW-STORE — After executing the workflow steps above, persist them to online aspect memory.

@@ -10,7 +10,7 @@
 
 export type SuggestionSkin = "default" | "compact" | "focused";
 
-const API_BASE = process.env["SEER_WEB_URL"] ?? "https://seermcp.com";
+const API_BASE = process.env["SEER_WEB_URL"] ?? "https://www.seermcp.com";
 
 const SHARED_RULES = `Rules for generating suggestions:
 - Each suggestion must start with "seer " so the user can copy-paste it directly
