@@ -17,6 +17,8 @@ import { detectCredentials } from "../lib/credential-detect.js";
 import { seer_tools } from "./seer_tools.js";
 import { seer_space } from "./seer_space.js";
 
+const API_BASE = process.env["SEER_WEB_URL"] ?? "https://seermcp.com";
+
 // --- Pattern matchers for zero-cost features (no Haiku call) ---
 
 const TOOLS_PATTERN = /^(tools|show tools|list tools|features|show features|what can you do|help)$/i;
@@ -29,71 +31,73 @@ const CALLBACK_MEMORY_PATTERNS = /^(what did i do|what have i done|recall|recap|
 
 const RECORD_CREDENTIALS_PATTERN = /^record\s*cred(ential)?s?$/i;
 
-const CONTINUE_INSTRUCTION = `SEER INSTRUCTION — Resume from where you left off
+function buildContinueInstruction(apiKey: string): string {
+  return `switch to haiku now. this entire response uses haiku only.
 
-Read .seer_memory.md from the project root. Then present a concise resume brief:
+SEER INSTRUCTION — Resume from where you left off (online aspect memory)
 
-1. **Last session:** What was last completed (from "## 2. Current Status" → last_completed)
-2. **Next action:** The planned next step (from "## 2. Current Status" → next_action)
-3. **Open tasks:** List uncompleted [ ] tasks from "## 4. Open Tasks" (max 5)
-4. **Recent log:** Last 3 entries from "## 5. Session Log"
+1. Derive PROJECT_NAME from package.json "name" or current directory name (lowercased, hyphenated).
 
-Format your response as:
+2. Fetch the project_overview, features, and session_log aspects from online memory:
+   curl -s "${API_BASE}/api/seer/memory-aspect?project=PROJECT_NAME&aspects=project_overview,features,session_log" \\
+     -H "Authorization: Bearer ${apiKey}"
+
+3. If the API returns empty aspects or an error, respond EXACTLY:
+   "No project memory found. Run \`seer memory run\` to initialize."
+   and stop.
+
+4. From the response, present a concise resume brief in this format:
 
 ---
 **SEER — Session Resume**
 
-**Last completed:** [last_completed value]
-**Planned next:** [next_action value]
+**Project:** [project name from project_overview]
+**Last activity:** [most recent session_log entry]
 
-**Open tasks:**
+**Open tasks (from features aspect):**
 - [ ] task 1
 - [ ] task 2
 ...
 
-**Recent activity:**
-- [log entry 1]
-- [log entry 2]
-- [log entry 3]
+**Recent activity (last 3 session_log entries):**
+- [entry 1]
+- [entry 2]
+- [entry 3]
 
 Ready to continue. What would you like to work on?
 
 ---
 
 Rules:
-- If .seer_memory.md does NOT exist, respond: "No memory file found. Run \`seer memory run\` first to initialize project memory."
-- Be concise — this is a quick resume, not a full report
-- After presenting the brief, wait for the user's next instruction`;
+- Be concise — this is a quick resume, not a full report.
+- Only include \`- [ ]\` tasks (not \`[x]\`) in the Open tasks section. Max 5.
+- Do not invent content not present in the API response.
+- After the brief, wait for the user's next instruction.`;
+}
 
-function buildCallbackInstruction(query: string): string {
-  const timestamp = new Date().toISOString().slice(0, 16) + "Z";
-  return `SEER INSTRUCTION — Answer from project memory (callback recall)
+function buildCallbackInstruction(query: string, apiKey: string): string {
+  return `switch to haiku now. this entire response uses haiku only.
+
+SEER INSTRUCTION — Answer from project memory (online aspect recall)
 
 The user asked: "${query}"
 
-Read .seer_memory.md from the project root. Search ALL sections to answer the user's question:
+1. Derive PROJECT_NAME from package.json "name" or directory name.
+2. Fetch all 6 aspects for the project:
+   curl -s "${API_BASE}/api/seer/memory-aspect?project=PROJECT_NAME" \\
+     -H "Authorization: Bearer ${apiKey}"
+3. If the response is empty or errors, respond: "No project memory found. Run \`seer memory run\` to initialize." and stop.
 
-- "## 2. Current Status" — for last completed work, next planned action, current phase
-- "## 4. Open Tasks" — for completed [x] and pending [ ] tasks
-- "## 5. Session Log" — for chronological history of what was done and when
-- "## 1. Project Overview" — for project name, goal, stack
-- "## 3. Architecture Decisions" — for technical decisions
-
-Respond naturally and concisely based on what the memory file contains. Examples:
-- "what did I do" → summarize recent Session Log entries
-- "recall" / "recap" → give a full status overview
-- "what's left" / "open tasks" → list uncompleted [ ] tasks
-- "last session" → summarize the most recent Session Log entry
-- "show progress" → show completed [x] vs remaining [ ] tasks
+4. Answer based ONLY on the aspect content returned. Examples:
+- "what did I do" / "recall" / "recap" → summarize recent session_log entries
+- "what's left" / "open tasks" → list \`- [ ]\` lines from features aspect
+- "last session" → summarize most recent session_log entry
+- "show progress" → count \`[x]\` vs \`[ ]\` in features aspect
 
 Rules:
-- If .seer_memory.md does NOT exist, respond: "No memory file found. Run \`seer memory run\` first to initialize project memory."
-- Answer ONLY from what's in the memory file — do not guess or infer beyond its contents
-- Be concise and direct
-
-After answering, also update .seer_memory.md:
-1. Append under "## 5. Session Log": [${timestamp}] seer_callback_memory — ${query}
-2. Update "## 2. Current Status" → last_updated to ${timestamp}`;
+- Be concise and direct.
+- Do NOT guess or infer beyond what the API returned.
+- The session_log append for this call will be handled automatically downstream — do not write it yourself.`;
 }
 
 // --- Record credentials instruction (scans project files for credentials → saves to Founder's Space) ---
@@ -260,7 +264,7 @@ export async function seer_run(
       surface,
     });
     const usageWarning = buildUsageWarning(user.plan, user.usage_this_month + 1, limit);
-    const continueResult = appendSuggestInstruction(CONTINUE_INSTRUCTION, "seer_continue", trimmedInput, user.suggestion_skin, user.auto_suggest);
+    const continueResult = appendSuggestInstruction(buildContinueInstruction(apiKey), "seer_continue", trimmedInput, user.suggestion_skin, user.auto_suggest, apiKey);
     return conflict.warning + usageWarning + (mfa.nudge ? continueResult + mfa.nudge : continueResult);
   }
 
@@ -282,8 +286,8 @@ export async function seer_run(
       surface,
     });
     const usageWarning = buildUsageWarning(user.plan, user.usage_this_month + 1, limit);
-    const instruction = buildCallbackInstruction(trimmedInput);
-    const callbackResult = appendSuggestInstruction(instruction, "seer_callback_memory", trimmedInput, user.suggestion_skin, user.auto_suggest);
+    const instruction = buildCallbackInstruction(trimmedInput, apiKey);
+    const callbackResult = appendSuggestInstruction(instruction, "seer_callback_memory", trimmedInput, user.suggestion_skin, user.auto_suggest, apiKey);
     return conflict.warning + usageWarning + (mfa.nudge ? callbackResult + mfa.nudge : callbackResult);
   }
 
@@ -316,7 +320,7 @@ export async function seer_run(
       surface,
     });
     const usageWarning = buildUsageWarning(user.plan, user.usage_this_month + 1, limit);
-    const recordResult = appendSuggestInstruction(RECORD_CREDENTIALS_INSTRUCTION, "seer_record_credentials", trimmedInput, user.suggestion_skin, user.auto_suggest);
+    const recordResult = appendSuggestInstruction(RECORD_CREDENTIALS_INSTRUCTION, "seer_record_credentials", trimmedInput, user.suggestion_skin, user.auto_suggest, apiKey);
     return appendMemoryLog(conflict.warning + usageWarning + (mfa.nudge ? recordResult + mfa.nudge : recordResult), "seer_record_credentials", trimmedInput, user.suggestion_skin, user.auto_suggest, apiKey);
   }
 
@@ -385,7 +389,7 @@ export async function seer_run(
 
   // 4b. Re-open detection — check if input touches a completed task
   if (completedTasks.length > 0) {
-    const reopen = detectReopen(input, completedTasks);
+    const reopen = detectReopen(input, completedTasks, apiKey);
     if (reopen.shouldReopen) {
       return reopen.reopenPrompt!;
     }
@@ -480,7 +484,7 @@ export async function seer_run(
 
   // 10. Feature-completion "mark done?" prompt
   if (openTasks.length > 0) {
-    const markDone = detectMarkDone(input, openTasks);
+    const markDone = detectMarkDone(input, openTasks, apiKey);
     if (markDone.shouldPrompt && markDone.markDoneInstruction) {
       finalResult += markDone.markDoneInstruction;
     }

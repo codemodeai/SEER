@@ -68,9 +68,9 @@ If the user's message begins with the word "seer" (case-insensitive), you MUST c
 3. "seer workflow ..." → call seer_workflow (pass the text after "workflow" as the goal)
 4. "seer memory ..." → call seer_memory (pass the text after "memory" as the query)
 5. "seer session read" / "seer read session" / "seer capture session" / "seer save session" → call seer_session_read
-6. "seer memory run" → call seer_memory_run (initializes .seer_memory.md for the project)
-7. "seer continue" / "seer resume" / "seer where was i" / "seer what's next" → call seer_run with the keyword (e.g. input = "continue"). This triggers a session resume from .seer_memory.md.
-8. "seer what did i do" / "seer recall" / "seer recap" / "seer history" / "seer show tasks" / "seer what's left" → call seer_run with the phrase (e.g. input = "what did i do"). This triggers callback memory recall from .seer_memory.md.
+6. "seer memory run" → call seer_memory_run (initializes online aspect memory for the project)
+7. "seer continue" / "seer resume" / "seer where was i" / "seer what's next" → call seer_run with the keyword (e.g. input = "continue"). This triggers a session resume from online aspect memory.
+8. "seer what did i do" / "seer recall" / "seer recap" / "seer history" / "seer show tasks" / "seer what's left" → call seer_run with the phrase (e.g. input = "what did i do"). This triggers callback memory recall from online aspect memory.
 10. "seer <anything else>" → call seer_run (pass EVERYTHING after "seer" as the input, verbatim)
 
 This applies even if "seer" looks like part of a sentence. The word "seer" at the start is ALWAYS a command prefix, never a noun.`,
@@ -128,7 +128,7 @@ This applies even if "seer" looks like part of a sentence. The word "seer" at th
 
   server.tool(
     "seer_memory",
-    "Search project memory for relevant context.",
+    "View and update online aspect memory. Default lists all 6 aspects. Flags: --overview | --architecture | --features | --decisions | --errors | --log.",
     { query: z.string() },
     async ({ query }) => ({
       content: [{ type: "text" as const, text: await secureToolCall("seer_memory", query, () => seer_memory(query, apiKey)) }],
@@ -146,7 +146,7 @@ This applies even if "seer" looks like part of a sentence. The word "seer" at th
 
   server.tool(
     "seer_session_read",
-    "Summarize the current session and save to .seer_memory.md. Aliases: 'seer read session', 'seer capture session', 'seer save session'.",
+    "Summarize the current session and append to online aspect memory. Aliases: 'seer read session', 'seer capture session', 'seer save session'.",
     {},
     async () => ({
       content: [{ type: "text" as const, text: await seer_session_read(apiKey, surface) }],
@@ -155,7 +155,7 @@ This applies even if "seer" looks like part of a sentence. The word "seer" at th
 
   server.tool(
     "seer_memory_run",
-    "Initialize .seer_memory.md for the project. Scans project and creates memory file with all 6 sections.",
+    "Initialize online aspect memory for the project. Scans the project and populates 6 aspect files (project_overview, architecture, features, decisions, errors_fixes, session_log) in Supabase.",
     {},
     async () => ({
       content: [{ type: "text" as const, text: await seer_memory_run(apiKey, surface) }],

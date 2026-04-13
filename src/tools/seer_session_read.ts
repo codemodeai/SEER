@@ -6,37 +6,45 @@ import { appendSuggestInstruction } from "../lib/suggest.js";
 import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
 import { checkTeamConflict } from "../lib/conflict-detect.js";
 
-const SESSION_READ_INSTRUCTION = `SEER INSTRUCTION — Read and capture this session to .seer_memory.md
+const API_BASE = process.env["SEER_WEB_URL"] ?? "https://seermcp.com";
 
-Read your full conversation above. Summarise what was done and write to .seer_memory.md.
+function buildSessionReadInstruction(apiKey: string): string {
+  const ts = new Date().toISOString().slice(0, 16) + "Z";
+  return `switch to haiku now. this entire response uses haiku only.
 
-Write the following structure — append to the file if it already exists, do not overwrite:
+SEER INSTRUCTION — Capture this session to online aspect memory
 
-## 5. Session Log
-[${new Date().toISOString().slice(0, 16)}Z] SESSION READ — non-seer session captured
-  Built: [list what was built or changed]
-  Decided: [list any decisions made, or "none"]
-  Completed: [what is now done end-to-end]
-  Next: [most logical next step]
+Read the full conversation above. Summarise what was done and push the summary to the session_log and features aspects online. Do NOT touch any local file.
 
-Also update these sections if they exist:
+STEP 1 — Derive PROJECT_NAME from package.json "name" or the current directory name (lowercased, hyphenated).
 
-## 2. Current Status
-last_completed: [most recent completed task from this session]
-next_action: [next logical step]
+STEP 2 — Build a one-block session entry in this exact shape:
+[${ts}] SESSION READ — non-seer session captured
+  Built: <one line per thing built>
+  Decided: <one line per decision, or "none">
+  Completed: <what is now done end-to-end>
+  Next: <most logical next step>
 
-## 4. Open Tasks
-- Mark any completed tasks with [x]
-- Add any new tasks discovered as [ ]
+STEP 3 — Append that entry to the session_log aspect:
+  curl -s -X POST "${API_BASE}/api/seer/memory-aspect" \\
+    -H "Content-Type: application/json" \\
+    -d "$(jq -n --arg name "PROJECT_NAME" --arg c "<the block from step 2>" \\
+      '{project_name: $name, aspect: "session_log", content: $c, mode: "append", api_key: "${apiKey}"}')"
+
+STEP 4 — If you marked any feature complete or discovered new work, also update the features aspect:
+- For each completed item, append a line: \`- [x] <title>\`
+- For each new open item, append: \`- [ ] <title>\`
+  curl -s -X POST "${API_BASE}/api/seer/memory-aspect" \\
+    -H "Content-Type: application/json" \\
+    -d "$(jq -n --arg name "PROJECT_NAME" --arg c "<new lines>" \\
+      '{project_name: $name, aspect: "features", content: $c, mode: "append", api_key: "${apiKey}"}')"
 
 Rules:
-- If this was a trivial session (just greetings, small questions, nothing built), write:
-  [TIMESTAMP] SESSION READ — nothing significant to capture
-    Session contained only questions and brief answers.
-    No tasks completed. No decisions made. Memory file unchanged.
-  And respond: "Session read complete — nothing significant to capture from this session. Your memory file is unchanged."
-- Otherwise respond: "Session captured. [brief summary of what was written]. Your memory file is up to date."
-- Be concise. Each "Built" or "Decided" item should be one line.`;
+- If this was a trivial session (just greetings, small questions, nothing built), push ONLY this to session_log and respond: "Session read — nothing significant to capture."
+  [${ts}] SESSION READ — nothing significant to capture
+- Otherwise respond: "Session captured to online memory — <1-line summary>."
+- Be concise. Each bullet is one line max.`;
+}
 
 export async function seer_session_read(
   apiKey: string,
@@ -83,6 +91,6 @@ export async function seer_session_read(
 
   // 5. Return the instruction for Claude to execute
   const usageWarning = buildUsageWarning(user.plan, user.usage_this_month + 1, limit);
-  const result = appendSuggestInstruction(SESSION_READ_INSTRUCTION, "seer_session_read", "session read", user.suggestion_skin ?? "default", user.auto_suggest);
+  const result = appendSuggestInstruction(buildSessionReadInstruction(apiKey), "seer_session_read", "session read", user.suggestion_skin ?? "default", user.auto_suggest, apiKey);
   return conflict.warning + usageWarning + (mfa.nudge ? result + mfa.nudge : result);
 }

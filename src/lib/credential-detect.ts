@@ -174,7 +174,7 @@ SEER CREDENTIAL WATCH — Monitor for credentials in user messages:
    - Bearer tokens: \`Bearer <token>\`
 
 2. If you detect credentials in the user's message (even if they didn't use a seer command):
-   - First, read .seer_memory.md and extract the project name from "## 1. Project Overview" → name field.
+   - Derive the project name from package.json "name" or the current directory name (lowercased, hyphenated).
    - Display this prompt to the user:
 
    ---

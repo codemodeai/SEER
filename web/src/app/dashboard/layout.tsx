@@ -25,6 +25,7 @@ import {
   Building2,
   Briefcase,
   Bug,
+  Brain,
 } from "lucide-react";
 
 const sidebarLinks = [
@@ -33,6 +34,7 @@ const sidebarLinks = [
   { label: "Docs", href: "/dashboard/docs", icon: FileText },
   { label: "Guides", href: "/dashboard/guides", icon: PlayCircle },
   { label: "API Keys", href: "/dashboard/keys", icon: Key },
+  { label: "Project Memory", href: "/dashboard/memory", icon: Brain },
   { label: "Profile", href: "/dashboard/profile", icon: User },
   { label: "Security", href: "/dashboard/security", icon: ShieldCheck },
   { label: "Billing", href: "/dashboard/billing", icon: CreditCard },

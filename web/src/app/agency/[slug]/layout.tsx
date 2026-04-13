@@ -43,7 +43,7 @@ function AgencyPortalContent({ children }: { children: React.ReactNode }) {
     { label: "Overview", href: `/agency/${slug}`, icon: LayoutDashboard },
     { label: "Users", href: `/agency/${slug}/users`, icon: Users },
     { label: "API Keys", href: `/agency/${slug}/keys`, icon: Key },
-    { label: "Cloud Memory", href: `/agency/${slug}/memory`, icon: Cloud },
+    { label: "Team Memory", href: `/agency/${slug}/memory`, icon: Cloud },
     { label: "Activity", href: `/agency/${slug}/activity`, icon: Activity },
     { label: "Analytics", href: `/agency/${slug}/analytics`, icon: BarChart3 },
     { label: "Projects", href: `/agency/${slug}/projects`, icon: FolderKanban, locked: !features.project_management },

@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import crypto from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase-server";
+import { sendWelcomeEmail } from "@/lib/emails";
 
 function generateSeerApiKey(): string {
   return `sk-seer-${crypto.randomBytes(24).toString("hex")}`;
@@ -179,6 +180,11 @@ export async function POST(req: NextRequest) {
     if (error) {
       console.error("User creation error:", error);
       return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
+    }
+
+    // Send welcome email (fire-and-forget)
+    if (user.email) {
+      sendWelcomeEmail(user.email, plan).catch(() => {});
     }
 
     return NextResponse.json({

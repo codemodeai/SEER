@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase-server";
 import { getPlanByDodoPriceId } from "@/lib/plans";
 import { createAgencyForUser } from "@/lib/create-agency";
+import { sendPaymentConfirmationEmail, sendPaymentFailedEmail, sendCancellationEmail } from "@/lib/emails";
 
 export async function POST(req: NextRequest) {
   try {
@@ -95,6 +96,29 @@ export async function POST(req: NextRequest) {
           const maxUsers = event.data?.metadata?.max_users ? parseInt(event.data.metadata.max_users, 10) : undefined;
           await createAgencyForUser(supabase, userId, userData?.email ?? "", maxUsers);
         }
+
+        // Send payment confirmation email
+        {
+          const { data: userData } = await supabase
+            .from("users")
+            .select("email")
+            .eq("id", userId)
+            .single();
+          if (userData?.email) {
+            const PRICES: Record<string, Record<string, number>> = {
+              monthly: { starter: 19, pro: 49, agency: 59 },
+              annual: { starter: 180, pro: 468, agency: 564 },
+            };
+            const amountUsd = PRICES[billingCycle]?.[plan] ?? 0;
+            sendPaymentConfirmationEmail({
+              to: userData.email,
+              plan,
+              amountUsd,
+              billing: billingCycle as "monthly" | "annual",
+              provider: "dodo",
+            }).catch(() => {});
+          }
+        }
         break;
       }
 
@@ -116,10 +140,33 @@ export async function POST(req: NextRequest) {
 
         // If cancelled, downgrade to free
         if (status === "cancelled" && sub) {
+          // Get plan before downgrading
+          const { data: userData } = await supabase
+            .from("users")
+            .select("email, plan")
+            .eq("id", sub.user_id)
+            .single();
+
           await supabase
             .from("users")
             .update({ plan: "free" })
             .eq("id", sub.user_id);
+
+          if (userData?.email) {
+            sendCancellationEmail({ to: userData.email, plan: userData.plan ?? "unknown" }).catch(() => {});
+          }
+        }
+
+        // If past_due, send payment failed email
+        if (status === "past_due" && sub) {
+          const { data: userData } = await supabase
+            .from("users")
+            .select("email, plan")
+            .eq("id", sub.user_id)
+            .single();
+          if (userData?.email) {
+            sendPaymentFailedEmail({ to: userData.email, plan: userData.plan ?? "unknown" }).catch(() => {});
+          }
         }
         break;
       }

@@ -86,5 +86,5 @@ export async function seer_status(apiKey: string): Promise<string> {
   // Append Founder's Space alerts (overdue tasks, expiring docs)
   const fsAlerts = await getFoundersSpaceAlerts(user.id, user.fs_access);
 
-  return appendSuggestInstruction(result + fsAlerts, "seer_status", "status", user.suggestion_skin ?? "default", user.auto_suggest);
+  return appendSuggestInstruction(result + fsAlerts, "seer_status", "status", user.suggestion_skin ?? "default", user.auto_suggest, apiKey);
 }

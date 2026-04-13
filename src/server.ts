@@ -150,9 +150,9 @@ If the user's message begins with the word "seer" (case-insensitive), you MUST c
 3. "seer workflow ..." → call seer_workflow (pass the text after "workflow" as the goal)
 4. "seer memory ..." → call seer_memory (pass the text after "memory" as the query)
 5. "seer session read" / "seer read session" / "seer capture session" / "seer save session" → call seer_session_read
-6. "seer memory run" → call seer_memory_run (initializes .seer_memory.md for the project)
-7. "seer continue" / "seer resume" / "seer where was i" / "seer what's next" → call seer_run with the keyword (e.g. input = "continue"). This triggers a session resume from .seer_memory.md.
-8. "seer what did i do" / "seer recall" / "seer recap" / "seer history" / "seer show tasks" / "seer what's left" → call seer_run with the phrase (e.g. input = "what did i do"). This triggers callback memory recall from .seer_memory.md.
+6. "seer memory run" → call seer_memory_run (initializes online aspect memory for the project)
+7. "seer continue" / "seer resume" / "seer where was i" / "seer what's next" → call seer_run with the keyword (e.g. input = "continue"). This triggers a session resume from online aspect memory.
+8. "seer what did i do" / "seer recall" / "seer recap" / "seer history" / "seer show tasks" / "seer what's left" → call seer_run with the phrase (e.g. input = "what did i do"). This triggers callback memory recall from online aspect memory.
 10. "seer space ..." → call seer_space (pass everything after "seer space" as input — e.g. "seer space add task Build login" → input = "add task Build login")
 11. "seer <anything else>" → call seer_run (pass EVERYTHING after "seer" as the input, verbatim)
 
@@ -231,7 +231,7 @@ After receiving the SEER tool response, execute the optimized instructions retur
   // --- seer_memory: context search ---
   server.tool(
     "seer_memory",
-    "Search project memory for relevant context. Returns top 5 matching entries.",
+    "View and update online aspect memory. Default: list all 6 aspects. Flags: --overview | --architecture | --features | --decisions | --errors | --log. Update: 'update --<aspect> <content>'.",
     { query: z.string().describe("The search query") },
     async ({ query }) => ({
       content: [
@@ -253,7 +253,7 @@ After receiving the SEER tool response, execute the optimized instructions retur
   // --- seer_session_read: rescue a non-seer session ---
   server.tool(
     "seer_session_read",
-    "Summarize the current session and save to .seer_memory.md. Use when user types 'seer session read', 'seer read session', 'seer capture session', or 'seer save session'.",
+    "Summarize the current session and append to online aspect memory. Use when user types 'seer session read', 'seer read session', 'seer capture session', or 'seer save session'.",
     {},
     async () => ({
       content: [{ type: "text" as const, text: await seer_session_read(apiKey, surface) }],
@@ -263,7 +263,7 @@ After receiving the SEER tool response, execute the optimized instructions retur
   // --- seer_memory_run: initialize project memory ---
   server.tool(
     "seer_memory_run",
-    "Initialize .seer_memory.md for the project. Use when user types 'seer memory run'. Scans the project and creates the memory file with all 6 sections.",
+    "Initialize online aspect memory for the project. Use when user types 'seer memory run'. Scans the project and populates the 6 aspect files (project_overview, architecture, features, decisions, errors_fixes, session_log) in Supabase.",
     {},
     async () => ({
       content: [{ type: "text" as const, text: await seer_memory_run(apiKey, surface) }],

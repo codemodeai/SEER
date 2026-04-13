@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase-server";
 import { getPlanByRazorpayPlanId } from "@/lib/plans";
+import { sendPaymentConfirmationEmail, sendPaymentFailedEmail, sendCancellationEmail } from "@/lib/emails";
 
 export async function POST(req: NextRequest) {
   try {
@@ -58,6 +59,26 @@ export async function POST(req: NextRequest) {
         if (subErr) {
           console.error("Webhook: Failed to upsert subscription:", subErr);
         }
+
+        // Send payment confirmation email on activation
+        if (event.event === "subscription.activated") {
+          const email = sub.notes?.email;
+          const billing = (sub.notes?.billing ?? "monthly") as "monthly" | "annual";
+          if (email && plan) {
+            const PRICES: Record<string, Record<string, number>> = {
+              monthly: { starter: 19, pro: 49, agency: 59 },
+              annual: { starter: 180, pro: 468, agency: 564 },
+            };
+            sendPaymentConfirmationEmail({
+              to: email,
+              plan,
+              amountUsd: PRICES[billing]?.[plan] ?? 0,
+              billing,
+              provider: "razorpay",
+              paymentId: sub.id,
+            }).catch(() => {});
+          }
+        }
         break;
       }
 
@@ -76,11 +97,24 @@ export async function POST(req: NextRequest) {
           .select("user_id")
           .single();
 
-        if (status === "cancelled" && record) {
-          await supabase
+        if (record) {
+          const { data: userData } = await supabase
             .from("users")
-            .update({ plan: "free" })
-            .eq("id", record.user_id);
+            .select("email, plan")
+            .eq("id", record.user_id)
+            .single();
+
+          if (status === "cancelled") {
+            await supabase
+              .from("users")
+              .update({ plan: "free" })
+              .eq("id", record.user_id);
+            if (userData?.email) {
+              sendCancellationEmail({ to: userData.email, plan: userData.plan ?? "unknown" }).catch(() => {});
+            }
+          } else if (status === "past_due" && userData?.email) {
+            sendPaymentFailedEmail({ to: userData.email, plan: userData.plan ?? "unknown" }).catch(() => {});
+          }
         }
         break;
       }

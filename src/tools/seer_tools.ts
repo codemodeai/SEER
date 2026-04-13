@@ -57,7 +57,7 @@ export async function seer_tools(apiKey: string): Promise<string> {
     {
       name: "seer continue",
       usage: "`seer continue` / `seer resume`",
-      description: "Resume from where you left off — reads .seer_memory.md",
+      description: "Resume from where you left off — reads online aspect memory",
       cost: "1 call",
       plans: ["free", "starter", "pro", "agency"],
     },
@@ -71,14 +71,14 @@ export async function seer_tools(apiKey: string): Promise<string> {
     {
       name: "seer session read",
       usage: "`seer session read` / `seer save session`",
-      description: "Capture non-seer session work into .seer_memory.md",
+      description: "Capture non-seer session work into online aspect memory",
       cost: "1 call",
       plans: ["free", "starter", "pro", "agency"],
     },
     {
       name: "seer memory run",
       usage: "`seer memory run`",
-      description: "Initialize .seer_memory.md for a new project",
+      description: "Initialize online aspect memory for a new project",
       cost: "1 call",
       plans: ["free", "starter", "pro", "agency"],
     },
@@ -102,7 +102,7 @@ export async function seer_tools(apiKey: string): Promise<string> {
   const features = [
     {
       name: "Auto-log",
-      description: "Every seer command auto-updates .seer_memory.md session log",
+      description: "Every seer command auto-appends to online session_log aspect",
       status: "Active",
     },
     {

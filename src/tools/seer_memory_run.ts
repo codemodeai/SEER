@@ -6,89 +6,91 @@ import { appendSuggestInstruction } from "../lib/suggest.js";
 import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
 import { checkTeamConflict } from "../lib/conflict-detect.js";
 
-const MEMORY_RUN_INSTRUCTION = `SEER INSTRUCTION — Create .seer_memory.md for this project
+const API_BASE = process.env["SEER_WEB_URL"] ?? "https://seermcp.com";
 
-Read the project structure, key files, and recent git history. Then create a file called .seer_memory.md in the project root with this exact structure:
+function buildMemoryRunInstruction(apiKey: string): string {
+  return `switch to sonnet now. this entire response uses sonnet only.
 
-\`\`\`markdown
-# SEER Project Memory — auto-managed by SEER. Do not edit manually.
+SEER INSTRUCTION — Initialize project memory (6 aspect files)
 
-## 1. Project Overview
-name: [project name from package.json or directory name]
-goal: [one-line description of what this project does — infer from README, code, or structure]
-stack: [main languages, frameworks, services — e.g. TypeScript / Next.js / Supabase / Vercel]
+Do NOT create any local file. SEER memory is online-only. All 6 aspect files live in Supabase — never on disk.
 
-## 2. Current Status
-last_updated: [current ISO timestamp]
-phase: [infer from code maturity — e.g. "Build — early", "Build — mid", "Pre-launch", "Production"]
-last_completed: [most recent meaningful work visible in git log or code]
-next_action: [most logical next step based on TODOs, open issues, or incomplete code]
+STEP 1 — Scan the project silently:
+- Read package.json (or pyproject.toml / go.mod / Cargo.toml if present)
+- Read README / README.md if present
+- List top-level directories only (src, app, lib, api, web, etc.) — do NOT recurse deeply
+- Skim recent git log (last 20 commits): \`git log --oneline -n 20\`
+- Identify stack, goals, key architectural patterns, and recent work
 
-## 3. Architecture Decisions
-- [list 3-5 key architectural decisions visible from the code — e.g. "Remote HTTP MCP on Vercel (not stdio)", "Supabase for auth + database", "Haiku for AI calls"]
+STEP 2 — Derive the canonical PROJECT_NAME:
+- Prefer \`package.json\` "name" field
+- Fall back to current directory name (last segment of pwd)
+- Sanitize: lowercase, replace spaces with hyphens
+- You will reuse this name in every upsert below.
 
-## 4. Open Tasks
-- [ ] [task 1 — infer from TODOs, incomplete features, or obvious next steps]
-- [ ] [task 2]
-- [ ] [task 3]
+STEP 3 — Build content for each of the 6 aspect files. Be accurate; only write what you can confirm.
 
-## 5. Session Log
-[current ISO timestamp] MEMORY INITIALIZED — project scanned and memory file created
+1) project_overview  — Stack, goals, core context, tech decisions (short — 10-15 lines max)
+2) architecture     — Schema, services, API contracts, code structure
+3) features         — Feature specs, status (built / in-progress / planned), pending work
+4) decisions        — Key architectural decisions with WHY and approximate date
+5) errors_fixes     — What broke and how it was fixed. Leave as "(none recorded yet)" if no visible history.
+6) session_log      — Start with one entry: \`[<current ISO timestamp>] MEMORY INITIALIZED — project scanned\`
 
-## 6. Integrity
-hash: (post-launch — not yet implemented)
-\`\`\`
+STEP 4 — Upsert each aspect via the memory-aspect API. Run these SIX curl commands sequentially. Replace PROJECT_NAME_HERE with the name from step 2 and CONTENT_HERE with each aspect's content.
+
+for ASPECT in project_overview architecture features decisions errors_fixes session_log; do
+  curl -s -X POST "${API_BASE}/api/seer/memory-aspect" \\
+    -H "Content-Type: application/json" \\
+    -d "$(jq -n \\
+      --arg name "PROJECT_NAME_HERE" \\
+      --arg aspect "$ASPECT" \\
+      --arg content "CONTENT_FOR_$ASPECT" \\
+      '{project_name: $name, aspect: $aspect, content: $content, mode: "replace", api_key: "${apiKey}"}')"
+done
+
+Write the actual bash loop inline with each aspect's real content — do not use the placeholder loop above literally. Call the endpoint once per aspect.
+
+STEP 5 — Also create a Founder's Space project for credentials/tasks linkage:
+\`seer space new project PROJECT_NAME_HERE\`
+(If the project already exists, ignore the error.)
+
+STEP 6 — Respond to the user with exactly:
+"SEER memory initialized online — 6 aspect files populated for **PROJECT_NAME_HERE**. Use \`seer resume\` after /clear to reload, or \`seer memory\` to inspect."
 
 Rules:
-- Read package.json, README, src/ structure, and recent git log to fill in the details
-- Be accurate — only write what you can confirm from the code
-- Keep each field concise — one line per item
-- Open Tasks should reflect real incomplete work, not guesses
-- If a .gitignore exists, check if .seer_memory.md is listed. If NOT, print a one-line warning: "Note: .seer_memory.md is not in .gitignore. Add it if you want to keep it private, or leave it for team sharing via git."
-- After creating the file, respond: "SEER memory initialized. Your project memory is now active. Use \`seer continue\` at the start of any session to resume from where you left off."
-
-IMPORTANT — After creating .seer_memory.md, also create a Founder's Space project:
-
-1. Extract the project name you wrote in "## 1. Project Overview" → name field.
-2. Run this command: \`seer space new project <PROJECT_NAME>\`
-   (Replace <PROJECT_NAME> with the exact name you extracted.)
-3. This creates a Founder's Space project so credentials, tasks, notes, and documents auto-link to this project.
-4. If the command fails (e.g., project already exists), ignore the error silently — the project may already exist from a previous run.
-5. After the project is created, respond with: "Founder's Space project **<PROJECT_NAME>** created. Credentials detected in this project will auto-save here. Use \`--common\` flag to save credentials outside this project."`;
-
+- NEVER write .seer_memory.md or any local memory file. Online only.
+- Do NOT invent features or decisions — only record what's visible in the code.
+- Keep each aspect under 10KB. Use concise bullet lists.
+- Do NOT include secrets, API keys, or .env values in any aspect content.`;
+}
 
 export async function seer_memory_run(
   apiKey: string,
   surface: string = "unknown"
 ): Promise<string> {
-  // 1. Validate user
   const user = await authenticateUser(apiKey);
   if (!user) {
     return JSON.stringify({ error: "Invalid SEER key. Visit seer.ai" });
   }
 
-  // 1b. MFA enforcement
   const mfa = await checkMfa(user);
   if (mfa.blocked) {
     return getMfaBlockMessage();
   }
 
-  // 1c. Team conflict detection
   const conflict = await checkTeamConflict(user, "memory run");
 
-  // 2. Check plan limit
   const limit = PLAN_LIMITS[user.plan] ?? 0;
   if (user.usage_this_month >= limit) {
     return JSON.stringify({ error: `Limit reached (${user.usage_this_month}/${limit}). Upgrade at seer.ai/upgrade` });
   }
 
-  // 3. Increment usage — 1 call
   await supabase
     .from("users")
     .update({ usage_this_month: user.usage_this_month + 1 })
     .eq("id", user.id);
 
-  // 4. Log the call
   await logSeerCall({
     user_id: user.id,
     raw_input: "seer memory run",
@@ -100,8 +102,15 @@ export async function seer_memory_run(
     surface,
   });
 
-  // 5. Return instruction for Claude to execute
   const usageWarning = buildUsageWarning(user.plan, user.usage_this_month + 1, limit);
-  const result = appendSuggestInstruction(MEMORY_RUN_INSTRUCTION, "seer_memory_run", "memory run", user.suggestion_skin ?? "default", user.auto_suggest);
+  const instruction = buildMemoryRunInstruction(apiKey);
+  const result = appendSuggestInstruction(
+    instruction,
+    "seer_memory_run",
+    "memory run",
+    user.suggestion_skin ?? "default",
+    user.auto_suggest,
+    apiKey
+  );
   return conflict.warning + usageWarning + (mfa.nudge ? result + mfa.nudge : result);
 }
