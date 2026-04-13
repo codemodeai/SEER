@@ -173,6 +173,19 @@ export function AspectMemoryViewer({ scope, title, subtitle }: { scope: string; 
           <h1 className="font-display text-3xl text-charcoal">{title}</h1>
           <p className="text-muted text-sm mt-1">{subtitle}</p>
         </div>
+        {!loading && projects.length > 0 && !selected && (
+          <div className="flex items-center gap-4 text-xs text-muted">
+            <span className="flex items-center gap-1.5">
+              <FileText size={12} />
+              {projects.length} {projects.length === 1 ? "project" : "projects"}
+            </span>
+            <span>{formatBytes(projects.reduce((sum, p) => sum + p.totalBytes, 0))} total</span>
+            <span className="flex items-center gap-1">
+              <Clock size={10} />
+              {new Date(projects.reduce((latest, p) => p.updatedAt > latest ? p.updatedAt : latest, projects[0].updatedAt)).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+            </span>
+          </div>
+        )}
       </div>
 
       {message && (
