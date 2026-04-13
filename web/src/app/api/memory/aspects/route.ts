@@ -53,10 +53,39 @@ async function resolveScope(
   | { ok: true; agencyId: string | null; canWrite: boolean; canDelete: boolean }
   | { ok: false; status: number; error: string }
 > {
-  if (scope === "personal" || !scope) {
+  if (scope === "personal") {
     return { ok: true, agencyId: null, canWrite: true, canDelete: true };
   }
   const admin = getSupabaseAdmin();
+
+  // "auto" scope: check if user belongs to an agency, fall back to personal
+  if (scope === "auto" || !scope) {
+    const { data: membership } = await admin
+      .from("agency_users")
+      .select("agency_id, role")
+      .eq("user_id", userId)
+      .limit(1)
+      .maybeSingle();
+    if (membership?.agency_id) {
+      return {
+        ok: true,
+        agencyId: membership.agency_id,
+        canWrite: true,
+        canDelete: membership.role === "admin",
+      };
+    }
+    const { data: owned } = await admin
+      .from("agencies")
+      .select("id")
+      .eq("owner_id", userId)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
+    if (owned?.id) {
+      return { ok: true, agencyId: owned.id, canWrite: true, canDelete: true };
+    }
+    return { ok: true, agencyId: null, canWrite: true, canDelete: true };
+  }
   const { data: agency } = await admin
     .from("agencies")
     .select("id, owner_id")
