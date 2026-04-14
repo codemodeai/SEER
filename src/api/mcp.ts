@@ -66,22 +66,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // Rate limiting
+  // Rate limiting (sliding window, per-IP + per-key)
   const ip = (req.headers["x-forwarded-for"] as string) ?? req.socket?.remoteAddress ?? "unknown";
   const apiKey = extractApiKey(req);
   const ipResult = checkRateLimit(`ip:${ip}`);
-  const keyResult = apiKey ? checkRateLimit(`key:${apiKey.slice(0, 20)}`) : { allowed: true, remaining: 60 };
+  const keyResult = apiKey ? checkRateLimit(`key:${apiKey.slice(0, 20)}`) : ipResult;
 
-  if (!ipResult.allowed || !keyResult.allowed) {
+  const blocked = !ipResult.allowed || !keyResult.allowed;
+  const retryMs = Math.max(ipResult.retryAfterMs, keyResult.retryAfterMs);
+
+  if (blocked) {
     await logSecurityIncident({
       event_type: "rate_limited",
       source: "mcp",
       ip_address: ip,
       api_key_prefix: apiKey.slice(0, 8),
     });
+    res.setHeader("Retry-After", Math.ceil(retryMs / 1000));
     res.status(429).json({ error: "Too many requests. Try again in 1 minute." });
     return;
   }
+  res.setHeader("X-RateLimit-Remaining", Math.min(ipResult.remaining, keyResult.remaining));
 
   // CORS
   const origin = req.headers.origin as string;

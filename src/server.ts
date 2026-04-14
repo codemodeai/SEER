@@ -91,23 +91,30 @@ app.use("/mcp", (req, res, next) => {
   next();
 });
 
-// Rate limiting middleware for /mcp
+// Rate limiting middleware for /mcp (sliding window, per-IP + per-key)
 app.use("/mcp", (req, res, next) => {
   const ip = req.headers["x-forwarded-for"] as string ?? req.ip ?? "unknown";
   const apiKeyPrefix = (req.headers.authorization ?? "").slice(0, 20);
-  const ipResult = checkRateLimit(`ip:${ip}`);
-  const keyResult = apiKeyPrefix ? checkRateLimit(`key:${apiKeyPrefix}`) : { allowed: true, remaining: 60 };
+  const result = checkRateLimit(`ip:${ip}`);
 
-  if (!ipResult.allowed || !keyResult.allowed) {
+  // Also check key-level (plan-aware limits applied inside tool handlers)
+  const keyResult = apiKeyPrefix ? checkRateLimit(`key:${apiKeyPrefix}`) : result;
+
+  const blocked = !result.allowed || !keyResult.allowed;
+  const retryMs = Math.max(result.retryAfterMs, keyResult.retryAfterMs);
+
+  if (blocked) {
     logSecurityIncident({
       event_type: "rate_limited",
       source: "mcp",
       ip_address: ip,
       api_key_prefix: apiKeyPrefix.slice(0, 8),
     });
+    res.setHeader("Retry-After", Math.ceil(retryMs / 1000));
     res.status(429).json({ error: "Too many requests. Try again in 1 minute." });
     return;
   }
+  res.setHeader("X-RateLimit-Remaining", Math.min(result.remaining, keyResult.remaining));
   next();
 });
 
