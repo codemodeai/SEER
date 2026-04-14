@@ -8,6 +8,7 @@ import { appendMemoryLog } from "../lib/memory-log.js";
 import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
 import { checkTeamConflict } from "../lib/conflict-detect.js";
 import { scoreComplexity } from "../lib/complexity.js";
+import { detectModeAndModel } from "../lib/mode-switch.js";
 
 function systemPromptForModel(model: string): string {
   const modelHint =
@@ -64,8 +65,9 @@ export async function seer_optimize(
     .update({ usage_this_month: user.usage_this_month + 1 })
     .eq("id", user.id);
 
-  // 4. Score complexity and call Haiku with dynamic token budget
+  // 4. Score complexity, detect mode, call Haiku (always) with dynamic token budget
   const complexity = scoreComplexity(prompt);
+  const modeSwitch = detectModeAndModel(prompt, complexity.score);
   let resultText: string;
   try {
     const haikuOpts = {
@@ -139,10 +141,13 @@ export async function seer_optimize(
       pct_saved: pctSaved,
       complexity_score: complexity.score,
       token_budget: complexity.maxTokens,
+      mode: modeSwitch.mode,
     });
+    const modelPrefix = modeSwitch.modelInstruction ? modeSwitch.modelInstruction + "\n\n" : "";
     const finalResult = mfa.nudge ? result + mfa.nudge : result;
-    return appendMemoryLog(conflict.warning + usageWarning + finalResult, "seer_optimize", prompt, user.suggestion_skin, user.auto_suggest, apiKey);
+    return appendMemoryLog(modelPrefix + conflict.warning + usageWarning + finalResult, "seer_optimize", prompt, user.suggestion_skin, user.auto_suggest, apiKey);
   }
+  const modelPrefix = modeSwitch.modelInstruction ? modeSwitch.modelInstruction + "\n\n" : "";
   const finalResult = mfa.nudge ? resultText + mfa.nudge : resultText;
-  return appendMemoryLog(conflict.warning + usageWarning + finalResult, "seer_optimize", prompt, "default", true, apiKey);
+  return appendMemoryLog(modelPrefix + conflict.warning + usageWarning + finalResult, "seer_optimize", prompt, "default", true, apiKey);
 }

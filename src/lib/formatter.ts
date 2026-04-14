@@ -46,6 +46,7 @@ interface SeerRunResult {
     complexity_score?: number;
     token_budget?: number;
     complexity_signals?: string[];
+    mode?: string;
   };
 }
 
@@ -61,6 +62,8 @@ interface SeerOptimizeResult {
   pct_saved?: number;
   complexity_score?: number;
   token_budget?: number;
+  mode?: string;
+  engine_model?: string;
 }
 
 interface WorkflowStep {
@@ -78,6 +81,7 @@ interface SeerWorkflowResult {
     usage: string;
     complexity_score?: number;
     token_budget?: number;
+    mode?: string;
   };
 }
 
@@ -103,7 +107,8 @@ export function formatRunResult(parsed: SeerRunResult): string {
   if (parsed._meta) {
     const m = parsed._meta;
     const complexityTag = m.complexity_score != null ? ` | complexity:${m.complexity_score}/10 budget:${m.token_budget}` : "";
-    lines.push(`\n[${m.raw_tokens}→${m.optimized_tokens} tokens | -${m.pct_saved}%${complexityTag} | ${m.usage}]`);
+    const modeTag = m.mode ? ` | mode:${m.mode}` : "";
+    lines.push(`\n[${m.raw_tokens}→${m.optimized_tokens} tokens | -${m.pct_saved}%${complexityTag}${modeTag} | ${m.usage}]`);
   }
 
   return lines.join("\n");
@@ -154,7 +159,8 @@ export function formatWorkflowResult(parsed: SeerWorkflowResult): string {
   if (parsed._meta) {
     const m = parsed._meta;
     const complexityTag = m.complexity_score != null ? ` | complexity:${m.complexity_score}/10 budget:${m.token_budget}` : "";
-    lines.push(`\n[${m.total_steps} steps${complexityTag} | ${m.usage}]`);
+    const modeTag = m.mode ? ` | mode:${m.mode}` : "";
+    lines.push(`\n[${m.total_steps} steps${complexityTag}${modeTag} | ${m.usage}]`);
   }
 
   return lines.join("\n");

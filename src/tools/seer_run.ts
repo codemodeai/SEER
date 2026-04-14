@@ -15,6 +15,7 @@ import { detectMarkDone } from "../lib/mark-done.js";
 import { checkTeamConflict } from "../lib/conflict-detect.js";
 import { detectCredentials } from "../lib/credential-detect.js";
 import { scoreComplexity } from "../lib/complexity.js";
+import { detectModeAndModel } from "../lib/mode-switch.js";
 import { seer_tools } from "./seer_tools.js";
 import { seer_space } from "./seer_space.js";
 
@@ -554,7 +555,10 @@ export async function seer_run(
   // 4c. Smart Token Allocation — score complexity and assign dynamic token budget
   const complexity = scoreComplexity(input);
 
-  // 5. Call Haiku using SEER's own key with dynamic token budget
+  // 4d. Mode & Model Switch (Spec §04) — detect intent, generate Claude model instruction
+  const modeSwitch = detectModeAndModel(input, complexity.score);
+
+  // 5. Call Haiku (always) using SEER's own key with dynamic token budget
   const useContext = contextSnippet.length > 0;
   const haikuOpts = {
     systemPrompt: useContext ? SYSTEM_PROMPT_WITH_CONTEXT : SYSTEM_PROMPT,
@@ -632,10 +636,16 @@ export async function seer_run(
         complexity_score: complexity.score,
         token_budget: complexity.maxTokens,
         complexity_signals: complexity.signals,
+        mode: modeSwitch.mode,
       },
     });
   } else {
     finalResult = resultText;
+  }
+
+  // 7b. Mode & Model Switch (Spec §04) — prepend model instruction for Claude Code
+  if (modeSwitch.modelInstruction) {
+    finalResult = modeSwitch.modelInstruction + "\n\n" + finalResult;
   }
 
   // 8. Smart keyword nudge — suggest seer session read if not using seer
