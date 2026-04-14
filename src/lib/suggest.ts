@@ -29,7 +29,8 @@ const SHARED_RULES = `Rules for generating suggestions:
 
 const GUIDED_STEPS_RULES = `Rules for Guided Next Steps (Spec §13):
 - ALWAYS render exactly 5 suggestions — never 3, never 4, never 6. Fill to 5 from open tasks + contextual follow-ups.
-- Each line has TWO parts separated by " — ": the \`seer <command>\` (under 12 words) and a plain-English reason (one sentence, under 20 words, no jargon).
+- Each line has TWO parts separated by " — ": the **bold** \`seer <command>\` (under 12 words, wrapped in **bold asterisks**, NOT backticks) and a plain-English reason (one sentence, under 20 words, no jargon).
+- Use **seer do-thing**, never \`seer do-thing\`. Backticks render as blue code in Claude Code terminals and clash with the SEER orange/white theme. Bold keeps commands copy-paste friendly while rendering in the theme color.
 - Reasons must explain WHY this step matters right now, in language a non-engineer could understand. Avoid "implement X" or "refactor Y" — say what the user will get.
 - At least 1 of the 5 must reference an open \`- [ ]\` task from the features aspect. At least 1 must follow up on what was just built/fixed.
 - Do NOT suggest "seer status", "seer session read", or "seer memory run". Do NOT repeat completed \`- [x]\` items.
@@ -59,16 +60,16 @@ ${buildMemoryFetchSteps(apiKey)}
 
 STEP D — Based on what you just completed PLUS the memory context (adjusted for deviations), generate EXACTLY 5 suggestions. Each must include a plain-English reason. After the list, add one final line calling out the most important choice.
 
-Display them in this EXACT format:
+Display them in this EXACT format (note: commands are rendered as **bold** text, NOT inside backticks, so the terminal shows them in the SEER orange/white theme rather than code-block blue):
 
 ---
 **What's next?** Pick one or type your own:
 
-1. \`seer <suggestion 1>\` — <plain-English reason>
-2. \`seer <suggestion 2>\` — <plain-English reason>
-3. \`seer <suggestion 3>\` — <plain-English reason>
-4. \`seer <suggestion 4>\` — <plain-English reason>
-5. \`seer <suggestion 5>\` — <plain-English reason>
+1. **seer <suggestion 1>** — <plain-English reason>
+2. **seer <suggestion 2>** — <plain-English reason>
+3. **seer <suggestion 3>** — <plain-English reason>
+4. **seer <suggestion 4>** — <plain-English reason>
+5. **seer <suggestion 5>** — <plain-English reason>
 
 **Most important:** #N — <one-sentence reason this is the top priority right now>
 
@@ -84,10 +85,10 @@ SEER AUTO-SUGGEST — After ALL work is complete, show 3 quick suggestions.
 
 ${buildMemoryFetchSteps(apiKey)}
 
-Display in this EXACT format:
+Display in this EXACT format (commands are **bold**, NOT backticks — SEER theme is orange/white, avoid terminal code-block blue):
 
 ---
-**Next:** \`seer <1>\` | \`seer <2>\` | \`seer <3>\`
+**Next:** **seer <1>** | **seer <2>** | **seer <3>**
 
 ---
 
@@ -101,10 +102,10 @@ SEER AUTO-SUGGEST — After ALL work is complete, show the single best next step
 
 ${buildMemoryFetchSteps(apiKey)}
 
-Display in this EXACT format:
+Display in this EXACT format (command is **bold**, NOT inside backticks):
 
 ---
-**Next:** \`seer <suggestion>\`
+**Next:** **seer <suggestion>**
 
 ---
 
