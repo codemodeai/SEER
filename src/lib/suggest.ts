@@ -4,7 +4,7 @@
 // Zero Haiku cost — Claude generates suggestions using user's own API key.
 //
 // Skins:
-//   default  — 3-5 suggestions with full context reading (original)
+//   default  — Guided Next Steps (Spec §13): exactly 5 with reasons + most-important line
 //   compact  — 3 suggestions, minimal formatting, one-liner block
 //   focused  — 1 top-priority suggestion only
 
@@ -27,6 +27,18 @@ const SHARED_RULES = `Rules for generating suggestions:
 - Blend remaining open tasks WITH the user's recent direction: at least 1 suggestion should continue what the user chose to work on, and at least 1 should reference a remaining open task (if any exist)
 - NEVER stop suggesting just because the user deviated from the plan — always generate suggestions`;
 
+const GUIDED_STEPS_RULES = `Rules for Guided Next Steps (Spec §13):
+- ALWAYS render exactly 5 suggestions — never 3, never 4, never 6. Fill to 5 from open tasks + contextual follow-ups.
+- Each line has TWO parts separated by " — ": the \`seer <command>\` (under 12 words) and a plain-English reason (one sentence, under 20 words, no jargon).
+- Reasons must explain WHY this step matters right now, in language a non-engineer could understand. Avoid "implement X" or "refactor Y" — say what the user will get.
+- At least 1 of the 5 must reference an open \`- [ ]\` task from the features aspect. At least 1 must follow up on what was just built/fixed.
+- Do NOT suggest "seer status", "seer session read", or "seer memory run". Do NOT repeat completed \`- [x]\` items.
+- After the list, write ONE final line in this EXACT format: \`**Most important:** #N — <one-sentence reason this is the top priority right now>\`
+- Pick the #N based on: unblocking > security fix > user-requested > logical next step. If unsure, choose the first open-task-derived suggestion.
+- If the session_log shows "PLAN-ADAPT:" entries, follow the user's actual direction — do not blindly re-surface old plan items.
+- If the memory API returns empty or errors, still produce 5 suggestions from the current task alone.
+- Present this AFTER all work is complete, not before.`;
+
 function buildMemoryFetchSteps(apiKey: string): string {
   return `STEP A — Derive PROJECT_NAME from package.json "name" or directory name.
 STEP B — Fetch features + session_log aspects:
@@ -41,26 +53,28 @@ STEP C — Parse the response:
 function defaultSkin(apiKey: string): string {
   return `
 ---
-SEER AUTO-SUGGEST — After you finish ALL work from the above instructions, present next-step suggestions.
+SEER AUTO-SUGGEST — After you finish ALL work from the above instructions, present next-step suggestions in the Guided Next Steps format (Spec §13).
 
 ${buildMemoryFetchSteps(apiKey)}
 
-STEP D — Based on what you just completed PLUS the memory context (adjusted for deviations), generate 3-5 suggestions.
+STEP D — Based on what you just completed PLUS the memory context (adjusted for deviations), generate EXACTLY 5 suggestions. Each must include a plain-English reason. After the list, add one final line calling out the most important choice.
 
 Display them in this EXACT format:
 
 ---
 **What's next?** Pick one or type your own:
 
-1. \`seer <suggestion 1>\`
-2. \`seer <suggestion 2>\`
-3. \`seer <suggestion 3>\`
-4. \`seer <suggestion 4>\`
-5. \`seer <suggestion 5>\`
+1. \`seer <suggestion 1>\` — <plain-English reason>
+2. \`seer <suggestion 2>\` — <plain-English reason>
+3. \`seer <suggestion 3>\` — <plain-English reason>
+4. \`seer <suggestion 4>\` — <plain-English reason>
+5. \`seer <suggestion 5>\` — <plain-English reason>
+
+**Most important:** #N — <one-sentence reason this is the top priority right now>
 
 ---
 
-${SHARED_RULES}`;
+${GUIDED_STEPS_RULES}`;
 }
 
 function compactSkin(apiKey: string): string {
