@@ -2,7 +2,7 @@ import { authenticateUser, PLAN_LIMITS } from "../lib/auth.js";
 import { supabase } from "../lib/supabase.js";
 import { callHaiku, estimateTokens, parseHaikuJson } from "../lib/haiku.js";
 import { logSeerCall } from "../lib/logger.js";
-import { formatOptimizeResult, buildUsageWarning } from "../lib/formatter.js";
+import { formatOptimizeResult, buildUsageWarning, buildFooterLine } from "../lib/formatter.js";
 import { SECURITY_ANCHOR, scanOutput, logSecurityIncident } from "../lib/security.js";
 import { appendMemoryLog } from "../lib/memory-log.js";
 import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
@@ -148,7 +148,14 @@ export async function seer_optimize(
     const finalResult = mfa.nudge ? result + mfa.nudge : result;
     return appendMemoryLog(modelPrefix + conflict.warning + usageWarning + finalResult, "seer_optimize", prompt, user.suggestion_skin, user.auto_suggest, apiKey);
   }
+  const footer = buildFooterLine({
+    rawTokens, optimizedTokens, pctSaved,
+    complexityScore: complexity.score, tokenBudget: complexity.maxTokens,
+    mode: modeSwitch.mode, recommendedModel: modeSwitch.recommendedModel,
+    usage: `${user.usage_this_month + 1}/${limit === Infinity ? "unlimited" : limit}`,
+  });
   const modelPrefix = modeSwitch.modelInstruction ? modeSwitch.modelInstruction + "\n\n" : "";
-  const finalResult = mfa.nudge ? resultText + mfa.nudge : resultText;
-  return appendMemoryLog(modelPrefix + conflict.warning + usageWarning + finalResult, "seer_optimize", prompt, "default", true, apiKey);
+  const withFooter = resultText + footer;
+  const finalResult = mfa.nudge ? withFooter + mfa.nudge : withFooter;
+  return appendMemoryLog(modelPrefix + conflict.warning + usageWarning + finalResult, "seer_optimize", prompt, user.suggestion_skin, user.auto_suggest, apiKey);
 }

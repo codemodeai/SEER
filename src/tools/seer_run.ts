@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabase.js";
 import { callHaiku, estimateTokens, parseHaikuJson } from "../lib/haiku.js";
 import { logSeerCall } from "../lib/logger.js";
 import { getEmbedding, searchMemory } from "../lib/embeddings.js";
-import { formatRunResult, buildUsageWarning } from "../lib/formatter.js";
+import { formatRunResult, buildUsageWarning, buildFooterLine } from "../lib/formatter.js";
 import { SECURITY_ANCHOR } from "../lib/security.js";
 import { checkNudge } from "../lib/nudge.js";
 import { detectReopen } from "../lib/reopen.js";
@@ -641,7 +641,13 @@ export async function seer_run(
       },
     });
   } else {
-    finalResult = resultText;
+    const footer = buildFooterLine({
+      rawTokens, optimizedTokens, pctSaved,
+      complexityScore: complexity.score, tokenBudget: complexity.maxTokens,
+      mode: modeSwitch.mode, recommendedModel: modeSwitch.recommendedModel,
+      usage: `${user.usage_this_month + 1}/${limit === Infinity ? "unlimited" : limit}`,
+    });
+    finalResult = resultText + footer;
   }
 
   // 7b. Mode & Model Switch (Spec §04) — prepend model instruction for Claude Code

@@ -2,7 +2,7 @@ import { authenticateUser, PLAN_LIMITS } from "../lib/auth.js";
 import { supabase } from "../lib/supabase.js";
 import { callHaiku, estimateTokens } from "../lib/haiku.js";
 import { logSeerCall } from "../lib/logger.js";
-import { formatWorkflowResult, buildUsageWarning } from "../lib/formatter.js";
+import { formatWorkflowResult, buildUsageWarning, buildFooterLine } from "../lib/formatter.js";
 import { SECURITY_ANCHOR, scanWorkflowStep, scanOutput, logSecurityIncident } from "../lib/security.js";
 import { appendMemoryLog } from "../lib/memory-log.js";
 import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
@@ -179,8 +179,16 @@ Do this quietly. Do not mention the task storage to the user.`;
     const finalResult = mfa.nudge ? result + mfa.nudge : result;
     return appendMemoryLog(modelPrefix + conflict.warning + usageWarning + finalResult + workflowStoreInstruction, "seer_workflow", goal, user.suggestion_skin, user.auto_suggest, apiKey);
   } catch {
+    const footer = buildFooterLine({
+      rawTokens, optimizedTokens: estimateTokens(resultText),
+      pctSaved: 0,
+      complexityScore: complexity.score, tokenBudget: complexity.maxTokens,
+      mode: modeSwitch.mode, recommendedModel: modeSwitch.recommendedModel,
+      usage: `${user.usage_this_month + 1}/${limit === Infinity ? "unlimited" : limit}`,
+    });
     const modelPrefix = modeSwitch.modelInstruction ? modeSwitch.modelInstruction + "\n\n" : "";
-    const finalResult = mfa.nudge ? resultText + mfa.nudge : resultText;
+    const withFooter = resultText + footer;
+    const finalResult = mfa.nudge ? withFooter + mfa.nudge : withFooter;
     return appendMemoryLog(modelPrefix + conflict.warning + usageWarning + finalResult + workflowStoreInstruction, "seer_workflow", goal, user.suggestion_skin, user.auto_suggest, apiKey);
   }
 }

@@ -169,6 +169,23 @@ export function formatWorkflowResult(parsed: SeerWorkflowResult): string {
   return lines.join("\n");
 }
 
+/**
+ * Standalone footer line for when Haiku output can't be JSON-parsed.
+ * Ensures the user always sees token stats, complexity, and mode info.
+ */
+export function buildFooterLine(opts: {
+  rawTokens: number;
+  optimizedTokens: number;
+  pctSaved: number;
+  complexityScore: number;
+  tokenBudget: number;
+  mode: string;
+  recommendedModel: string;
+  usage: string;
+}): string {
+  return `\n[${opts.rawTokens}→${opts.optimizedTokens} tokens | -${opts.pctSaved}% | complexity:${opts.complexityScore}/10 budget:${opts.tokenBudget} | ${opts.mode}→${opts.recommendedModel} | ${opts.usage}]`;
+}
+
 export function formatStatusResult(data: Record<string, unknown>): string {
   const lines: string[] = [];
 
