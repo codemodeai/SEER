@@ -147,6 +147,48 @@ SEER DOC SYNC — Detect and sync document files to project memory and Founder's
 Do this quietly unless new items are found — then notify the user about what was added.`
     : "";
 
+  // Git state check: detect uncommitted/unpushed changes after build/fix work
+  const gitStateCheck = (apiKey && !isGeneric)
+    ? `
+---
+SEER GIT STATE CHECK — After completing all work, check for uncommitted or unpushed changes:
+
+1. Run \`git status --short\` to check for uncommitted changes (modified, staged, or untracked source files).
+   - Only look at source code files (*.ts, *.tsx, *.js, *.jsx, *.json, *.css, *.html, *.py, etc.)
+   - Ignore: node_modules, dist, build, .next, *.log, tsconfig.tsbuildinfo
+
+2. Run \`git log origin/main..HEAD --oneline 2>/dev/null\` to check for committed but unpushed changes.
+
+3. IF there are uncommitted source code changes (modified or new files from this session's work):
+   Show this at the END of your response, BEFORE the "What's next?" suggestions:
+
+   ---
+   **📦 SEER — Uncommitted changes detected**
+
+   You have modified files that haven't been committed:
+   [list the changed source files]
+
+   Ready to commit and push? Type: \`seer push this update\`
+
+   ---
+
+4. IF there are committed but unpushed changes:
+   Show this at the END of your response, BEFORE the "What's next?" suggestions:
+
+   ---
+   **📦 SEER — Unpushed commits detected**
+
+   You have **[N] commit(s)** not yet pushed to remote:
+   [list the commit messages]
+
+   Ready to push? Type: \`seer push this update\`
+
+   ---
+
+5. IF everything is clean (no uncommitted changes AND no unpushed commits), skip silently.
+6. This check runs AFTER all build/fix work is complete — never before or during.`
+    : "";
+
   const heartbeat = (apiKey && !isGeneric)
     ? `
 ---
@@ -173,7 +215,7 @@ SEER ACTIVITY HEARTBEAT — Report what the user is working on for team conflict
 5. If conflicts is empty or missing, say nothing.`
     : "";
 
-  const instruction = memorySync + aspectAutoUpdate + docSync + heartbeat;
+  const instruction = memorySync + aspectAutoUpdate + docSync + gitStateCheck + heartbeat;
   const withLog = toolResult + instruction;
   const withCredWatch = withLog + buildCredentialWatchInstruction();
   return appendSuggestInstruction(withCredWatch, toolName, userInput, skin, autoSuggest, apiKey);
