@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { callHaiku, estimateTokens, parseHaikuJson } from "../lib/haiku.js";
 import { SECURITY_ANCHOR } from "../lib/security.js";
+import { scoreComplexity } from "../lib/complexity.js";
 
 // In-memory rate limit: max 2 calls per IP per 24h
 const ipUsage = new Map<string, { count: number; resetAt: number }>();
@@ -82,13 +83,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const rawTokens = estimateTokens(prompt);
+    const complexity = scoreComplexity(prompt);
 
-    const resultText = await callHaiku({
+    let haikuResult = await callHaiku({
       systemPrompt: OPTIMIZE_PROMPT,
       userInput: prompt,
+      maxTokens: complexity.maxTokens,
     });
 
-    const parsed = parseHaikuJson(resultText);
+    if (haikuResult.truncated) {
+      const retryBudget = Math.min(complexity.maxTokens * 2, 8192);
+      haikuResult = await callHaiku({
+        systemPrompt: OPTIMIZE_PROMPT,
+        userInput: prompt,
+        maxTokens: retryBudget,
+      });
+    }
+
+    const parsed = parseHaikuJson(haikuResult.text);
 
     if (!parsed?.optimized) {
       return res.status(500).json({ error: "Optimization failed" });

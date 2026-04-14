@@ -1,11 +1,16 @@
+// SEER Engine — internal model call for prompt optimization.
+// Currently uses Haiku for speed/cost. To switch to Sonnet or Opus,
+// change ENGINE_MODEL below. The token budgeting in complexity.ts
+// is model-agnostic and works with any Claude model.
+
 import Anthropic from "@anthropic-ai/sdk";
 
 const anthropic = new Anthropic({
   apiKey: process.env["ANTHROPIC_API_KEY"] ?? "",
 });
 
-const HAIKU_MODEL = "claude-haiku-4-5-20251001";
-const DEFAULT_MAX_TOKENS = 800;
+const ENGINE_MODEL = "claude-haiku-4-5-20251001";
+const DEFAULT_MAX_TOKENS = 2048;
 
 export interface HaikuCallOptions {
   systemPrompt: string;
@@ -13,20 +18,27 @@ export interface HaikuCallOptions {
   maxTokens?: number; // Smart Token Allocation — dynamic budget from complexity scoring
 }
 
+export interface HaikuCallResult {
+  text: string;
+  truncated: boolean; // true when stop_reason is "max_tokens"
+}
+
 export async function callHaiku({
   systemPrompt,
   userInput,
   maxTokens,
-}: HaikuCallOptions): Promise<string> {
+}: HaikuCallOptions): Promise<HaikuCallResult> {
   const response = await anthropic.messages.create({
-    model: HAIKU_MODEL,
+    model: ENGINE_MODEL,
     max_tokens: maxTokens ?? DEFAULT_MAX_TOKENS,
     system: systemPrompt,
     messages: [{ role: "user", content: userInput }],
   });
 
   const block = response.content[0];
-  return block && block.type === "text" ? block.text : "{}";
+  const text = block && block.type === "text" ? block.text : "{}";
+  const truncated = response.stop_reason === "max_tokens";
+  return { text, truncated };
 }
 
 /** Rough token estimate: ~1.3 tokens per word */

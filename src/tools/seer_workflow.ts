@@ -7,6 +7,7 @@ import { SECURITY_ANCHOR, scanWorkflowStep, scanOutput, logSecurityIncident } fr
 import { appendMemoryLog } from "../lib/memory-log.js";
 import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
 import { checkTeamConflict } from "../lib/conflict-detect.js";
+import { scoreComplexity } from "../lib/complexity.js";
 
 const SYSTEM_PROMPT = `Decompose this goal into 3-7 sequential steps. Return ONLY JSON: { "goal": "...", "steps": [{ "step": 1, "title": "...", "context": "...", "prompt": "..." }] }. Each step's "prompt" should be a focused, executable instruction that Claude Code can run directly.
 ${SECURITY_ANCHOR}`;
@@ -52,13 +53,23 @@ export async function seer_workflow(
     .update({ usage_this_month: user.usage_this_month + 1 })
     .eq("id", user.id);
 
-  // 5. Call Haiku
+  // 5. Score complexity and call Haiku with dynamic token budget
+  const complexity = scoreComplexity(goal);
   let resultText: string;
   try {
-    resultText = await callHaiku({
+    const haikuOpts = {
       systemPrompt: SYSTEM_PROMPT,
       userInput: goal,
-    });
+    };
+    let result = await callHaiku({ ...haikuOpts, maxTokens: complexity.maxTokens });
+
+    // Retry with doubled budget if output was truncated
+    if (result.truncated) {
+      const retryBudget = Math.min(complexity.maxTokens * 2, 8192);
+      result = await callHaiku({ ...haikuOpts, maxTokens: retryBudget });
+    }
+
+    resultText = result.text;
   } catch (err) {
     return JSON.stringify({
       error: "Workflow generation failed.",
@@ -131,6 +142,8 @@ export async function seer_workflow(
       _meta: {
         total_steps: Array.isArray(parsed.steps) ? parsed.steps.length : 0,
         usage: `${user.usage_this_month + 1}/${limit === Infinity ? "unlimited" : limit}`,
+        complexity_score: complexity.score,
+        token_budget: complexity.maxTokens,
       },
     });
 

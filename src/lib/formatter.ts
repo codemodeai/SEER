@@ -59,6 +59,8 @@ interface SeerOptimizeResult {
   tokens_after?: number;
   tokens_saved?: number;
   pct_saved?: number;
+  complexity_score?: number;
+  token_budget?: number;
 }
 
 interface WorkflowStep {
@@ -74,6 +76,8 @@ interface SeerWorkflowResult {
   _meta?: {
     total_steps: number;
     usage: string;
+    complexity_score?: number;
+    token_budget?: number;
   };
 }
 
@@ -122,6 +126,7 @@ export function formatOptimizeResult(parsed: SeerOptimizeResult): string {
   if (parsed.tokens_before != null && parsed.tokens_after != null) {
     details.push(`${parsed.tokens_before}→${parsed.tokens_after} tokens | -${parsed.pct_saved ?? 0}%`);
   }
+  if (parsed.complexity_score != null) details.push(`complexity:${parsed.complexity_score}/10 budget:${parsed.token_budget}`);
 
   if (details.length > 0) {
     lines.push(`[${details.join(" | ")}]`);
@@ -147,7 +152,9 @@ export function formatWorkflowResult(parsed: SeerWorkflowResult): string {
   }
 
   if (parsed._meta) {
-    lines.push(`\n[${parsed._meta.total_steps} steps | ${parsed._meta.usage}]`);
+    const m = parsed._meta;
+    const complexityTag = m.complexity_score != null ? ` | complexity:${m.complexity_score}/10 budget:${m.token_budget}` : "";
+    lines.push(`\n[${m.total_steps} steps${complexityTag} | ${m.usage}]`);
   }
 
   return lines.join("\n");

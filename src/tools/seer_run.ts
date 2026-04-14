@@ -556,13 +556,21 @@ export async function seer_run(
 
   // 5. Call Haiku using SEER's own key with dynamic token budget
   const useContext = contextSnippet.length > 0;
+  const haikuOpts = {
+    systemPrompt: useContext ? SYSTEM_PROMPT_WITH_CONTEXT : SYSTEM_PROMPT,
+    userInput: useContext ? input + contextSnippet : input,
+  };
   let resultText: string;
   try {
-    resultText = await callHaiku({
-      systemPrompt: useContext ? SYSTEM_PROMPT_WITH_CONTEXT : SYSTEM_PROMPT,
-      userInput: useContext ? input + contextSnippet : input,
-      maxTokens: complexity.maxTokens,
-    });
+    let result = await callHaiku({ ...haikuOpts, maxTokens: complexity.maxTokens });
+
+    // Retry with doubled budget if output was truncated (hit max_tokens)
+    if (result.truncated) {
+      const retryBudget = Math.min(complexity.maxTokens * 2, 8192);
+      result = await callHaiku({ ...haikuOpts, maxTokens: retryBudget });
+    }
+
+    resultText = result.text;
   } catch (err) {
     return JSON.stringify({
       error: "Optimization failed. Please try again.",

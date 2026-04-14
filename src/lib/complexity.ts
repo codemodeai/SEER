@@ -1,5 +1,19 @@
 // Smart Token Allocation — Complexity scoring and dynamic token budget.
-// Scores every prompt 1-10 and assigns minimum sufficient max_tokens.
+// Scores every prompt 1-10, then allocates tokens based on BOTH complexity
+// and input size. Output must never be truncated — users should never worry
+// about cut-off results. Budget is generous but not wasteful.
+//
+// NOTE: This budgets the output for SEER's internal engine call (currently Haiku).
+// It is NOT model-specific — if the engine model changes (e.g. to Sonnet or Opus),
+// only ENGINE_MAX_OUTPUT needs updating. The complexity scoring and allocation
+// logic is model-agnostic.
+
+// Hard ceiling for the engine model's max output tokens.
+// Haiku: 8192 | Sonnet: 8192 | Opus: 8192
+const ENGINE_MAX_OUTPUT = 8192;
+
+// Safety buffer added on top of every budget to prevent edge-case truncation
+const TOKEN_BUFFER = 300;
 
 export interface ComplexityResult {
   score: number;        // 1-10
@@ -53,26 +67,40 @@ function listSignal(input: string): { weight: number; name: string } | null {
   return null;
 }
 
-// --- Token allocation formula ---
-// Score 1-2:  300 tokens (simple renames, one-liners)
-// Score 3-4:  500 tokens (single fixes, small changes)
-// Score 5-6:  800 tokens (medium features, integrations)
-// Score 7-8:  1200 tokens (full features, multi-step work)
-// Score 9-10: 1600 tokens (architecture, multi-file refactors)
+// --- Token allocation ---
+// Two-factor budget: complexity tier sets a BASE, then input size scales it up.
+// The output often mirrors the input (optimized prompt ≈ same length), so the
+// budget must be at least as large as the estimated input tokens.
 
-const TOKEN_TIERS: Array<{ maxScore: number; tokens: number }> = [
-  { maxScore: 2,  tokens: 300 },
-  { maxScore: 4,  tokens: 500 },
-  { maxScore: 6,  tokens: 800 },
-  { maxScore: 8,  tokens: 1200 },
-  { maxScore: 10, tokens: 1600 },
+// Base tiers by complexity score (before input-size scaling)
+const BASE_TIERS: Array<{ maxScore: number; tokens: number }> = [
+  { maxScore: 2,  tokens: 1024 },   // simple one-liners
+  { maxScore: 4,  tokens: 2048 },   // small changes
+  { maxScore: 6,  tokens: 3072 },   // medium features
+  { maxScore: 8,  tokens: 4096 },   // full features, multi-step
+  { maxScore: 10, tokens: 6144 },   // architecture, large refactors
 ];
 
-function scoreToTokens(score: number): number {
-  for (const tier of TOKEN_TIERS) {
+function baseTierTokens(score: number): number {
+  for (const tier of BASE_TIERS) {
     if (score <= tier.maxScore) return tier.tokens;
   }
-  return 1600; // fallback max
+  return 6144;
+}
+
+// Estimate input tokens (~1.3 tokens per word)
+function estimateInputTokens(input: string): number {
+  return Math.ceil(input.split(/\s+/).filter(Boolean).length * 1.3);
+}
+
+// Final budget = max(baseTier, inputTokens * 1.5) + buffer, capped at Haiku limit
+function computeBudget(score: number, input: string): number {
+  const base = baseTierTokens(score);
+  const inputTokens = estimateInputTokens(input);
+  // Output needs room for the full optimized prompt + JSON wrapper overhead
+  const inputProportional = Math.ceil(inputTokens * 1.5);
+  const raw = Math.max(base, inputProportional) + TOKEN_BUFFER;
+  return Math.min(raw, ENGINE_MAX_OUTPUT);
 }
 
 // --- Main scoring function ---
@@ -112,7 +140,7 @@ export function scoreComplexity(input: string): ComplexityResult {
 
   // Clamp to 1-10
   const score = Math.min(10, Math.max(1, Math.round(rawScore)));
-  const maxTokens = scoreToTokens(score);
+  const maxTokens = computeBudget(score, input);
 
   return { score, maxTokens, signals };
 }

@@ -7,6 +7,7 @@ import { SECURITY_ANCHOR, scanOutput, logSecurityIncident } from "../lib/securit
 import { appendMemoryLog } from "../lib/memory-log.js";
 import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
 import { checkTeamConflict } from "../lib/conflict-detect.js";
+import { scoreComplexity } from "../lib/complexity.js";
 
 function systemPromptForModel(model: string): string {
   const modelHint =
@@ -63,13 +64,23 @@ export async function seer_optimize(
     .update({ usage_this_month: user.usage_this_month + 1 })
     .eq("id", user.id);
 
-  // 4. Call Haiku
+  // 4. Score complexity and call Haiku with dynamic token budget
+  const complexity = scoreComplexity(prompt);
   let resultText: string;
   try {
-    resultText = await callHaiku({
+    const haikuOpts = {
       systemPrompt: systemPromptForModel(model),
       userInput: prompt,
-    });
+    };
+    let result = await callHaiku({ ...haikuOpts, maxTokens: complexity.maxTokens });
+
+    // Retry with doubled budget if output was truncated
+    if (result.truncated) {
+      const retryBudget = Math.min(complexity.maxTokens * 2, 8192);
+      result = await callHaiku({ ...haikuOpts, maxTokens: retryBudget });
+    }
+
+    resultText = result.text;
   } catch (err) {
     return JSON.stringify({
       error: "Optimization failed.",
@@ -126,6 +137,8 @@ export async function seer_optimize(
       tokens_after: optimizedTokens,
       tokens_saved: tokensSaved,
       pct_saved: pctSaved,
+      complexity_score: complexity.score,
+      token_budget: complexity.maxTokens,
     });
     const finalResult = mfa.nudge ? result + mfa.nudge : result;
     return appendMemoryLog(conflict.warning + usageWarning + finalResult, "seer_optimize", prompt, user.suggestion_skin, user.auto_suggest, apiKey);
