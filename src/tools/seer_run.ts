@@ -31,6 +31,8 @@ const CALLBACK_MEMORY_PATTERNS = /^(what did i do|what have i done|recall|recap|
 
 const RECORD_CREDENTIALS_PATTERN = /^record\s*cred(ential)?s?$/i;
 
+const DOCTOR_PATTERN = /^doctor(\s+--fix)?$/i;
+
 function buildContinueInstruction(apiKey: string): string {
   return `switch to haiku now. this entire response uses haiku only.
 
@@ -98,6 +100,133 @@ Rules:
 - Be concise and direct.
 - Do NOT guess or infer beyond what the API returned.
 - The session_log append for this call will be handled automatically downstream — do not write it yourself.`;
+}
+
+// --- Doctor instruction (health check on SEER setup) ---
+
+function buildDoctorInstruction(apiKey: string, fixMode: boolean, user: { id: string; email: string; plan: string; usage_this_month: number; mfa_verified: boolean; fs_access: boolean; auto_suggest: boolean; suggestion_skin: string }): string {
+  const limit = PLAN_LIMITS[user.plan] ?? 0;
+  const limitStr = limit === Infinity ? "unlimited" : String(limit);
+  const isAgency = user.plan === "agency";
+
+  return `switch to haiku now. this entire response uses haiku only.
+
+SEER INSTRUCTION — Health check on SEER setup${fixMode ? " (--fix mode)" : ""}
+
+Run every check below. For each check, report a status icon and one-line result.
+Icons: ✅ = pass, ⚠️ = warning, ❌ = fail
+
+**Pre-loaded values (from server — do NOT re-check these):**
+- API key: valid ✅
+- Email: ${user.email}
+- Plan: ${user.plan}
+- Usage: ${user.usage_this_month}/${limitStr}
+- MFA: ${user.mfa_verified ? "verified ✅" : "not verified ⚠️"}
+- Founder's Space: ${user.fs_access ? "enabled ✅" : "not enabled ⚠️"}
+- Auto-suggest: ${user.auto_suggest ? "on" : "off"}
+- Suggestion skin: ${user.suggestion_skin}
+
+**Checks to run (you must execute these):**
+
+1. **Project detection** — Check if package.json exists. Read the "name" field. If missing, ❌.
+
+2. **Project memory** — Fetch aspects:
+   curl -s "${API_BASE}/api/seer/memory-aspect?project=PROJECT_NAME&aspects=project_overview,features,session_log" \\
+     -H "Authorization: Bearer ${apiKey}"
+   - If all 3 aspects have content: ✅
+   - If some are empty: ⚠️ (list which ones)
+   - If API errors or none exist: ❌
+
+3. **Git status** — Run \`git status --short\` and \`git log origin/main..HEAD --oneline 2>/dev/null\`
+   - Clean working tree + no unpushed: ✅
+   - Uncommitted changes: ⚠️ (count files)
+   - Unpushed commits: ⚠️ (count commits)
+
+4. **Environment files** — Check for .env, .env.local, .env.production
+   - If .env exists: ✅
+   - If .env but not in .gitignore: ❌ (security risk)
+   - If no .env: ⚠️
+
+5. **SEER API connectivity** — Run:
+   curl -s -o /dev/null -w "%{http_code}" "${API_BASE}/api/seer/memory-aspect?project=_healthcheck&aspects=project_overview" \\
+     -H "Authorization: Bearer ${apiKey}"
+   - HTTP 200: ✅
+   - Any other status: ❌
+
+6. **Founder's Space** — ${user.fs_access ? `Check if user has any credentials or tasks saved:
+   curl -s "${API_BASE}/api/founders-space/credentials" \\
+     -H "Authorization: Bearer ${apiKey}"
+   - Has saved items: ✅
+   - Empty but accessible: ⚠️ (no credentials saved yet)
+   - Error: ❌` : "Not enabled ⚠️ — available as addon"}
+
+${isAgency ? `7. **Agency team** — Check agency membership:
+   curl -s "${API_BASE}/api/agency/members" \\
+     -H "Authorization: Bearer ${apiKey}"
+   - Team members found: ✅ (show count)
+   - No members: ⚠️
+   - Error: ❌
+
+8. **Webhooks** — Check webhook configuration:
+   curl -s "${API_BASE}/api/agency/webhooks" \\
+     -H "Authorization: Bearer ${apiKey}"
+   - Webhooks configured: ✅ (show count)
+   - No webhooks: ⚠️ (optional feature)
+   - Error: ❌` : ""}
+
+**Output format:**
+
+---
+**🩺 SEER Doctor — Health Check**
+
+| # | Check | Status | Detail |
+|---|-------|--------|--------|
+| 1 | API Key | ✅ | Valid, ${user.plan} plan |
+| 2 | Usage | ${user.usage_this_month >= (limit === Infinity ? Infinity : limit * 0.9) ? "⚠️" : "✅"} | ${user.usage_this_month}/${limitStr} calls used |
+| 3 | MFA | ${user.mfa_verified ? "✅" : "⚠️"} | ${user.mfa_verified ? "Verified" : "Not verified"} |
+| 4 | Project | [result] | [detail] |
+| 5 | Memory | [result] | [detail] |
+| 6 | Git | [result] | [detail] |
+| 7 | Env files | [result] | [detail] |
+| 8 | API connection | [result] | [detail] |
+| 9 | Founder's Space | [result] | [detail] |
+${isAgency ? "| 10 | Agency team | [result] | [detail] |\n| 11 | Webhooks | [result] | [detail] |" : ""}
+
+**Score: [N]/${isAgency ? "11" : "9"} passed** | [M] warnings | [K] failures
+
+---
+
+${fixMode ? `**--fix mode: For every ⚠️ or ❌, output the exact command to fix it.**
+
+Fix format — one per issue, no explanations:
+
+---
+**🔧 SEER Doctor — Fixes**
+
+[For each issue:]
+**[Check name]** — [one-line problem]
+\\\`\\\`\\\`
+[exact command to run]
+\\\`\\\`\\\`
+
+---
+
+Fix commands reference:
+- Memory not initialized → \`seer memory run\`
+- MFA not verified → \`seer mfa setup\`
+- .env not in .gitignore → \`echo ".env*" >> .gitignore\`
+- Uncommitted changes → \`git add -A && git commit -m "commit message"\`
+- Unpushed commits → \`git push origin main\`
+- Founder's Space not enabled → "Enable at seermcp.com/dashboard/founders-space"
+- No credentials saved → \`seer record credentials\`
+- No webhooks → "Configure at seermcp.com/dashboard/agency/webhooks"
+` : ""}
+
+Rules:
+- Run ALL checks — do not skip any.
+- Be concise. One-line per check result.
+- Do NOT invent data. Only report what the checks actually return.
+- After the table, wait for user's next instruction.`;
 }
 
 // --- Record credentials instruction (scans project files for credentials → saves to Founder's Space) ---
@@ -322,6 +451,32 @@ export async function seer_run(
     const usageWarning = buildUsageWarning(user.plan, user.usage_this_month + 1, limit);
     const recordResult = appendSuggestInstruction(RECORD_CREDENTIALS_INSTRUCTION, "seer_record_credentials", trimmedInput, user.suggestion_skin, user.auto_suggest, apiKey);
     return appendMemoryLog(conflict.warning + usageWarning + (mfa.nudge ? recordResult + mfa.nudge : recordResult), "seer_record_credentials", trimmedInput, user.suggestion_skin, user.auto_suggest, apiKey);
+  }
+
+  // 1g. Route "seer doctor" / "seer doctor --fix" — 1 call, no Haiku cost
+  const doctorMatch = DOCTOR_PATTERN.exec(trimmedInput);
+  if (doctorMatch) {
+    const limit = PLAN_LIMITS[user.plan] ?? 0;
+    if (user.usage_this_month >= limit) {
+      return JSON.stringify({ error: `Limit reached (${user.usage_this_month}/${limit}). Upgrade at seer.ai/upgrade` });
+    }
+
+    const fixMode = !!doctorMatch[1]; // --fix flag present
+    await supabase.from("users").update({ usage_this_month: user.usage_this_month + 1 }).eq("id", user.id);
+    await logSeerCall({
+      user_id: user.id,
+      raw_input: trimmedInput,
+      raw_tokens: 0,
+      optimized_tokens: 0,
+      tokens_saved: 0,
+      pct_saved: 0,
+      tool_used: "seer_doctor",
+      surface,
+    });
+    const usageWarning = buildUsageWarning(user.plan, user.usage_this_month + 1, limit);
+    const doctorInstruction = buildDoctorInstruction(apiKey, fixMode, user);
+    const doctorResult = appendSuggestInstruction(doctorInstruction, "seer_doctor", trimmedInput, user.suggestion_skin, user.auto_suggest, apiKey);
+    return conflict.warning + usageWarning + (mfa.nudge ? doctorResult + mfa.nudge : doctorResult);
   }
 
   // 2. Check plan limit

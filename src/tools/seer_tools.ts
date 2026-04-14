@@ -96,6 +96,13 @@ export async function seer_tools(apiKey: string): Promise<string> {
       cost: "1 call",
       plans: ["starter", "pro", "agency"],
     },
+    {
+      name: "seer doctor",
+      usage: "`seer doctor` / `seer doctor --fix`",
+      description: "Full health check on SEER setup — API, memory, git, env, connectivity. --fix outputs exact commands",
+      cost: "1 call",
+      plans: ["free", "starter", "pro", "agency"],
+    },
   ];
 
   // Features
@@ -167,6 +174,7 @@ export async function seer_tools(apiKey: string): Promise<string> {
   output += `- Initialize memory: \`seer memory run\`\n`;
   output += `- Save session: \`seer session read\`\n`;
   output += `- Record credentials: \`seer record credentials\`\n`;
+  output += `- Health check: \`seer doctor\` or \`seer doctor --fix\`\n`;
 
   return output;
 }
