@@ -26,11 +26,14 @@ import {
   Send,
   Check,
   X,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import Link from "next/link";
 import CredentialsPanel from "./credentials-panel";
 import DocumentsPanel from "./documents-panel";
 import RequestsPanel from "./requests-panel";
+import TaskBoard from "./task-board";
 
 /* ---------- Types ---------- */
 
@@ -137,6 +140,9 @@ export default function FoundersSpacePage() {
   // New note form
   const [newNoteBody, setNewNoteBody] = useState("");
   const [creatingNote, setCreatingNote] = useState(false);
+
+  // Task view mode (list or board)
+  const [taskView, setTaskView] = useState<"list" | "board">("board");
 
   // Pending requests count (agency only)
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
@@ -304,6 +310,31 @@ export default function FoundersSpacePage() {
     } catch {
       setTasks((prev) =>
         prev.map((t) => (t.id === task.id ? { ...t, status: task.status } : t))
+      );
+    }
+  }
+
+  async function updateTaskStatus(taskId: string, newStatus: string) {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task || task.status === newStatus) return;
+    const oldStatus = task.status;
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
+    );
+    try {
+      const res = await fetch(`/api/founders-space/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) {
+        setTasks((prev) =>
+          prev.map((t) => (t.id === taskId ? { ...t, status: oldStatus } : t))
+        );
+      }
+    } catch {
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, status: oldStatus } : t))
       );
     }
   }
@@ -732,19 +763,52 @@ export default function FoundersSpacePage() {
       {/* ── Tasks tab ── */}
       {!loadingData && activeTab === "tasks" && (
         <div className="space-y-4">
-          {/* Add task button / form */}
-          {!showNewTask ? (
-            <button
-              onClick={() => {
-                setShowNewTask(true);
-                setNewTaskProjectId(selectedProjectId);
-              }}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-terracotta text-white text-sm font-semibold hover:bg-terracotta/90 transition-all"
-            >
-              <Plus size={16} />
-              Add Task{teamMode ? " (Team)" : ""}
-            </button>
-          ) : (
+          {/* Toolbar: Add task + View toggle */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            {!showNewTask ? (
+              <button
+                onClick={() => {
+                  setShowNewTask(true);
+                  setNewTaskProjectId(selectedProjectId);
+                }}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-terracotta text-white text-sm font-semibold hover:bg-terracotta/90 transition-all"
+              >
+                <Plus size={16} />
+                Add Task{teamMode ? " (Team)" : ""}
+              </button>
+            ) : (
+              <div className="flex-1" />
+            )}
+
+            {/* View toggle */}
+            <div className="flex items-center gap-1 bg-ivory rounded-xl border border-sand/60 p-1">
+              <button
+                onClick={() => setTaskView("board")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  taskView === "board"
+                    ? "bg-white text-charcoal shadow-sm border border-sand/60"
+                    : "text-muted hover:text-charcoal"
+                }`}
+              >
+                <LayoutGrid size={14} />
+                Board
+              </button>
+              <button
+                onClick={() => setTaskView("list")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  taskView === "list"
+                    ? "bg-white text-charcoal shadow-sm border border-sand/60"
+                    : "text-muted hover:text-charcoal"
+                }`}
+              >
+                <List size={14} />
+                List
+              </button>
+            </div>
+          </div>
+
+          {/* Add task form (shown when open) */}
+          {showNewTask && (
             <div className="bg-ivory rounded-2xl border border-sand/60 p-4 space-y-3">
               <input
                 type="text"
@@ -803,35 +867,17 @@ export default function FoundersSpacePage() {
               <h3 className="font-display text-lg text-charcoal">No {teamMode ? "team " : ""}tasks yet</h3>
               <p className="text-sm text-muted max-w-sm mx-auto">Create your first task to start organizing your work.</p>
             </div>
-          ) : selectedProjectId ? (
-            /* Single project: kanban columns */
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-              {STATUSES.map((status) => {
-                const meta = STATUS_META[status];
-                const StatusIcon = meta.icon;
-                const columnTasks = tasksByStatus[status];
-                return (
-                  <div key={status} className="space-y-2">
-                    <div className="flex items-center gap-2 px-1 pb-1">
-                      <StatusIcon size={14} className={meta.color} />
-                      <span className={`text-sm font-semibold ${meta.color}`}>{meta.label}</span>
-                      <span className="text-xs text-muted bg-cream-dark rounded-full px-2 py-0.5">{columnTasks.length}</span>
-                    </div>
-                    <div className="space-y-2 min-h-[60px]">
-                      {columnTasks.map((task) => (
-                        <TaskCard key={task.id} task={task} projectName={projectName(task.project_id)} teamMode={teamMode}
-                          onCycleStatus={() => cycleTaskStatus(task)} onDelete={() => deleteTask(task.id)} />
-                      ))}
-                      {columnTasks.length === 0 && (
-                        <div className="rounded-xl border border-dashed border-sand/60 p-4 text-center"><p className="text-xs text-muted/50">No tasks</p></div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+          ) : taskView === "board" ? (
+            /* Board view — drag-and-drop kanban for any context */
+            <TaskBoard
+              tasks={tasks}
+              projects={projects}
+              teamMode={teamMode}
+              onStatusChange={updateTaskStatus}
+              onDelete={deleteTask}
+            />
           ) : (
-            /* All projects: grouped list — common first, then by project */
+            /* List view — grouped by project */
             <div className="space-y-5">
               {commonTasks.length > 0 && (
                 <div className="space-y-2">
