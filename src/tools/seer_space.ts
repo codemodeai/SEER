@@ -39,6 +39,8 @@ function parseSpaceInput(input: string): ParsedAction {
 
   // Match known actions
   const actionMap: Record<string, string> = {
+    "upload doc": "upload_doc",
+    "upload document": "upload_doc",
     "add task": "add_task",
     "create task": "add_task",
     "tasks": "tasks",
@@ -53,7 +55,6 @@ function parseSpaceInput(input: string): ParsedAction {
     "projects": "projects",
     "new project": "new_project",
     "create project": "new_project",
-    "add project": "new_project",
   };
 
   const lower = cleaned.toLowerCase();
@@ -364,6 +365,63 @@ async function handleDocs(userId: string, projectId: string | null, agencyId: st
   return output;
 }
 
+function handleUploadDoc(args: string, apiKey: string, projectFlag: string | null, teamFlag: boolean): string {
+  let cleaned = args;
+  let docType = "other";
+  let expiry: string | null = null;
+  let tags: string | null = null;
+
+  const typeMatch = cleaned.match(/--type\s+(agreement|certificate|invoice|other)/i);
+  if (typeMatch) {
+    docType = typeMatch[1].toLowerCase();
+    cleaned = cleaned.replace(typeMatch[0], "").trim();
+  }
+
+  const expiryMatch = cleaned.match(/--expiry\s+(\d{4}-\d{2}-\d{2})/);
+  if (expiryMatch) {
+    expiry = expiryMatch[1];
+    cleaned = cleaned.replace(expiryMatch[0], "").trim();
+  }
+
+  const tagsMatch = cleaned.match(/--tags\s+("([^"]+)"|(\S+))/);
+  if (tagsMatch) {
+    tags = tagsMatch[2] ?? tagsMatch[3] ?? null;
+    cleaned = cleaned.replace(tagsMatch[0], "").trim();
+  }
+
+  const path = cleaned.replace(/^["']|["']$/g, "").trim();
+  if (!path) {
+    return "Error: File path is required. Usage: `seer space upload doc <path> [--type agreement|certificate|invoice|other] [--expiry YYYY-MM-DD] [--tags a,b] [--project name] [--team]`";
+  }
+
+  const baseUrl = process.env["SEER_WEB_URL"] || "https://www.seermcp.com";
+  const url = `${baseUrl}/api/space/upload-doc`;
+
+  const formParts = [
+    `-F "file=@${path}"`,
+    `-F "doc_type=${docType}"`,
+  ];
+  if (projectFlag) formParts.push(`-F "project=${projectFlag}"`);
+  if (teamFlag) formParts.push(`-F "team=true"`);
+  if (expiry) formParts.push(`-F "expiry_date=${expiry}"`);
+  if (tags) formParts.push(`-F "tags=${tags}"`);
+
+  const curl = `curl -s -X POST "${url}" -H "Authorization: Bearer ${apiKey}" ${formParts.join(" ")}`;
+
+  return [
+    `**Founder's Space — Upload Doc**`,
+    ``,
+    `The MCP server cannot read local files. Run this command from your terminal to upload \`${path}\`:`,
+    ``,
+    "```bash",
+    curl,
+    "```",
+    ``,
+    `Target: ${docType}${projectFlag ? ` · project=${projectFlag}` : ""}${teamFlag ? ` · team` : ""}${expiry ? ` · expires ${expiry}` : ""}${tags ? ` · tags=${tags}` : ""}`,
+    `Limit: 10MB. Auth: sk-seer Bearer (this is your key — do not share).`,
+  ].join("\n");
+}
+
 async function handleNote(userId: string, args: string, projectId: string | null, agencyId: string | null): Promise<string> {
   const body = args.replace(/^["']|["']$/g, "").trim();
   if (!body) return "Error: Usage: `seer space note Your note text here --project myapp [--team]`";
@@ -514,6 +572,9 @@ export async function seer_space(
     case "docs":
       result = await handleDocs(user.id, projectId, agencyId);
       break;
+    case "upload_doc":
+      result = handleUploadDoc(args, apiKey, projectFlag, teamFlag);
+      break;
     case "note":
       result = await handleNote(user.id, args, projectId, agencyId);
       break;
@@ -530,6 +591,7 @@ export async function seer_space(
 - \`seer space save key LABEL=value [--env production] [--project name] [--common] [--team]\`
 - \`seer space key <LABEL> [--project name] [--team]\`
 - \`seer space docs [--project name] [--team]\`
+- \`seer space upload doc <path> [--type agreement|certificate|invoice|other] [--expiry YYYY-MM-DD] [--tags a,b] [--project name] [--team]\`
 - \`seer space note <text> [--project name] [--team]\`
 - \`seer space projects\`
 - \`seer space new project <name>\`
