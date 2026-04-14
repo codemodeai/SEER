@@ -229,6 +229,9 @@ describe("E2E: full chain consistency", () => {
     { input: "investigate the race condition in distributed queue processing across services", complexity: 8, expectedMode: "analyze", expectedModel: "sonnet" },
     { input: "plan a simple API endpoint for health checks", complexity: 2, expectedMode: "plan", expectedModel: "haiku" },
     { input: "plan the full migration from monolith to microservices with data partitioning", complexity: 9, expectedMode: "plan", expectedModel: "sonnet" },
+    { input: "commit and push this update", complexity: 1, expectedMode: "quick", expectedModel: "haiku" },
+    { input: "push this update to main branch", complexity: 1, expectedMode: "quick", expectedModel: "haiku" },
+    { input: "merge feature branch into main", complexity: 2, expectedMode: "quick", expectedModel: "haiku" },
   ];
 
   for (const tc of testCases) {

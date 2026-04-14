@@ -28,8 +28,9 @@ export interface ModeSwitchResult {
 // Each pattern maps to a mode. First match wins (order = priority).
 
 const MODE_PATTERNS: Array<{ mode: SeerMode; pattern: RegExp }> = [
-  // Quick — trivial requests, status checks, lookups, one-word tweaks
+  // Quick — trivial requests, status checks, lookups, one-word tweaks, git ops
   { mode: "quick",    pattern: /^(status|tools|help|version|ping|show|list|what is|rename\b|move\b)(\s|$)/i },
+  { mode: "quick",    pattern: /\b(commit|push|pull|merge|cherry[- ]?pick|rebase|stash|tag)\b/i },
   { mode: "quick",    pattern: /^.{0,20}$/ }, // very short inputs (≤20 chars)
 
   // Plan — workflow decomposition, multi-step planning

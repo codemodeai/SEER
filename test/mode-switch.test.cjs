@@ -45,6 +45,30 @@ describe("mode detection", () => {
     const r = detectModeAndModel("make the sidebar look better on mobile with a hamburger menu toggle", 3);
     assert.equal(r.mode, "compress");
   });
+
+  it("detects quick mode for commit operations", () => {
+    const r = detectModeAndModel("commit and push this update", 1);
+    assert.equal(r.mode, "quick");
+    assert.equal(r.recommendedModel, "haiku");
+  });
+
+  it("detects quick mode for push operations", () => {
+    const r = detectModeAndModel("push this update to main", 1);
+    assert.equal(r.mode, "quick");
+    assert.equal(r.recommendedModel, "haiku");
+  });
+
+  it("detects quick mode for merge operations", () => {
+    const r = detectModeAndModel("merge feature branch into main", 2);
+    assert.equal(r.mode, "quick");
+    assert.equal(r.recommendedModel, "haiku");
+  });
+
+  it("detects quick mode for rebase operations", () => {
+    const r = detectModeAndModel("rebase this branch on top of main", 2);
+    assert.equal(r.mode, "quick");
+    assert.equal(r.recommendedModel, "haiku");
+  });
 });
 
 // --- Model instruction for Claude Code ---
