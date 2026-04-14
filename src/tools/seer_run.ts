@@ -637,6 +637,7 @@ export async function seer_run(
         token_budget: complexity.maxTokens,
         complexity_signals: complexity.signals,
         mode: modeSwitch.mode,
+        recommended_model: modeSwitch.recommendedModel,
       },
     });
   } else {

@@ -19,8 +19,9 @@ export type SeerMode = "compress" | "analyze" | "plan" | "quick" | "build";
 
 export interface ModeSwitchResult {
   mode: SeerMode;
-  modelInstruction: string; // instruction prepended to SEER output for Claude Code
-  reason: string;           // human-readable explanation
+  modelInstruction: string;  // instruction prepended to SEER output for Claude Code
+  recommendedModel: string;  // short label for footer display: "haiku", "sonnet", "user-preferred"
+  reason: string;            // human-readable explanation
 }
 
 // --- Intent patterns ---
@@ -56,58 +57,61 @@ function detectMode(input: string): SeerMode {
 // Based on mode + complexity, generate the instruction line that tells Claude
 // Code which model to use. SEER itself stays on Haiku always.
 
-function generateInstruction(mode: SeerMode, complexityScore: number): { instruction: string; reason: string } {
+function generateInstruction(mode: SeerMode, complexityScore: number): { instruction: string; recommendedModel: string; reason: string } {
   switch (mode) {
     case "quick":
-      // No model switch needed — quick tasks run fine on whatever model is active
       return {
         instruction: "switch to haiku now. this entire response uses haiku only.",
+        recommendedModel: "haiku",
         reason: "quick task → haiku (fast, cheap)",
       };
 
     case "compress":
-      // Compression is lightweight — haiku is fine
       return {
         instruction: "switch to haiku now. this entire response uses haiku only.",
+        recommendedModel: "haiku",
         reason: "compress task → haiku (sufficient for optimization)",
       };
 
     case "build":
-      // Build tasks should use the user's preferred model — don't override
       return {
         instruction: "",
+        recommendedModel: "user-preferred",
         reason: "build task → user's preferred model (no override)",
       };
 
     case "analyze":
-      // Low complexity analysis → haiku, high complexity → sonnet
       if (complexityScore >= 6) {
         return {
           instruction: "switch to sonnet now. this entire response uses sonnet only.",
+          recommendedModel: "sonnet",
           reason: `analyze task + complexity ${complexityScore}/10 → sonnet (deeper reasoning needed)`,
         };
       }
       return {
         instruction: "switch to haiku now. this entire response uses haiku only.",
+        recommendedModel: "haiku",
         reason: `analyze task + complexity ${complexityScore}/10 → haiku (sufficient)`,
       };
 
     case "plan":
-      // Low complexity planning → haiku, high complexity → sonnet
       if (complexityScore >= 6) {
         return {
           instruction: "switch to sonnet now. this entire response uses sonnet only.",
+          recommendedModel: "sonnet",
           reason: `plan task + complexity ${complexityScore}/10 → sonnet (better multi-step reasoning)`,
         };
       }
       return {
         instruction: "switch to haiku now. this entire response uses haiku only.",
+        recommendedModel: "haiku",
         reason: `plan task + complexity ${complexityScore}/10 → haiku (sufficient)`,
       };
 
     default:
       return {
         instruction: "",
+        recommendedModel: "haiku",
         reason: "unknown mode → no model instruction",
       };
   }
@@ -117,6 +121,6 @@ function generateInstruction(mode: SeerMode, complexityScore: number): { instruc
 
 export function detectModeAndModel(input: string, complexityScore: number): ModeSwitchResult {
   const mode = detectMode(input);
-  const { instruction, reason } = generateInstruction(mode, complexityScore);
-  return { mode, modelInstruction: instruction, reason };
+  const { instruction, recommendedModel, reason } = generateInstruction(mode, complexityScore);
+  return { mode, modelInstruction: instruction, recommendedModel, reason };
 }

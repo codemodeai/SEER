@@ -142,6 +142,7 @@ export async function seer_optimize(
       complexity_score: complexity.score,
       token_budget: complexity.maxTokens,
       mode: modeSwitch.mode,
+      recommended_model: modeSwitch.recommendedModel,
     });
     const modelPrefix = modeSwitch.modelInstruction ? modeSwitch.modelInstruction + "\n\n" : "";
     const finalResult = mfa.nudge ? result + mfa.nudge : result;

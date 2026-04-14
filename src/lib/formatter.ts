@@ -47,6 +47,7 @@ interface SeerRunResult {
     token_budget?: number;
     complexity_signals?: string[];
     mode?: string;
+    recommended_model?: string;
   };
 }
 
@@ -63,7 +64,7 @@ interface SeerOptimizeResult {
   complexity_score?: number;
   token_budget?: number;
   mode?: string;
-  engine_model?: string;
+  recommended_model?: string;
 }
 
 interface WorkflowStep {
@@ -82,6 +83,7 @@ interface SeerWorkflowResult {
     complexity_score?: number;
     token_budget?: number;
     mode?: string;
+    recommended_model?: string;
   };
 }
 
@@ -107,7 +109,7 @@ export function formatRunResult(parsed: SeerRunResult): string {
   if (parsed._meta) {
     const m = parsed._meta;
     const complexityTag = m.complexity_score != null ? ` | complexity:${m.complexity_score}/10 budget:${m.token_budget}` : "";
-    const modeTag = m.mode ? ` | mode:${m.mode}` : "";
+    const modeTag = m.mode ? ` | ${m.mode}→${m.recommended_model ?? "haiku"}` : "";
     lines.push(`\n[${m.raw_tokens}→${m.optimized_tokens} tokens | -${m.pct_saved}%${complexityTag}${modeTag} | ${m.usage}]`);
   }
 
@@ -132,6 +134,7 @@ export function formatOptimizeResult(parsed: SeerOptimizeResult): string {
     details.push(`${parsed.tokens_before}→${parsed.tokens_after} tokens | -${parsed.pct_saved ?? 0}%`);
   }
   if (parsed.complexity_score != null) details.push(`complexity:${parsed.complexity_score}/10 budget:${parsed.token_budget}`);
+  if (parsed.mode) details.push(`${parsed.mode}→${parsed.recommended_model ?? "haiku"}`);
 
   if (details.length > 0) {
     lines.push(`[${details.join(" | ")}]`);
@@ -159,7 +162,7 @@ export function formatWorkflowResult(parsed: SeerWorkflowResult): string {
   if (parsed._meta) {
     const m = parsed._meta;
     const complexityTag = m.complexity_score != null ? ` | complexity:${m.complexity_score}/10 budget:${m.token_budget}` : "";
-    const modeTag = m.mode ? ` | mode:${m.mode}` : "";
+    const modeTag = m.mode ? ` | ${m.mode}→${m.recommended_model ?? "haiku"}` : "";
     lines.push(`\n[${m.total_steps} steps${complexityTag}${modeTag} | ${m.usage}]`);
   }
 

@@ -147,6 +147,7 @@ export async function seer_workflow(
         complexity_score: complexity.score,
         token_budget: complexity.maxTokens,
         mode: modeSwitch.mode,
+        recommended_model: modeSwitch.recommendedModel,
       },
     });
 

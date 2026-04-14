@@ -215,8 +215,11 @@ SEER ACTIVITY HEARTBEAT — Report what the user is working on for team conflict
 5. If conflicts is empty or missing, say nothing.`
     : "";
 
-  const instruction = memorySync + aspectAutoUpdate + docSync + gitStateCheck + heartbeat;
-  const withLog = toolResult + instruction;
-  const withCredWatch = withLog + buildCredentialWatchInstruction();
-  return appendSuggestInstruction(withCredWatch, toolName, userInput, skin, autoSuggest, apiKey);
+  // Order: suggestions FIRST (most visible to Claude), then silent background instructions.
+  // appendSuggestInstruction adds a pre-header at TOP + suggestion block after toolResult.
+  // Then we append silent instructions AFTER — these are "do quietly" blocks Claude processes
+  // but they don't compete with the mandatory suggestion display.
+  const withSuggestions = appendSuggestInstruction(toolResult, toolName, userInput, skin, autoSuggest, apiKey);
+  const silentInstructions = memorySync + aspectAutoUpdate + docSync + gitStateCheck + heartbeat;
+  return withSuggestions + silentInstructions + buildCredentialWatchInstruction();
 }

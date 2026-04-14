@@ -50,39 +50,46 @@ describe("mode detection", () => {
 // --- Model instruction for Claude Code ---
 
 describe("model instruction (Claude Code side)", () => {
-  it("quick mode → haiku instruction", () => {
+  it("quick mode → haiku instruction + recommendedModel", () => {
     const r = detectModeAndModel("status", 1);
     assert.ok(r.modelInstruction.includes("haiku"));
+    assert.equal(r.recommendedModel, "haiku");
   });
 
-  it("compress mode → haiku instruction", () => {
+  it("compress mode → haiku instruction + recommendedModel", () => {
     const r = detectModeAndModel("optimize this long complex prompt about architecture", 9);
     assert.ok(r.modelInstruction.includes("haiku"));
+    assert.equal(r.recommendedModel, "haiku");
   });
 
-  it("build mode → no model instruction (user's preferred model)", () => {
+  it("build mode → no model instruction, recommendedModel is user-preferred", () => {
     const r = detectModeAndModel("build a complete auth system with OAuth integration", 8);
     assert.equal(r.modelInstruction, "");
+    assert.equal(r.recommendedModel, "user-preferred");
   });
 
-  it("low-complexity analyze → haiku instruction", () => {
+  it("low-complexity analyze → haiku instruction + recommendedModel", () => {
     const r = detectModeAndModel("explain what this function does", 3);
     assert.ok(r.modelInstruction.includes("haiku"));
+    assert.equal(r.recommendedModel, "haiku");
   });
 
-  it("high-complexity analyze (≥6) → sonnet instruction", () => {
+  it("high-complexity analyze (≥6) → sonnet instruction + recommendedModel", () => {
     const r = detectModeAndModel("investigate why production database has intermittent failures across services", 7);
     assert.ok(r.modelInstruction.includes("sonnet"));
+    assert.equal(r.recommendedModel, "sonnet");
   });
 
-  it("low-complexity plan → haiku instruction", () => {
+  it("low-complexity plan → haiku instruction + recommendedModel", () => {
     const r = detectModeAndModel("plan a simple API endpoint", 4);
     assert.ok(r.modelInstruction.includes("haiku"));
+    assert.equal(r.recommendedModel, "haiku");
   });
 
-  it("high-complexity plan (≥6) → sonnet instruction", () => {
+  it("high-complexity plan (≥6) → sonnet instruction + recommendedModel", () => {
     const r = detectModeAndModel("plan the full migration from Express to Hono with database schema changes", 7);
     assert.ok(r.modelInstruction.includes("sonnet"));
+    assert.equal(r.recommendedModel, "sonnet");
   });
 });
 
