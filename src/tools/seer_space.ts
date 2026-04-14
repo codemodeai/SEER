@@ -41,6 +41,10 @@ function parseSpaceInput(input: string): ParsedAction {
   const actionMap: Record<string, string> = {
     "upload doc": "upload_doc",
     "upload document": "upload_doc",
+    "delete doc": "delete_doc",
+    "remove doc": "delete_doc",
+    "delete document": "delete_doc",
+    "remove document": "delete_doc",
     "add task": "add_task",
     "create task": "add_task",
     "tasks": "tasks",
@@ -422,6 +426,29 @@ function handleUploadDoc(args: string, apiKey: string, projectFlag: string | nul
   ].join("\n");
 }
 
+function handleDeleteDoc(args: string, apiKey: string): string {
+  const id = args.replace(/^["']|["']$/g, "").trim();
+  if (!id) {
+    return "Error: Document ID is required. Usage: `seer space delete doc <id>` (get ID from `seer space docs`)";
+  }
+
+  const baseUrl = process.env["SEER_WEB_URL"] || "https://www.seermcp.com";
+  const url = `${baseUrl}/api/space/delete-doc/${encodeURIComponent(id)}`;
+  const curl = `curl -s -X DELETE "${url}" -H "Authorization: Bearer ${apiKey}"`;
+
+  return [
+    `**Founder's Space — Delete Doc**`,
+    ``,
+    `Run this command to delete doc \`${id}\`:`,
+    ``,
+    "```bash",
+    curl,
+    "```",
+    ``,
+    `This is irreversible — the file and metadata will both be removed.`,
+  ].join("\n");
+}
+
 async function handleNote(userId: string, args: string, projectId: string | null, agencyId: string | null): Promise<string> {
   const body = args.replace(/^["']|["']$/g, "").trim();
   if (!body) return "Error: Usage: `seer space note Your note text here --project myapp [--team]`";
@@ -574,6 +601,9 @@ export async function seer_space(
       break;
     case "upload_doc":
       result = handleUploadDoc(args, apiKey, projectFlag, teamFlag);
+      break;
+    case "delete_doc":
+      result = handleDeleteDoc(args, apiKey);
       break;
     case "note":
       result = await handleNote(user.id, args, projectId, agencyId);
