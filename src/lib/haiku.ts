@@ -5,20 +5,22 @@ const anthropic = new Anthropic({
 });
 
 const HAIKU_MODEL = "claude-haiku-4-5-20251001";
-const MAX_TOKENS = 800;
+const DEFAULT_MAX_TOKENS = 800;
 
 export interface HaikuCallOptions {
   systemPrompt: string;
   userInput: string;
+  maxTokens?: number; // Smart Token Allocation — dynamic budget from complexity scoring
 }
 
 export async function callHaiku({
   systemPrompt,
   userInput,
+  maxTokens,
 }: HaikuCallOptions): Promise<string> {
   const response = await anthropic.messages.create({
     model: HAIKU_MODEL,
-    max_tokens: MAX_TOKENS,
+    max_tokens: maxTokens ?? DEFAULT_MAX_TOKENS,
     system: systemPrompt,
     messages: [{ role: "user", content: userInput }],
   });

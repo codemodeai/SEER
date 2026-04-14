@@ -14,6 +14,7 @@ import { scanOutput, logSecurityIncident } from "../lib/security.js";
 import { detectMarkDone } from "../lib/mark-done.js";
 import { checkTeamConflict } from "../lib/conflict-detect.js";
 import { detectCredentials } from "../lib/credential-detect.js";
+import { scoreComplexity } from "../lib/complexity.js";
 import { seer_tools } from "./seer_tools.js";
 import { seer_space } from "./seer_space.js";
 
@@ -550,13 +551,17 @@ export async function seer_run(
     }
   }
 
-  // 5. Call Haiku using SEER's own key
+  // 4c. Smart Token Allocation — score complexity and assign dynamic token budget
+  const complexity = scoreComplexity(input);
+
+  // 5. Call Haiku using SEER's own key with dynamic token budget
   const useContext = contextSnippet.length > 0;
   let resultText: string;
   try {
     resultText = await callHaiku({
       systemPrompt: useContext ? SYSTEM_PROMPT_WITH_CONTEXT : SYSTEM_PROMPT,
       userInput: useContext ? input + contextSnippet : input,
+      maxTokens: complexity.maxTokens,
     });
   } catch (err) {
     return JSON.stringify({
@@ -616,6 +621,9 @@ export async function seer_run(
         tokens_saved: tokensSaved,
         pct_saved: pctSaved,
         usage: `${user.usage_this_month + 1}/${limit === Infinity ? "unlimited" : limit}`,
+        complexity_score: complexity.score,
+        token_budget: complexity.maxTokens,
+        complexity_signals: complexity.signals,
       },
     });
   } else {

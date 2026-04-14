@@ -43,6 +43,9 @@ interface SeerRunResult {
     tokens_saved: number;
     pct_saved: number;
     usage: string;
+    complexity_score?: number;
+    token_budget?: number;
+    complexity_signals?: string[];
   };
 }
 
@@ -95,7 +98,8 @@ export function formatRunResult(parsed: SeerRunResult): string {
 
   if (parsed._meta) {
     const m = parsed._meta;
-    lines.push(`\n[${m.raw_tokens}→${m.optimized_tokens} tokens | -${m.pct_saved}% | ${m.usage}]`);
+    const complexityTag = m.complexity_score != null ? ` | complexity:${m.complexity_score}/10 budget:${m.token_budget}` : "";
+    lines.push(`\n[${m.raw_tokens}→${m.optimized_tokens} tokens | -${m.pct_saved}%${complexityTag} | ${m.usage}]`);
   }
 
   return lines.join("\n");
