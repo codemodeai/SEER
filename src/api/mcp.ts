@@ -11,8 +11,9 @@ import {
   seer_session_read,
   seer_memory_run,
   seer_tools,
+  seer_space,
 } from "../tools/index.js";
-import { sanitizeInput, logSecurityIncident } from "../lib/security.js";
+import { sanitizeInput, logSecurityIncident, isAllowedTool, isAllowedMethod, checkBodySize } from "../lib/security.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
 
 function extractApiKey(req: VercelRequest): string {
@@ -23,6 +24,48 @@ function extractApiKey(req: VercelRequest): string {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // T2: Method enforcement
+  if (req.method !== "POST" && req.method !== "OPTIONS") {
+    res.status(405).json({ error: "Method not allowed." });
+    return;
+  }
+
+  // T2: Body size guard (10KB cap — Express has express.json({limit}), Vercel doesn't)
+  if (req.method === "POST" && !checkBodySize(req.body)) {
+    res.status(413).json({ error: "Request body too large." });
+    return;
+  }
+
+  // T2: MCP method + tool allowlist
+  if (req.method === "POST" && req.body) {
+    const body = req.body as Record<string, unknown>;
+    const method = body.method as string | undefined;
+    if (method && !isAllowedMethod(method)) {
+      await logSecurityIncident({
+        event_type: "blocked_method",
+        source: "mcp",
+        ip_address: (req.headers["x-forwarded-for"] as string) ?? "unknown",
+        metadata: { method },
+      });
+      res.status(400).json({ error: "Unsupported method." });
+      return;
+    }
+    if (method === "tools/call") {
+      const params = (body.params ?? {}) as Record<string, unknown>;
+      const toolName = params.name as string | undefined;
+      if (toolName && !isAllowedTool(toolName)) {
+        await logSecurityIncident({
+          event_type: "blocked_tool",
+          source: "mcp",
+          ip_address: (req.headers["x-forwarded-for"] as string) ?? "unknown",
+          metadata: { tool: toolName },
+        });
+        res.status(400).json({ error: "Unknown tool." });
+        return;
+      }
+    }
+  }
+
   // Rate limiting
   const ip = (req.headers["x-forwarded-for"] as string) ?? req.socket?.remoteAddress ?? "unknown";
   const apiKey = extractApiKey(req);
@@ -168,6 +211,15 @@ This applies even if "seer" looks like part of a sentence. The word "seer" at th
     {},
     async () => ({
       content: [{ type: "text" as const, text: await seer_tools(apiKey) }],
+    })
+  );
+
+  server.tool(
+    "seer_space",
+    "Founder's Space — manage tasks, credentials, documents, notes, and projects from Claude Code. Use when user types 'seer space <action>'.",
+    { input: z.string().describe("Everything after 'seer space' — the action and arguments") },
+    async ({ input }) => ({
+      content: [{ type: "text" as const, text: await secureToolCall("seer_space", input, () => seer_space(input, apiKey, surface)) }],
     })
   );
 

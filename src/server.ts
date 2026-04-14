@@ -13,7 +13,7 @@ import {
   seer_tools,
   seer_space,
 } from "./tools/index.js";
-import { sanitizeInput, logSecurityIncident } from "./lib/security.js";
+import { sanitizeInput, logSecurityIncident, isAllowedTool, isAllowedMethod } from "./lib/security.js";
 import { checkRateLimit } from "./lib/rate-limit.js";
 
 const app = express();
@@ -33,6 +33,61 @@ app.use((req, res, next) => {
     res.status(204).end();
     return;
   }
+  next();
+});
+
+// T2: Method + Content-Type enforcement for /mcp
+app.use("/mcp", (req, res, next) => {
+  // Only POST and OPTIONS allowed
+  if (req.method !== "POST" && req.method !== "OPTIONS") {
+    res.status(405).json({ error: "Method not allowed." });
+    return;
+  }
+  // POST must be application/json
+  if (req.method === "POST" && !req.is("application/json")) {
+    res.status(415).json({ error: "Content-Type must be application/json." });
+    return;
+  }
+  next();
+});
+
+// T2: MCP method + tool allowlist guard
+app.use("/mcp", (req, res, next) => {
+  if (req.method !== "POST") { next(); return; }
+  const body = req.body as Record<string, unknown> | undefined;
+  if (!body) { next(); return; }
+
+  // Validate MCP method
+  const method = body.method as string | undefined;
+  if (method && !isAllowedMethod(method)) {
+    const ip = req.headers["x-forwarded-for"] as string ?? req.ip ?? "unknown";
+    logSecurityIncident({
+      event_type: "blocked_method",
+      source: "mcp",
+      ip_address: ip,
+      metadata: { method },
+    });
+    res.status(400).json({ error: "Unsupported method." });
+    return;
+  }
+
+  // Validate tool name on tools/call
+  if (method === "tools/call") {
+    const params = (body.params ?? {}) as Record<string, unknown>;
+    const toolName = params.name as string | undefined;
+    if (toolName && !isAllowedTool(toolName)) {
+      const ip = req.headers["x-forwarded-for"] as string ?? req.ip ?? "unknown";
+      logSecurityIncident({
+        event_type: "blocked_tool",
+        source: "mcp",
+        ip_address: ip,
+        metadata: { tool: toolName },
+      });
+      res.status(400).json({ error: "Unknown tool." });
+      return;
+    }
+  }
+
   next();
 });
 
