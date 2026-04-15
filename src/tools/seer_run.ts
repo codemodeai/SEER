@@ -20,6 +20,16 @@ import { checkPlanRateLimit } from "../lib/rate-limit.js";
 import { STRICT_RULES, classifyTaskType } from "../lib/strict-rules.js";
 import { getAspectsForTask, loadAspects, resolveScope } from "../lib/aspect-memory.js";
 import { checkContextHealth, resetSession } from "../lib/context-health.js";
+import {
+  shouldUseMultiAgent,
+  buildStepPlan,
+  buildStepInstruction,
+  buildAutoInstruction,
+  storePipelineState,
+  getPipelineState,
+  clearPipelineState,
+  type PipelineState,
+} from "../lib/multi-agent.js";
 import { seer_tools } from "./seer_tools.js";
 import { seer_space } from "./seer_space.js";
 
@@ -38,6 +48,11 @@ const CALLBACK_MEMORY_PATTERNS = /^(what did i do|what have i done|recall|recap|
 const RECORD_CREDENTIALS_PATTERN = /^record\s*cred(ential)?s?$/i;
 
 const DOCTOR_PATTERN = /^doctor(\s+--fix)?$/i;
+
+// Spec §06 — Multi-agent pipeline commands
+const AUTO_PATTERN = /^auto$/i;
+const STEP_PATTERN = /^step\s+(\d+)$/i;
+const CANCEL_PIPELINE_PATTERN = /^cancel$/i;
 
 function buildContinueInstruction(apiKey: string): string {
   return `switch to haiku now. this entire response uses haiku only.
@@ -491,6 +506,81 @@ export async function seer_run(
     return conflict.warning + usageWarning + (mfa.nudge ? doctorResult + mfa.nudge : doctorResult);
   }
 
+  // 1h. Route "seer step N" — execute specific pipeline step
+  const stepMatch = STEP_PATTERN.exec(trimmedInput);
+  if (stepMatch) {
+    const stepNum = parseInt(stepMatch[1], 10);
+    const state = getPipelineState(apiKey);
+    if (!state) {
+      return "**Error:** No active pipeline. Start one by running a complex task (complexity 7+) first.";
+    }
+    if (stepNum < 1 || stepNum > state.totalSteps) {
+      return `**Error:** Invalid step ${stepNum}. Pipeline has ${state.totalSteps} steps (1-${state.totalSteps}).`;
+    }
+    if (stepNum !== state.currentStep) {
+      return `**Error:** Pipeline is on step ${state.currentStep}. Run \`seer step ${state.currentStep}\` next.`;
+    }
+
+    const stepLimit = PLAN_LIMITS[user.plan] ?? 0;
+    if (user.usage_this_month >= stepLimit) {
+      return JSON.stringify({ error: `Limit reached (${user.usage_this_month}/${stepLimit}). Upgrade at seer.ai/upgrade` });
+    }
+    await supabase.from("users").update({ usage_this_month: user.usage_this_month + 1 }).eq("id", user.id);
+    await logSeerCall({
+      user_id: user.id, raw_input: trimmedInput, raw_tokens: 0, optimized_tokens: 0,
+      tokens_saved: 0, pct_saved: 0, tool_used: `seer_multi_step_${stepNum}`, surface,
+    });
+
+    const instruction = buildStepInstruction(state.pipeline, stepNum, state.input, apiKey);
+
+    // Advance pipeline state
+    state.currentStep = stepNum + 1;
+    state.completedSteps.push(`step ${stepNum}`);
+    if (state.currentStep > state.totalSteps) {
+      clearPipelineState(apiKey);
+    } else {
+      storePipelineState(apiKey, state);
+    }
+
+    const usageWarning = buildUsageWarning(user.plan, user.usage_this_month + 1, stepLimit);
+    return conflict.warning + usageWarning + instruction;
+  }
+
+  // 1i. Route "seer auto" — run all pipeline steps in one call
+  if (AUTO_PATTERN.test(trimmedInput)) {
+    const state = getPipelineState(apiKey);
+    if (!state) {
+      return "**Error:** No active pipeline. Start one by running a complex task (complexity 7+) first.";
+    }
+
+    const stepsRemaining = state.totalSteps - state.currentStep + 1;
+    const autoLimit = PLAN_LIMITS[user.plan] ?? 0;
+    if (user.usage_this_month + stepsRemaining > autoLimit && autoLimit !== Infinity) {
+      return `**Error:** Auto mode needs ${stepsRemaining} calls but you only have ${autoLimit - user.usage_this_month} remaining. Run steps individually or upgrade.`;
+    }
+    await supabase.from("users").update({ usage_this_month: user.usage_this_month + stepsRemaining }).eq("id", user.id);
+    await logSeerCall({
+      user_id: user.id, raw_input: trimmedInput, raw_tokens: 0, optimized_tokens: 0,
+      tokens_saved: 0, pct_saved: 0, tool_used: "seer_multi_auto", surface,
+    });
+
+    const instruction = buildAutoInstruction(state.pipeline, state.input, apiKey);
+    clearPipelineState(apiKey);
+
+    const usageWarning = buildUsageWarning(user.plan, user.usage_this_month + stepsRemaining, autoLimit);
+    return conflict.warning + usageWarning + instruction;
+  }
+
+  // 1j. Route "seer cancel" — cancel active pipeline
+  if (CANCEL_PIPELINE_PATTERN.test(trimmedInput)) {
+    const state = getPipelineState(apiKey);
+    if (!state) {
+      return "No active pipeline to cancel.";
+    }
+    clearPipelineState(apiKey);
+    return `Pipeline cancelled. ${state.completedSteps.length} of ${state.totalSteps} steps were completed.`;
+  }
+
   // 2. Check plan limit
   const limit = PLAN_LIMITS[user.plan] ?? 0;
   if (user.usage_this_month >= limit) {
@@ -564,6 +654,33 @@ export async function seer_run(
 
   // 4c. Smart Token Allocation — score complexity and assign dynamic token budget
   const complexity = scoreComplexity(input);
+
+  // 4c1. Spec §06 — Multi-agent gate: if complexity >= 7, show pipeline plan
+  const multiAgent = shouldUseMultiAgent(complexity.score, input);
+  if (multiAgent.shouldUse && multiAgent.pipeline) {
+    const totalSteps = multiAgent.pipeline === "research" ? 4 : 3;
+    const plan = buildStepPlan(multiAgent.pipeline, input);
+
+    // Store pipeline state for step-by-step execution
+    storePipelineState(apiKey, {
+      pipeline: multiAgent.pipeline,
+      input,
+      currentStep: 1,
+      totalSteps,
+      completedSteps: [],
+      apiKey,
+      createdAt: Date.now(),
+    });
+
+    // Log the pipeline initiation (does not count as a usage call — just the plan display)
+    await logSeerCall({
+      user_id: user.id, raw_input: input, raw_tokens: 0, optimized_tokens: 0,
+      tokens_saved: 0, pct_saved: 0, tool_used: `seer_multi_${multiAgent.pipeline}_plan`, surface,
+    });
+
+    const usageWarning = buildUsageWarning(user.plan, user.usage_this_month + 1, limit);
+    return conflict.warning + usageWarning + plan;
+  }
 
   // 4c2. Spec §05 — Aspect file targeting: load only relevant aspects for Pro+ context
   if (hasPro && contextSnippet.length === 0) {
