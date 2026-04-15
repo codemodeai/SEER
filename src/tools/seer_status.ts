@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase.js";
 import { formatStatusResult } from "../lib/formatter.js";
 import { appendSuggestInstruction } from "../lib/suggest.js";
 import { checkPlanRateLimit } from "../lib/rate-limit.js";
+import { checkContextHealth } from "../lib/context-health.js";
 
 // --- Founder's Space alerts (overdue tasks, expiring docs) ---
 
@@ -216,7 +217,12 @@ export async function seer_status(apiKey: string): Promise<string> {
   const activeFeatures = getActiveFeatures(user.plan);
   const insightsTip = getInsightsTip(user.usage_this_month, user.plan);
 
-  const fullResult = result + activeFeatures + aspectFreshness + openTasks + fsAlerts + insightsTip;
+  // Spec §07: Show context health score (peek without recording)
+  const health = checkContextHealth(apiKey, "status", 0);
+  const healthLabel = health.score <= 3 ? "healthy" : health.score <= 5 ? "fair" : health.score <= 7 ? "degraded" : "critical";
+  const contextHealth = `\n**Context health:** ${health.score}/10 (${healthLabel}) | ${health.signals.messageCount} messages this session`;
+
+  const fullResult = result + activeFeatures + aspectFreshness + openTasks + contextHealth + fsAlerts + insightsTip;
 
   return appendSuggestInstruction(fullResult, "seer_status", "status", user.suggestion_skin ?? "default", user.auto_suggest, apiKey);
 }

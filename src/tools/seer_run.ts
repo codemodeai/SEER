@@ -19,6 +19,7 @@ import { detectModeAndModel } from "../lib/mode-switch.js";
 import { checkPlanRateLimit } from "../lib/rate-limit.js";
 import { STRICT_RULES, classifyTaskType } from "../lib/strict-rules.js";
 import { getAspectsForTask, loadAspects, resolveScope } from "../lib/aspect-memory.js";
+import { checkContextHealth, resetSession } from "../lib/context-health.js";
 import { seer_tools } from "./seer_tools.js";
 import { seer_space } from "./seer_space.js";
 
@@ -401,6 +402,8 @@ export async function seer_run(
       tool_used: "seer_continue",
       surface,
     });
+    // Spec §07: Reset context health on resume (fresh session after /clear)
+    resetSession(apiKey);
     const usageWarning = buildUsageWarning(user.plan, user.usage_this_month + 1, limit);
     const continueResult = appendSuggestInstruction(buildContinueInstruction(apiKey), "seer_continue", trimmedInput, user.suggestion_skin, user.auto_suggest, apiKey);
     return conflict.warning + usageWarning + (mfa.nudge ? continueResult + mfa.nudge : continueResult);
@@ -716,6 +719,12 @@ export async function seer_run(
   const credDetect = detectCredentials(input);
   if (credDetect.found) {
     finalResult += credDetect.suggestion;
+  }
+
+  // 12. Spec §07 — Smart Context Management: check session health
+  const health = checkContextHealth(apiKey, input, pctSaved);
+  if (health.warning) {
+    finalResult += health.warning;
   }
 
   return appendMemoryLog(conflict.warning + usageWarning + finalResult, "seer_run", input, user.suggestion_skin, user.auto_suggest, apiKey);
