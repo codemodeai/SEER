@@ -3,6 +3,8 @@
  * Raw JSON is still embedded at the bottom for Claude to parse programmatically.
  */
 
+import { STRICT_RULES } from "./strict-rules.js";
+
 /**
  * Build a usage deduction warning banner that Claude MUST display to the user.
  * Prepended to every tool response so the user sees it immediately.
@@ -106,6 +108,9 @@ export function formatRunResult(parsed: SeerRunResult): string {
     lines.push(`\n(${parsed.note})`);
   }
 
+  // Spec §05: Append strict execution rules to every instruction
+  lines.push(`\n\n${STRICT_RULES}`);
+
   if (parsed._meta) {
     const m = parsed._meta;
     const complexityTag = m.complexity_score != null ? ` | complexity:${m.complexity_score}/10 | budget:${m.token_budget}` : "";
@@ -126,6 +131,9 @@ export function formatOptimizeResult(parsed: SeerOptimizeResult): string {
   if (parsed.explanation) {
     lines.push(`\n(${parsed.explanation})`);
   }
+
+  // Spec §05: Append strict execution rules
+  lines.push(`\n\n${STRICT_RULES}`);
 
   const details: string[] = [];
   if (parsed.target_model) details.push(parsed.target_model);
@@ -158,6 +166,9 @@ export function formatWorkflowResult(parsed: SeerWorkflowResult): string {
       if (step.prompt) lines.push(`→ ${step.prompt}`);
     });
   }
+
+  // Spec §05: Append strict execution rules to workflow
+  lines.push(`\n\n${STRICT_RULES}`);
 
   if (parsed._meta) {
     const m = parsed._meta;

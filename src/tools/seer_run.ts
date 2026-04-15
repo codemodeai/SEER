@@ -17,6 +17,8 @@ import { detectCredentials } from "../lib/credential-detect.js";
 import { scoreComplexity } from "../lib/complexity.js";
 import { detectModeAndModel } from "../lib/mode-switch.js";
 import { checkPlanRateLimit } from "../lib/rate-limit.js";
+import { STRICT_RULES, classifyTaskType } from "../lib/strict-rules.js";
+import { getAspectsForTask, loadAspects, resolveScope } from "../lib/aspect-memory.js";
 import { seer_tools } from "./seer_tools.js";
 import { seer_space } from "./seer_space.js";
 
@@ -560,6 +562,33 @@ export async function seer_run(
   // 4c. Smart Token Allocation — score complexity and assign dynamic token budget
   const complexity = scoreComplexity(input);
 
+  // 4c2. Spec §05 — Aspect file targeting: load only relevant aspects for Pro+ context
+  if (hasPro && contextSnippet.length === 0) {
+    try {
+      const taskType = classifyTaskType(input, complexity.score);
+      const targetAspects = getAspectsForTask(taskType);
+      const scope = await resolveScope(user.id);
+      // Resolve project name from most recent active project
+      const { data: proj } = await supabase
+        .from("projects")
+        .select("name")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .single();
+      if (proj?.name) {
+        const rows = await loadAspects(scope, proj.name as string, targetAspects);
+        if (rows.length > 0) {
+          contextSnippet = "\n\nProject context (" + targetAspects.join(", ") + "):\n" +
+            rows.map(r => `[${r.aspect_type}] ${r.content.slice(0, 800)}`).join("\n");
+        }
+      }
+    } catch {
+      // Aspect loading is best-effort
+    }
+  }
+
   // 4d. Mode & Model Switch (Spec §04) — detect intent, generate Claude model instruction
   const modeSwitch = detectModeAndModel(input, complexity.score);
 
@@ -652,7 +681,7 @@ export async function seer_run(
       mode: modeSwitch.mode, recommendedModel: modeSwitch.recommendedModel,
       usage: `${user.usage_this_month + 1}/${limit === Infinity ? "unlimited" : limit}`,
     });
-    finalResult = resultText + footer;
+    finalResult = resultText + "\n\n" + STRICT_RULES + footer;
   }
 
   // 7b. Mode & Model Switch (Spec §04) — prepend model instruction for Claude Code
