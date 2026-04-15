@@ -9,6 +9,7 @@ import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
 import { checkTeamConflict } from "../lib/conflict-detect.js";
 import { scoreComplexity } from "../lib/complexity.js";
 import { detectModeAndModel } from "../lib/mode-switch.js";
+import { checkPlanRateLimit } from "../lib/rate-limit.js";
 
 const SYSTEM_PROMPT = `Decompose this goal into 3-7 sequential steps. Return ONLY JSON: { "goal": "...", "steps": [{ "step": 1, "title": "...", "context": "...", "prompt": "..." }] }. Each step's "prompt" should be a focused, executable instruction that Claude Code can run directly.
 ${SECURITY_ANCHOR}`;
@@ -32,6 +33,10 @@ export async function seer_workflow(
 
   // 1c. Team conflict detection
   const conflict = await checkTeamConflict(user, goal);
+
+  // 1d. Plan-aware RPM rate limit
+  const rpmError = checkPlanRateLimit(apiKey, user.plan);
+  if (rpmError) return rpmError;
 
   // 2. Plan check — workflow requires starter+
   if (user.plan === "free") {

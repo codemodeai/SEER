@@ -6,6 +6,7 @@ import { buildUsageWarning } from "../lib/formatter.js";
 import { appendMemoryLog } from "../lib/memory-log.js";
 import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
 import { checkTeamConflict } from "../lib/conflict-detect.js";
+import { checkPlanRateLimit } from "../lib/rate-limit.js";
 import { detectCredentials } from "../lib/credential-detect.js";
 
 // --- Action parser ---
@@ -532,6 +533,10 @@ export async function seer_space(
 
   // 4. Team conflict check
   const conflict = await checkTeamConflict(user, input);
+
+  // 4b. Plan-aware RPM rate limit
+  const rpmError = checkPlanRateLimit(apiKey, user.plan);
+  if (rpmError) return rpmError;
 
   // 5. Check usage limit
   const limit = PLAN_LIMITS[user.plan] ?? 0;

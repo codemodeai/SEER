@@ -16,6 +16,7 @@ import { checkTeamConflict } from "../lib/conflict-detect.js";
 import { detectCredentials } from "../lib/credential-detect.js";
 import { scoreComplexity } from "../lib/complexity.js";
 import { detectModeAndModel } from "../lib/mode-switch.js";
+import { checkPlanRateLimit } from "../lib/rate-limit.js";
 import { seer_tools } from "./seer_tools.js";
 import { seer_space } from "./seer_space.js";
 
@@ -376,6 +377,10 @@ export async function seer_run(
 
   // 1c2. Team conflict detection — instant server-side check
   const conflict = await checkTeamConflict(user, trimmedInput);
+
+  // 1c3. Plan-aware RPM rate limit (applied after auth so we know the plan)
+  const rpmError = checkPlanRateLimit(apiKey, user.plan);
+  if (rpmError) return rpmError;
 
   // 1d. Route "seer continue" — 1 call, no Haiku cost
   if (CONTINUE_PATTERNS.test(trimmedInput)) {

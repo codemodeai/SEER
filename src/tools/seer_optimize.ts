@@ -9,6 +9,7 @@ import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
 import { checkTeamConflict } from "../lib/conflict-detect.js";
 import { scoreComplexity } from "../lib/complexity.js";
 import { detectModeAndModel } from "../lib/mode-switch.js";
+import { checkPlanRateLimit } from "../lib/rate-limit.js";
 
 function systemPromptForModel(model: string): string {
   const modelHint =
@@ -50,6 +51,10 @@ export async function seer_optimize(
 
   // 1c. Team conflict detection
   const conflict = await checkTeamConflict(user, prompt);
+
+  // 1d. Plan-aware RPM rate limit
+  const rpmError = checkPlanRateLimit(apiKey, user.plan);
+  if (rpmError) return rpmError;
 
   // 2. Check limit
   const limit = PLAN_LIMITS[user.plan] ?? 0;

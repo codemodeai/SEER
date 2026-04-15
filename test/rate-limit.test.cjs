@@ -1,7 +1,7 @@
 const { describe, it, beforeEach } = require("node:test");
 const assert = require("node:assert/strict");
 
-const { checkRateLimit, checkDualRateLimit, PLAN_RPM, _resetAll } = require("../dist/lib/rate-limit.js");
+const { checkRateLimit, checkDualRateLimit, checkPlanRateLimit, PLAN_RPM, _resetAll } = require("../dist/lib/rate-limit.js");
 
 // Reset state before each test to avoid cross-test contamination
 beforeEach(() => {
@@ -156,6 +156,67 @@ describe("reset helpers", () => {
     // After reset, both should be allowed
     assert.equal(checkRateLimit("test:reset1", 1).allowed, true);
     assert.equal(checkRateLimit("test:reset2", 1).allowed, true);
+  });
+});
+
+// --- checkPlanRateLimit (tool handler integration) ---
+
+describe("checkPlanRateLimit", () => {
+  it("returns null when under limit", () => {
+    const result = checkPlanRateLimit("sk-seer-test-abc", "pro");
+    assert.equal(result, null);
+  });
+
+  it("returns error JSON when free plan limit exceeded", () => {
+    // Exhaust free plan limit (10 RPM)
+    for (let i = 0; i < 10; i++) {
+      checkPlanRateLimit("sk-seer-free-key", "free");
+    }
+    const result = checkPlanRateLimit("sk-seer-free-key", "free");
+    assert.notEqual(result, null);
+    const parsed = JSON.parse(result);
+    assert.ok(parsed.error.includes("Rate limit exceeded"));
+    assert.ok(parsed.error.includes("10 requests/min"));
+    assert.ok(parsed.error.includes("free plan"));
+    assert.ok(parsed.retry_after > 0);
+  });
+
+  it("applies correct limit per plan tier", () => {
+    // Agency gets 120 RPM — 11 requests should pass
+    for (let i = 0; i < 11; i++) {
+      const r = checkPlanRateLimit("sk-seer-agency-key", "agency");
+      assert.equal(r, null, `Request ${i + 1} should be allowed for agency`);
+    }
+  });
+
+  it("uses free limit for unknown plans", () => {
+    for (let i = 0; i < 10; i++) {
+      checkPlanRateLimit("sk-seer-unknown-key", "mythical");
+    }
+    const result = checkPlanRateLimit("sk-seer-unknown-key", "mythical");
+    assert.notEqual(result, null);
+    const parsed = JSON.parse(result);
+    assert.ok(parsed.error.includes("10 requests/min"));
+  });
+
+  it("uses plan: namespace to avoid colliding with ip:/key: namespaces", () => {
+    // Fill up key: namespace for same key
+    for (let i = 0; i < 60; i++) {
+      checkRateLimit("key:sk-seer-ns-test", 60);
+    }
+    // plan: namespace should still be clean
+    const result = checkPlanRateLimit("sk-seer-ns-test", "pro");
+    assert.equal(result, null);
+  });
+
+  it("returns retry_after in seconds", () => {
+    for (let i = 0; i < 10; i++) {
+      checkPlanRateLimit("sk-seer-retry-test", "free");
+    }
+    const result = checkPlanRateLimit("sk-seer-retry-test", "free");
+    const parsed = JSON.parse(result);
+    assert.ok(parsed.retry_after >= 1, "retry_after should be at least 1 second");
+    assert.ok(parsed.retry_after <= 60, "retry_after should be at most 60 seconds");
   });
 });
 

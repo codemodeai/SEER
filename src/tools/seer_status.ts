@@ -2,6 +2,7 @@ import { authenticateUser, PLAN_LIMITS } from "../lib/auth.js";
 import { supabase } from "../lib/supabase.js";
 import { formatStatusResult } from "../lib/formatter.js";
 import { appendSuggestInstruction } from "../lib/suggest.js";
+import { checkPlanRateLimit } from "../lib/rate-limit.js";
 
 // --- Founder's Space alerts (overdue tasks, expiring docs) ---
 
@@ -181,6 +182,10 @@ export async function seer_status(apiKey: string): Promise<string> {
   if (!user) {
     return "**Error:** Invalid SEER key. Visit https://seermcp.com to get your key.";
   }
+
+  // Plan-aware RPM rate limit (status is free but still DB-backed)
+  const rpmError = checkPlanRateLimit(apiKey, user.plan);
+  if (rpmError) return rpmError;
 
   const limit = PLAN_LIMITS[user.plan] ?? 0;
   const remaining = Math.max(0, limit - user.usage_this_month);

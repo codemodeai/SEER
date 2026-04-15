@@ -105,6 +105,26 @@ export function checkDualRateLimit(
   return keyResult.remaining < ipResult.remaining ? keyResult : ipResult;
 }
 
+/**
+ * Plan-aware rate limit check for use inside tool handlers (after auth).
+ * The middleware does IP-level + key-prefix checks without knowing the plan.
+ * This function applies the correct per-plan RPM limit using the full API key.
+ *
+ * @returns Error message string if rate limited, null if allowed.
+ */
+export function checkPlanRateLimit(apiKey: string, plan: string): string | null {
+  const limit = PLAN_RPM[plan] ?? PLAN_RPM.free;
+  const result = checkRateLimit(`plan:${apiKey}`, limit);
+  if (!result.allowed) {
+    const retryAfterSec = Math.ceil(result.retryAfterMs / 1000);
+    return JSON.stringify({
+      error: `Rate limit exceeded (${limit} requests/min for ${plan} plan). Retry in ${retryAfterSec}s.`,
+      retry_after: retryAfterSec,
+    });
+  }
+  return null;
+}
+
 /** Reset a specific key — useful for testing */
 export function _resetKey(key: string): void {
   windows.delete(key);

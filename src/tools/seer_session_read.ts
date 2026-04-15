@@ -5,6 +5,7 @@ import { buildUsageWarning } from "../lib/formatter.js";
 import { appendSuggestInstruction } from "../lib/suggest.js";
 import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
 import { checkTeamConflict } from "../lib/conflict-detect.js";
+import { checkPlanRateLimit } from "../lib/rate-limit.js";
 
 const API_BASE = process.env["SEER_WEB_URL"] ?? "https://www.seermcp.com";
 
@@ -64,6 +65,10 @@ export async function seer_session_read(
 
   // 1c. Team conflict detection
   const conflict = await checkTeamConflict(user, "session read");
+
+  // 1d. Plan-aware RPM rate limit
+  const rpmError = checkPlanRateLimit(apiKey, user.plan);
+  if (rpmError) return rpmError;
 
   // 2. Check plan limit
   const limit = PLAN_LIMITS[user.plan] ?? 0;

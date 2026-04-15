@@ -139,7 +139,7 @@ export async function seer_tools(apiKey: string): Promise<string> {
     },
     {
       name: "Rate limiting",
-      description: "60 requests/minute per IP and API key",
+      description: "Plan-aware RPM: Free 10, Starter 30, Pro 60, Agency 120 req/min",
       status: "Active",
     },
   ];

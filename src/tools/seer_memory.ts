@@ -1,6 +1,7 @@
 import { authenticateUser } from "../lib/auth.js";
 import { supabase } from "../lib/supabase.js";
 import { checkMfa, getMfaBlockMessage } from "../lib/mfa.js";
+import { checkPlanRateLimit } from "../lib/rate-limit.js";
 import {
   listAspects,
   loadAspects,
@@ -131,6 +132,10 @@ export async function seer_memory(
   if (mfa.blocked) {
     return getMfaBlockMessage();
   }
+
+  // Plan-aware RPM rate limit
+  const rpmError = checkPlanRateLimit(apiKey, user.plan);
+  if (rpmError) return rpmError;
 
   // Plan gate — memory requires Pro+
   if (user.plan === "free" || user.plan === "starter") {
