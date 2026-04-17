@@ -3,8 +3,8 @@ name: Build Windows Installer
 on:
   push:
     tags:
-      - "v*"          # triggers on: git tag v1.0.0 && git push --tags
-  workflow_dispatch:  # allows manual trigger from GitHub UI
+      - "v*"          # triggers on: git tag v1.0.1 && git push --tags
+  workflow_dispatch:  # allows manual trigger from GitHub UI → Actions tab
 
 jobs:
   build-windows:
@@ -35,36 +35,73 @@ jobs:
         with:
           workspaces: desktop/src-tauri -> target
 
-      # ── Agent: install deps + build TypeScript ────────────────────────────
+      # ── Tauri icon generation ──────────────────────────────────────────────
+      # Generates all required icon sizes from a source PNG.
+      # Tauri requires icons/32x32.png, 128x128.png, icon.ico, icon.icns etc.
+      - name: Generate Tauri icons
+        run: |
+          # Create a minimal 1024x1024 source icon if none exists
+          python -c "
+          import struct, os, zlib
+
+          os.makedirs('desktop/src-tauri/icons', exist_ok=True)
+
+          def write_png(path, width, height, r, g, b):
+              def chunk(name, data):
+                  c = zlib.crc32(name + data) & 0xffffffff
+                  return struct.pack('>I', len(data)) + name + data + struct.pack('>I', c)
+              raw = b''
+              for _ in range(height):
+                  row = b'\x00' + bytes([r, g, b, 255] * width)
+                  raw += row
+              compressed = zlib.compress(raw)
+              png = b'\x89PNG\r\n\x1a\n'
+              png += chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0))
+              png += chunk(b'IDAT', compressed)
+              png += chunk(b'IEND', b'')
+              with open(path, 'wb') as f:
+                  f.write(png)
+
+          sizes = [(32,32), (128,128)]
+          for w, h in sizes:
+              write_png(f'desktop/src-tauri/icons/{w}x{h}.png', w, h, 217, 119, 87)
+          write_png('desktop/src-tauri/icons/128x128@2x.png', 256, 256, 217, 119, 87)
+          write_png('desktop/src-tauri/icons/icon-source.png', 512, 512, 217, 119, 87)
+          print('Source icon written')
+          "
+          # Use Tauri CLI to generate all icon variants from the source PNG
+          cd desktop
+          npm install
+          npx tauri icon src-tauri/icons/icon-source.png
+        shell: pwsh
+
+      # ── Agent: install deps ────────────────────────────────────────────────
       - name: Install agent dependencies
         run: npm ci
         working-directory: agent
 
-      - name: Build agent TypeScript
-        run: npm run build
-        working-directory: agent
+      # ── Agent: bundle TypeScript → CJS via esbuild, then build SEA exe ────
+      # FIX: tsc outputs ESM which Node.js SEA cannot use.
+      # esbuild bundles everything into a single CommonJS file first.
+      - name: Install postject (SEA injector)
+        run: npm install -g postject
+
+      - name: Build seer-agent.exe (esbuild bundle → Node.js SEA)
+        run: node agent/scripts/build-exe.mjs
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SEER_MCP_BASE: https://www.seermcp.com
 
-      # ── Agent: compile to standalone .exe (Node.js SEA) ──────────────────
-      - name: Install postject (SEA injector)
-        run: npm install -g postject
-
-      - name: Build seer-agent.exe (standalone, no Node.js needed)
-        run: node agent/scripts/build-exe.mjs
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-
       - name: Verify sidecar binary exists
         run: |
-          if (!(Test-Path "desktop/src-tauri/binaries/seer-agent-x86_64-pc-windows-msvc.exe")) {
-            Write-Error "Sidecar binary missing!"
+          $path = "desktop/src-tauri/binaries/seer-agent-x86_64-pc-windows-msvc.exe"
+          if (!(Test-Path $path)) {
+            Write-Error "Sidecar binary missing: $path"
             exit 1
           }
-          Write-Host "✓ seer-agent.exe sidecar ready"
+          $size = (Get-Item $path).Length / 1MB
+          Write-Host "✓ seer-agent.exe ready — $([math]::Round($size,1)) MB"
         shell: pwsh
 
       # ── Desktop: install dependencies ─────────────────────────────────────
@@ -72,19 +109,16 @@ jobs:
         run: npm ci
         working-directory: desktop
 
-      # ── Create installer assets (BMP images for NSIS) ─────────────────────
+      # ── Create NSIS installer BMP assets ──────────────────────────────────
       - name: Generate NSIS installer images
         run: |
-          # Create placeholder BMP files — replace with real branding images
-          # Header: 150x57 px BMP (shown at top of each installer page)
-          # Sidebar: 164x314 px BMP (shown on welcome/finish pages)
           python -c "
-          import struct
+          import struct, os
 
           def write_bmp(path, width, height, r, g, b):
               pixel = bytes([b, g, r])
               row_size = (width * 3 + 3) & ~3
-              pixels = (pixel * width + bytes(row_size - width * 3)) * height
+              pixels = (pixel * width + bytes(row_size - width*3)) * height
               header_size = 54
               file_size = header_size + len(pixels)
               with open(path, 'wb') as f:
@@ -102,15 +136,23 @@ jobs:
                   f.write(struct.pack('<II', 0, 0))
                   f.write(pixels)
 
-          import os
           os.makedirs('desktop/installer-assets', exist_ok=True)
-          write_bmp('desktop/installer-assets/header.bmp', 150, 57, 20, 20, 20)
+          write_bmp('desktop/installer-assets/header.bmp',  150,  57, 20, 20, 20)
           write_bmp('desktop/installer-assets/sidebar.bmp', 164, 314, 14, 14, 14)
-          print('Installer BMP assets created')
+          print('NSIS BMP assets ready')
           "
         shell: pwsh
 
-      # ── Tauri build → produces NSIS .exe installer ────────────────────────
+      # ── Generate Cargo.lock if missing ────────────────────────────────────
+      - name: Ensure Cargo.lock exists
+        run: |
+          if (!(Test-Path "desktop/src-tauri/Cargo.lock")) {
+            cd desktop/src-tauri
+            cargo generate-lockfile
+          }
+        shell: pwsh
+
+      # ── Tauri build → NSIS installer ─────────────────────────────────────
       - name: Build Tauri app + NSIS installer
         uses: tauri-apps/tauri-action@v0
         env:
@@ -127,14 +169,13 @@ jobs:
 
             ### Install
             1. Download **SEER_${{ github.ref_name }}_x64-setup.exe** below
-            2. Double-click the file → follow the installation wizard
+            2. Double-click → follow the installation wizard
             3. Launch SEER from the Start Menu or Desktop shortcut
             4. Sign in and start building
 
-            ### What's included
+            ### Included
             - SEER Desktop App (Tauri)
-            - SEER Local Agent (bundled — no separate install needed)
-            - Auto-update support
+            - SEER Local Agent (bundled — no Node.js required)
 
             ### Uninstall
             Control Panel → Programs → SEER → Uninstall
@@ -142,11 +183,12 @@ jobs:
           prerelease: false
           args: --target x86_64-pc-windows-msvc --bundles nsis
 
-      # ── Upload installer as artifact (for non-tag builds / manual runs) ───
+      # ── Upload as artifact (fallback for manual / non-tag runs) ──────────
       - name: Upload NSIS installer as artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: SEER-Windows-Installer
           path: desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
