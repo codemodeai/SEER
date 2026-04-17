@@ -809,6 +809,17 @@ export async function seer_run(
     finalResult = modeSwitch.modelInstruction + "\n\n" + finalResult;
   }
 
+  // 7c. Agent JSON envelope — prepended so the SEER Local Agent can parse structured params.
+  // The agent extracts { model, mode, tokens, steps } and ignores the rest of the text.
+  // Claude Code (old flow) ignores this ```json block and processes the full string.
+  const agentEnvelope = {
+    model: modeSwitch.recommendedModel ?? "claude-opus-4",
+    mode: modeSwitch.mode ?? "build",
+    tokens: complexity.maxTokens,
+    steps: parsed?.steps ?? [],
+  };
+  finalResult = "```json\n" + JSON.stringify(agentEnvelope, null, 2) + "\n```\n\n" + finalResult;
+
   // 8. Smart keyword nudge — suggest seer session read if not using seer
   try {
     const nudge = await checkNudge(input, user.id, user.last_nudge_at);

@@ -10,35 +10,35 @@ const plans = [
     monthlyPrice: 0,
     annualPrice: 0,
     period: "forever",
-    calls: "50 calls/mo",
-    features: ["Prompt optimization", "Basic dashboard", "1 surface"],
+    calls: "1 device",
+    features: ["SEER desktop app", "Prompt optimization", "Basic memory"],
     popular: false,
   },
   {
     name: "Starter",
-    monthlyPrice: 19,
-    annualPrice: 15,
+    monthlyPrice: 8,
+    annualPrice: 6,
     period: "/month",
-    calls: "200 calls/mo",
-    features: ["Workflows", "Founder's Space", "All 4 surfaces"],
+    calls: "2 devices",
+    features: ["Desktop + mobile", "Founder's Space addon", "All AI tool connections"],
     popular: false,
   },
   {
     name: "Pro",
-    monthlyPrice: 49,
-    annualPrice: 39,
+    monthlyPrice: 19,
+    annualPrice: 15,
     period: "/month",
-    calls: "1,000 calls/mo",
-    features: ["Context memory", "Founder's Space", "Priority support"],
+    calls: "5 devices",
+    features: ["Founder's Space included", "Context memory", "Priority support"],
     popular: true,
   },
   {
     name: "Agency",
-    monthlyPrice: 59,
-    annualPrice: 47,
+    monthlyPrice: 39,
+    annualPrice: 31,
     period: "/month",
-    calls: "Unlimited",
-    features: ["Team workspace", "Shared memory", "Activity tracking"],
+    calls: "10 devices",
+    features: ["Unlimited usage", "Team vault", "Conflict detection"],
     popular: false,
   },
 ];
@@ -178,6 +178,10 @@ export default function PricingPreview() {
                 }`}
               >
                 {plan.calls}
+              </div>
+
+              <div className={`mt-2 text-xs ${plan.popular ? "text-white/40" : "text-muted"}`}>
+                {plan.monthlyPrice === 0 ? "Try SEER free" : "Unlimited AI tasks"}
               </div>
 
               <ul className="mt-6 flex-1 flex flex-col gap-2.5">

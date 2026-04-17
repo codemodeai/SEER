@@ -28,6 +28,28 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+
+  async redirects() {
+    return [
+      // Dashboard moved to desktop app
+      {
+        source: "/dashboard",
+        destination: "/download",
+        permanent: false,
+      },
+      {
+        source: "/dashboard/:path*",
+        destination: "/download",
+        permanent: false,
+      },
+      // Agency portal moved to desktop app
+      {
+        source: "/agency/:path*",
+        destination: "/download",
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

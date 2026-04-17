@@ -1,9 +1,42 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { Download, ArrowRight, Sparkles } from "lucide-react";
+
+type Platform = "mac" | "windows" | "linux" | "unknown";
+
+function detectPlatform(): Platform {
+  if (typeof navigator === "undefined") return "unknown";
+  const ua = navigator.userAgent.toLowerCase();
+  return ua.includes("mac") ? "mac"
+    : ua.includes("win") ? "windows"
+    : ua.includes("linux") ? "linux"
+    : "unknown";
+}
+
+const platformLabel: Record<Platform, string> = {
+  mac: "Download for Mac",
+  windows: "Download for Windows",
+  linux: "Download for Linux",
+  unknown: "Download SEER",
+};
+
+const GH_BASE = "https://github.com/codemodeai/seer/releases/latest/download";
+const platformUrl: Record<Platform, string> = {
+  mac: `${GH_BASE}/SEER_aarch64.dmg`,
+  windows: `${GH_BASE}/SEER_x64-setup.exe`,
+  linux: `${GH_BASE}/SEER_x64.AppImage`,
+  unknown: `/download`,
+};
 
 export default function Hero() {
+  const [platform, setPlatform] = useState<Platform>("unknown");
+
+  useEffect(() => {
+    setPlatform(detectPlatform());
+  }, []);
+
   return (
     <section className="relative min-h-[92vh] flex items-center justify-center overflow-hidden grain">
       {/* Decorative background shapes */}
@@ -22,7 +55,7 @@ export default function Hero() {
         >
           <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-terracotta/10 text-terracotta text-xs font-semibold tracking-wide uppercase border border-terracotta/15">
             <Sparkles size={13} />
-            MCP-Powered Intelligence
+            Desktop App — V1.0.0
           </span>
         </motion.div>
 
@@ -33,9 +66,9 @@ export default function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.1 }}
         >
-          Every prompt,{" "}
+          Your AI,{" "}
           <span className="relative inline-block">
-            <span className="text-terracotta">perfected</span>
+            <span className="text-terracotta">fully controlled</span>
             <svg
               className="absolute -bottom-2 left-0 w-full"
               viewBox="0 0 200 8"
@@ -62,9 +95,8 @@ export default function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.25 }}
         >
-          SEER intercepts your prompts, optimizes them, structures them into
-          executable workflows, and injects project memory — all before Claude
-          Code even starts thinking.
+          SEER is a desktop app with a built-in local agent that orchestrates Claude,
+          manages your projects, and connects every AI tool — all from one place.
         </motion.p>
 
         {/* CTAs */}
@@ -75,23 +107,34 @@ export default function Hero() {
           transition={{ duration: 0.6, delay: 0.4 }}
         >
           <a
-            href="/signup"
-            className="group flex items-center gap-2 px-7 py-3.5 bg-terracotta hover:bg-terracotta-dark text-white font-semibold rounded-full transition-all shadow-lg shadow-terracotta/20 hover:shadow-xl hover:shadow-terracotta/30"
+            href={platformUrl[platform]}
+            className="group flex items-center gap-2.5 px-7 py-3.5 bg-terracotta hover:bg-terracotta-dark text-white font-semibold rounded-full transition-all shadow-lg shadow-terracotta/20 hover:shadow-xl hover:shadow-terracotta/30"
           >
-            Start free — 50 calls/mo
-            <ArrowRight
-              size={16}
-              className="group-hover:translate-x-0.5 transition-transform"
-            />
+            <Download size={16} className="group-hover:-translate-y-0.5 transition-transform" />
+            {platformLabel[platform]}
+            <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
           </a>
           <a
-            href="#features"
+            href="/download"
             className="px-7 py-3.5 bg-ivory hover:bg-cream-dark text-charcoal font-semibold rounded-full border border-sand transition-all"
           >
-            See how it works
+            All platforms →
           </a>
         </motion.div>
 
+        {/* Platform pills */}
+        <motion.div
+          className="mt-7 flex items-center justify-center gap-2 flex-wrap"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.6 }}
+        >
+          {["macOS", "Windows", "Linux", "iOS", "Android"].map((p) => (
+            <span key={p} className="text-xs px-3 py-1 rounded-full bg-sand/60 text-warm-brown-light border border-sand">
+              {p}
+            </span>
+          ))}
+        </motion.div>
       </div>
     </section>
   );

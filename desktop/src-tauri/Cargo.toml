@@ -1,0 +1,24 @@
+[package]
+name = "seer-desktop"
+version = "1.0.0"
+description = "SEER Desktop App"
+authors = ["Jagadeesh"]
+edition = "2021"
+
+[lib]
+name = "seer_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "seer-desktop"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+tauri-plugin-updater = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

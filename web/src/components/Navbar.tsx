@@ -1,26 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Download } from "lucide-react";
 
 const navLinks = [
-  { label: "Features", href: "#features" },
+  { label: "Features", href: "/#features" },
   { label: "Pricing", href: "/pricing" },
+  { label: "Download", href: "/download" },
   { label: "Docs", href: "/docs" },
 ];
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
-  const [loggedIn, setLoggedIn] = useState(false);
-
-  useEffect(() => {
-    // Check for Supabase auth cookie presence
-    const hasAuthCookie = document.cookie
-      .split(";")
-      .some((c) => c.trim().startsWith("sb-") && c.includes("auth-token"));
-    setLoggedIn(hasAuthCookie);
-  }, []);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-cream/80 backdrop-blur-xl border-b border-sand/60">
@@ -52,21 +44,20 @@ export default function Navbar() {
           ))}
         </div>
 
-        {/* CTA / User */}
+        {/* CTAs */}
         <div className="hidden md:flex items-center gap-3">
-          {!loggedIn && (
-            <a
-              href="/login"
-              className="text-sm font-medium text-warm-brown-light hover:text-charcoal transition-colors px-4 py-2"
-            >
-              Log in
-            </a>
-          )}
           <a
-            href="/dashboard"
-            className="text-sm font-semibold text-white bg-terracotta hover:bg-terracotta-dark px-5 py-2.5 rounded-full transition-all shadow-sm hover:shadow-md"
+            href="/login"
+            className="text-sm font-medium text-warm-brown-light hover:text-charcoal transition-colors px-4 py-2"
           >
-            Dashboard
+            Log in
+          </a>
+          <a
+            href="/download"
+            className="group flex items-center gap-2 text-sm font-semibold text-white bg-terracotta hover:bg-terracotta-dark px-5 py-2.5 rounded-full transition-all shadow-sm hover:shadow-md"
+          >
+            <Download size={14} className="group-hover:-translate-y-0.5 transition-transform" />
+            Download App
           </a>
         </div>
 
@@ -74,6 +65,7 @@ export default function Navbar() {
         <button
           className="md:hidden p-2 text-charcoal"
           onClick={() => setOpen(!open)}
+          aria-label="Toggle menu"
         >
           {open ? <X size={20} /> : <Menu size={20} />}
         </button>
@@ -100,19 +92,15 @@ export default function Navbar() {
                 </a>
               ))}
               <hr className="border-sand" />
-              {!loggedIn && (
-                <a
-                  href="/login"
-                  className="text-sm font-medium text-warm-brown-light py-2"
-                >
-                  Log in
-                </a>
-              )}
+              <a href="/login" className="text-sm font-medium text-warm-brown-light py-2">
+                Log in
+              </a>
               <a
-                href="/dashboard"
-                className="text-sm font-semibold text-white bg-terracotta text-center px-5 py-2.5 rounded-full mt-1"
+                href="/download"
+                className="flex items-center justify-center gap-2 text-sm font-semibold text-white bg-terracotta text-center px-5 py-2.5 rounded-full mt-1"
               >
-                Dashboard
+                <Download size={14} />
+                Download App
               </a>
             </div>
           </motion.div>
