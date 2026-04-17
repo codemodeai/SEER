@@ -18,8 +18,8 @@ function detectPlatform(): Platform {
 
 const urls: Record<Platform, string> = {
   mac: `${GH_BASE}/SEER_aarch64.dmg`,
-  windows: `${GH_BASE}/SEER_x64-setup.exe`,
-  linux: `${GH_BASE}/SEER_x64.AppImage`,
+  windows: `${GH_BASE}/SEER_1.0.0_x64-setup.exe`,
+  linux: `${GH_BASE}/SEER_1.0.0_x64.AppImage`,
   unknown: `/download`,
 };
 

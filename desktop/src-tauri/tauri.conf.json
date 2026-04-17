@@ -18,7 +18,9 @@
         "minWidth": 900,
         "minHeight": 600,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "decorations": true,
+        "center": true
       }
     ],
     "security": {
@@ -27,7 +29,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -35,15 +37,30 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": ["../agent/dist/index"],
-    "macOS": {
-      "urlSchemes": ["seer"]
-    },
+    "externalBin": ["binaries/seer-agent"],
+    "resources": [],
     "windows": {
-      "urlSchemes": ["seer"]
-    },
-    "linux": {
-      "urlSchemes": ["seer"]
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "",
+      "tsp": false,
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "nsis": {
+        "template": null,
+        "license": "../LICENSE.rtf",
+        "headerImage": "../installer-assets/header.bmp",
+        "sidebarImage": "../installer-assets/sidebar.bmp",
+        "installMode": "perMachine",
+        "languages": ["English"],
+        "displayLanguageSelector": false,
+        "shortcutName": "SEER",
+        "startMenuFolder": "SEER",
+        "createDesktopShortcut": true,
+        "createStartMenuShortcut": true,
+        "enableDefaultFeatures": true,
+        "minimumWebview2Version": "2.0.0"
+      }
     }
   },
   "plugins": {
@@ -54,7 +71,7 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://github.com/codemodeai/seer/releases/latest/download/latest.json"
+        "https://github.com/codemodeai/SEER/releases/latest/download/latest.json"
       ],
       "dialog": false,
       "pubkey": ""

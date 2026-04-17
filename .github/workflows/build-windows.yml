@@ -1,0 +1,152 @@
+name: Build Windows Installer
+
+on:
+  push:
+    tags:
+      - "v*"          # triggers on: git tag v1.0.0 && git push --tags
+  workflow_dispatch:  # allows manual trigger from GitHub UI
+
+jobs:
+  build-windows:
+    name: Build SEER-Setup.exe
+    runs-on: windows-latest
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Node.js ───────────────────────────────────────────────────────────
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: agent/package-lock.json
+
+      # ── Rust ──────────────────────────────────────────────────────────────
+      - name: Set up Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri -> target
+
+      # ── Agent: install deps + build TypeScript ────────────────────────────
+      - name: Install agent dependencies
+        run: npm ci
+        working-directory: agent
+
+      - name: Build agent TypeScript
+        run: npm run build
+        working-directory: agent
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SEER_MCP_BASE: https://www.seermcp.com
+
+      # ── Agent: compile to standalone .exe (Node.js SEA) ──────────────────
+      - name: Install postject (SEA injector)
+        run: npm install -g postject
+
+      - name: Build seer-agent.exe (standalone, no Node.js needed)
+        run: node agent/scripts/build-exe.mjs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Verify sidecar binary exists
+        run: |
+          if (!(Test-Path "desktop/src-tauri/binaries/seer-agent-x86_64-pc-windows-msvc.exe")) {
+            Write-Error "Sidecar binary missing!"
+            exit 1
+          }
+          Write-Host "✓ seer-agent.exe sidecar ready"
+        shell: pwsh
+
+      # ── Desktop: install dependencies ─────────────────────────────────────
+      - name: Install desktop dependencies
+        run: npm ci
+        working-directory: desktop
+
+      # ── Create installer assets (BMP images for NSIS) ─────────────────────
+      - name: Generate NSIS installer images
+        run: |
+          # Create placeholder BMP files — replace with real branding images
+          # Header: 150x57 px BMP (shown at top of each installer page)
+          # Sidebar: 164x314 px BMP (shown on welcome/finish pages)
+          python -c "
+          import struct
+
+          def write_bmp(path, width, height, r, g, b):
+              pixel = bytes([b, g, r])
+              row_size = (width * 3 + 3) & ~3
+              pixels = (pixel * width + bytes(row_size - width * 3)) * height
+              header_size = 54
+              file_size = header_size + len(pixels)
+              with open(path, 'wb') as f:
+                  f.write(b'BM')
+                  f.write(struct.pack('<I', file_size))
+                  f.write(struct.pack('<HH', 0, 0))
+                  f.write(struct.pack('<I', header_size))
+                  f.write(struct.pack('<I', 40))
+                  f.write(struct.pack('<i', width))
+                  f.write(struct.pack('<i', -height))
+                  f.write(struct.pack('<HH', 1, 24))
+                  f.write(struct.pack('<I', 0))
+                  f.write(struct.pack('<I', len(pixels)))
+                  f.write(struct.pack('<ii', 2835, 2835))
+                  f.write(struct.pack('<II', 0, 0))
+                  f.write(pixels)
+
+          import os
+          os.makedirs('desktop/installer-assets', exist_ok=True)
+          write_bmp('desktop/installer-assets/header.bmp', 150, 57, 20, 20, 20)
+          write_bmp('desktop/installer-assets/sidebar.bmp', 164, 314, 14, 14, 14)
+          print('Installer BMP assets created')
+          "
+        shell: pwsh
+
+      # ── Tauri build → produces NSIS .exe installer ────────────────────────
+      - name: Build Tauri app + NSIS installer
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        with:
+          projectPath: desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: "SEER ${{ github.ref_name }}"
+          releaseBody: |
+            ## SEER ${{ github.ref_name }} — Windows Installer
+
+            ### Install
+            1. Download **SEER_${{ github.ref_name }}_x64-setup.exe** below
+            2. Double-click the file → follow the installation wizard
+            3. Launch SEER from the Start Menu or Desktop shortcut
+            4. Sign in and start building
+
+            ### What's included
+            - SEER Desktop App (Tauri)
+            - SEER Local Agent (bundled — no separate install needed)
+            - Auto-update support
+
+            ### Uninstall
+            Control Panel → Programs → SEER → Uninstall
+          releaseDraft: false
+          prerelease: false
+          args: --target x86_64-pc-windows-msvc --bundles nsis
+
+      # ── Upload installer as artifact (for non-tag builds / manual runs) ───
+      - name: Upload NSIS installer as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SEER-Windows-Installer
+          path: desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+          if-no-files-found: error
+          retention-days: 30

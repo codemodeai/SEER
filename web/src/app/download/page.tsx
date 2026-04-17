@@ -17,12 +17,13 @@ const DOWNLOADS = {
     x64: { label: "Download for Mac (Intel)", file: "SEER_x64.dmg", ext: ".dmg" },
   },
   windows: {
-    arm: { label: "Download for Windows", file: "SEER_x64-setup.exe", ext: ".exe" },
-    x64: { label: "Download for Windows", file: "SEER_x64-setup.exe", ext: ".exe" },
+    // NSIS installer produced by tauri build --bundles nsis
+    arm: { label: "Download for Windows (.exe)", file: "SEER_1.0.0_x64-setup.exe", ext: ".exe" },
+    x64: { label: "Download for Windows (.exe)", file: "SEER_1.0.0_x64-setup.exe", ext: ".exe" },
   },
   linux: {
-    arm: { label: "Download for Linux (.AppImage)", file: "SEER_aarch64.AppImage", ext: ".AppImage" },
-    x64: { label: "Download for Linux (.AppImage)", file: "SEER_x64.AppImage", ext: ".AppImage" },
+    arm: { label: "Download for Linux (.AppImage)", file: "SEER_1.0.0_aarch64.AppImage", ext: ".AppImage" },
+    x64: { label: "Download for Linux (.AppImage)", file: "SEER_1.0.0_x64.AppImage", ext: ".AppImage" },
   },
 };
 
@@ -70,9 +71,9 @@ export default function DownloadPage() {
   }
 
   const otherPlatforms: Array<{ platform: Platform; arch: Arch; label: string }> = [
+    { platform: "windows", arch: "x64", label: "Windows — x64 (.exe installer)" },
     { platform: "mac", arch: "arm", label: "Mac — Apple Silicon (.dmg)" },
     { platform: "mac", arch: "x64", label: "Mac — Intel (.dmg)" },
-    { platform: "windows", arch: "x64", label: "Windows (.exe)" },
     { platform: "linux", arch: "x64", label: "Linux — x64 (.AppImage)" },
     { platform: "linux", arch: "arm", label: "Linux — ARM64 (.AppImage)" },
   ];

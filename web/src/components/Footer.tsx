@@ -44,10 +44,10 @@ export default function Footer() {
             <h4 className="text-xs font-semibold tracking-widest uppercase text-white/30 mb-4">Install</h4>
             <ul className="flex flex-col gap-2.5">
               {[
-                { label: "Mac (Apple Silicon)", href: "https://github.com/codemodeai/seer/releases/latest/download/SEER_aarch64.dmg" },
-                { label: "Mac (Intel)", href: "https://github.com/codemodeai/seer/releases/latest/download/SEER_x64.dmg" },
-                { label: "Windows", href: "https://github.com/codemodeai/seer/releases/latest/download/SEER_x64-setup.exe" },
-                { label: "Linux (.AppImage)", href: "https://github.com/codemodeai/seer/releases/latest/download/SEER_x64.AppImage" },
+                { label: "Mac (Apple Silicon)", href: "https://github.com/codemodeai/SEER/releases/latest/download/SEER_aarch64.dmg" },
+                { label: "Mac (Intel)", href: "https://github.com/codemodeai/SEER/releases/latest/download/SEER_x64.dmg" },
+                { label: "Windows (.exe)", href: "https://github.com/codemodeai/SEER/releases/latest/download/SEER_1.0.0_x64-setup.exe" },
+                { label: "Linux (.AppImage)", href: "https://github.com/codemodeai/SEER/releases/latest/download/SEER_1.0.0_x64.AppImage" },
                 { label: "iOS App Store", href: "https://apps.apple.com/app/seer-ai/id0000000000", external: true },
                 { label: "Google Play", href: "https://play.google.com/store/apps/details?id=ai.seer.app", external: true },
               ].map((item) => (

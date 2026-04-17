@@ -19,7 +19,8 @@ export interface AgentResponse {
 export async function startAgent(apiKey: string): Promise<void> {
   if (agentChild) return;
 
-  const cmd = Command.sidecar("../agent/dist/index", [], {
+  // Tauri sidecar name matches binaries/seer-agent-{target-triple}.exe
+  const cmd = Command.sidecar("binaries/seer-agent", [], {
     env: {
       SEER_API_KEY: apiKey,
       SEER_MCP_BASE: "https://www.seermcp.com",
