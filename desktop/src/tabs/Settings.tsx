@@ -5,7 +5,16 @@
 import { useEffect, useState } from "react";
 import { sendToAgent } from "@/lib/agent";
 import { supabase } from "@/lib/supabase";
-import type { AITool } from "../../agent/src/types";
+
+type AITool =
+  | "claude-cli"
+  | "claude-desktop"
+  | "vscode"
+  | "codex"
+  | "cursor"
+  | "windsurf"
+  | "antigravity"
+  | "lovable";
 
 type SettingsView = "connections" | "usage" | "account";
 

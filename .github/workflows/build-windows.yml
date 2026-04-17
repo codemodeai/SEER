@@ -40,7 +40,7 @@ jobs:
       # Tauri requires icons/32x32.png, 128x128.png, icon.ico, icon.icns etc.
       - name: Generate Tauri icons
         run: |
-          # Create a minimal 1024x1024 source icon if none exists
+          # Create minimal placeholder icons — color type 6 (RGBA) for valid PNGs
           python -c "
           import struct, os, zlib
 
@@ -56,23 +56,35 @@ jobs:
                   raw += row
               compressed = zlib.compress(raw)
               png = b'\x89PNG\r\n\x1a\n'
-              png += chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0))
+              png += chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 6, 0, 0, 0))
               png += chunk(b'IDAT', compressed)
               png += chunk(b'IEND', b'')
               with open(path, 'wb') as f:
                   f.write(png)
 
+          def write_ico(path, r, g, b):
+              # Minimal 32x32 ICO file
+              w, h = 32, 32
+              pixels = bytes([b, g, r, 255] * w * h)
+              img_size = 40 + len(pixels)
+              with open(path, 'wb') as f:
+                  # ICO header
+                  f.write(struct.pack('<HHH', 0, 1, 1))
+                  # Directory entry
+                  f.write(struct.pack('BBBBHHII', w, h, 0, 0, 1, 32, img_size, 22))
+                  # BITMAPINFOHEADER
+                  f.write(struct.pack('<IiiHHIIiiII', 40, w, h*2, 1, 32, 0, len(pixels), 0, 0, 0, 0))
+                  # Pixel data (bottom-up BGRA)
+                  for row in range(h-1, -1, -1):
+                      f.write(pixels[row*w*4:(row+1)*w*4])
+
           sizes = [(32,32), (128,128)]
           for w, h in sizes:
               write_png(f'desktop/src-tauri/icons/{w}x{h}.png', w, h, 217, 119, 87)
           write_png('desktop/src-tauri/icons/128x128@2x.png', 256, 256, 217, 119, 87)
-          write_png('desktop/src-tauri/icons/icon-source.png', 512, 512, 217, 119, 87)
-          print('Source icon written')
+          write_ico('desktop/src-tauri/icons/icon.ico', 217, 119, 87)
+          print('Icons generated')
           "
-          # Use Tauri CLI to generate all icon variants from the source PNG
-          cd desktop
-          npm install
-          npx tauri icon src-tauri/icons/icon-source.png
         shell: pwsh
 
       # ── Agent: install deps ────────────────────────────────────────────────
@@ -106,7 +118,7 @@ jobs:
 
       # ── Desktop: install dependencies ─────────────────────────────────────
       - name: Install desktop dependencies
-        run: npm ci
+        run: npm install
         working-directory: desktop
 
       # ── Create NSIS installer BMP assets ──────────────────────────────────
