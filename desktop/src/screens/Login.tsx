@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from "react";
 import { open } from "@tauri-apps/plugin-shell";
+import { onOpenUrl, getCurrent as getCurrentDeepLink } from "@tauri-apps/plugin-deep-link";
 import { supabase, getApiKey } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 
@@ -22,28 +23,38 @@ export function Login({ onLogin }: LoginProps) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Handle deep link callback from OAuth browser flow
+  // Handle deep-link callback from OAuth browser flow (PKCE).
+  // URL is seer://auth/callback?code=... — we exchange the code for a session.
   useEffect(() => {
-    // Listen for URL changes — Tauri will route seer://auth/callback here
-    const handleHashChange = async () => {
-      const hash = window.location.hash;
-      if (!hash.includes("access_token")) return;
-      const params = new URLSearchParams(hash.slice(1));
-      const accessToken = params.get("access_token");
-      const refreshToken = params.get("refresh_token");
-      if (!accessToken || !refreshToken) return;
+    const consumeCallbackUrl = async (raw: string) => {
+      const queryIdx = raw.indexOf("?");
+      if (queryIdx === -1) return;
+      const params = new URLSearchParams(raw.slice(queryIdx + 1));
+      const code = params.get("code");
+      if (!code) {
+        const authError = params.get("error_description") ?? params.get("error");
+        if (authError) setError(authError);
+        return;
+      }
 
-      const { data, error } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      });
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
       if (error || !data.session) { setError(error?.message ?? "Auth failed"); return; }
       await finalizeLogin(data.session);
     };
 
-    window.addEventListener("hashchange", handleHashChange);
-    handleHashChange();
-    return () => window.removeEventListener("hashchange", handleHashChange);
+    let unlisten: (() => void) | null = null;
+    (async () => {
+      // Cold-start case: the app was launched BY the deep link.
+      const initial = await getCurrentDeepLink();
+      if (initial && initial.length > 0) await consumeCallbackUrl(initial[0]);
+
+      // Running case: app already open, browser sends us a URL.
+      unlisten = await onOpenUrl((urls) => {
+        if (urls.length > 0) void consumeCallbackUrl(urls[0]);
+      });
+    })();
+
+    return () => { if (unlisten) unlisten(); };
   }, []);
 
   async function finalizeLogin(session: Session) {

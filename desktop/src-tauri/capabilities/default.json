@@ -19,6 +19,7 @@
       ]
     },
     "shell:allow-stdin-write",
-    "shell:allow-kill"
+    "shell:allow-kill",
+    "deep-link:default"
   ]
 }
