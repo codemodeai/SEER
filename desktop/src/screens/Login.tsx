@@ -36,15 +36,21 @@ export function Login({ onLogin }: LoginProps) {
   const [error, setError] = useState<string | null>(null);
   const [waiting, setWaiting] = useState(false);
 
+  // Clear any stale auth state left over from a previous aborted sign-in.
+  useEffect(() => {
+    localStorage.removeItem(STATE_KEY);
+  }, []);
+
   useEffect(() => {
     const consumeCallback = async (raw: string) => {
-      // Fragment carries the tokens (not logged by servers).
-      const hashIdx = raw.indexOf("#");
-      if (hashIdx === -1) {
+      // Tokens arrive as query params (Windows strips # from custom-protocol
+      // URLs before delivering them to the app).
+      const queryIdx = raw.indexOf("?");
+      if (queryIdx === -1) {
         setError("Invalid callback URL");
         return;
       }
-      const params = new URLSearchParams(raw.slice(hashIdx + 1));
+      const params = new URLSearchParams(raw.slice(queryIdx + 1));
       const accessToken = params.get("access_token");
       const refreshToken = params.get("refresh_token");
       const returnedState = params.get("state");
@@ -109,6 +115,12 @@ export function Login({ onLogin }: LoginProps) {
     await open(url);
   }
 
+  function handleCancel() {
+    localStorage.removeItem(STATE_KEY);
+    setWaiting(false);
+    setError(null);
+  }
+
   return (
     <div style={styles.container}>
       <div style={styles.card}>
@@ -120,10 +132,14 @@ export function Login({ onLogin }: LoginProps) {
         </button>
 
         {waiting && (
-          <p style={styles.hint}>
-            Finish signing in on the website, then click <strong>Authorize</strong>. You can
-            close the browser tab after that.
-          </p>
+          <>
+            <p style={styles.hint}>
+              Finish signing in on the website. You'll be sent back here automatically.
+            </p>
+            <button style={styles.cancelBtn} onClick={handleCancel}>
+              Cancel and try again
+            </button>
+          </>
         )}
 
         {error && <p style={styles.error}>{error}</p>}
@@ -145,6 +161,7 @@ const styles: Record<string, React.CSSProperties> = {
   logo: { color: "#fff", fontSize: 32, fontWeight: 700, margin: 0, letterSpacing: -1 },
   subtitle: { color: "#666", fontSize: 13, marginTop: 4, marginBottom: 32 },
   primaryBtn: { width: "100%", padding: "14px 0", background: "#6366f1", color: "#fff", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer" },
+  cancelBtn: { marginTop: 10, background: "transparent", border: "none", color: "#888", fontSize: 12, cursor: "pointer", textDecoration: "underline" },
   hint: { color: "#888", fontSize: 12, lineHeight: 1.6, marginTop: 18, marginBottom: 0 },
   error: { color: "#f87171", fontSize: 13, marginTop: 16, marginBottom: 0 },
   signupLink: { color: "#666", fontSize: 13, marginTop: 28, marginBottom: 0 },

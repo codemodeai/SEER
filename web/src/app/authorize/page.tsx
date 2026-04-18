@@ -72,10 +72,6 @@ function AuthorizeContent() {
         plan: ((profile?.plan as Plan) ?? "free"),
       });
       setLoading(false);
-
-      // Auto-authorize: the user is already signed in, so hand the session to
-      // the desktop app right away. No extra click.
-      fireCallback(session);
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
@@ -94,8 +90,10 @@ function AuthorizeContent() {
       token_type: session.token_type ?? "bearer",
       state,
     });
-    // Tokens travel in the URL fragment — browsers don't send # to servers.
-    window.location.href = `seer://auth/callback#${params.toString()}`;
+    // Query string, not fragment — Windows strips the fragment from custom
+    // protocol URLs before handing them to the app. The seer:// URL is
+    // delivered locally (OS → app), so there's no server-log concern.
+    window.location.href = `seer://auth/callback?${params.toString()}`;
     // Give the OS a moment to hand the URL to the desktop app.
     setTimeout(() => setSent(true), 600);
   }
