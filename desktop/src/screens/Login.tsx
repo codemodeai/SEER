@@ -43,15 +43,22 @@ export function Login({ onLogin }: LoginProps) {
 
   useEffect(() => {
     const consumeCallback = async (raw: string) => {
-      // Tokens may arrive as ? query or # fragment. Windows typically strips
-      // the fragment from custom-protocol URLs, but accept both for safety.
-      const sepIdx = raw.search(/[?#]/);
+      console.log("[SEER] deep-link callback:", raw);
+      // Windows sometimes percent-encodes the `?` to `%3F` when launching a
+      // custom-protocol URL. Try the raw string first; if no separator is
+      // found, decode once and try again.
+      let candidate = raw;
+      let sepIdx = candidate.search(/[?#]/);
       if (sepIdx === -1) {
-        setError(`Empty callback — the browser likely used an old cached page. Hard-refresh /authorize in the browser and try again. (got: ${raw})`);
+        try { candidate = decodeURIComponent(raw); } catch { /* keep raw */ }
+        sepIdx = candidate.search(/[?#]/);
+      }
+      if (sepIdx === -1) {
+        setError(`Empty callback. URL received: ${raw}`);
         setWaiting(false);
         return;
       }
-      const params = new URLSearchParams(raw.slice(sepIdx + 1));
+      const params = new URLSearchParams(candidate.slice(sepIdx + 1));
       const accessToken = params.get("access_token");
       const refreshToken = params.get("refresh_token");
       const returnedState = params.get("state");

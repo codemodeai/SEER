@@ -93,8 +93,15 @@ function AuthorizeContent() {
     // Query string, not fragment — Windows strips the fragment from custom
     // protocol URLs before handing them to the app. The seer:// URL is
     // delivered locally (OS → app), so there's no server-log concern.
-    window.location.href = `seer://auth/callback?${params.toString()}`;
-    // Give the OS a moment to hand the URL to the desktop app.
+    const url = `seer://auth/callback?${params.toString()}`;
+    // An anchor click survives browser query-string-stripping better than
+    // assigning window.location.href for custom schemes.
+    const a = document.createElement("a");
+    a.href = url;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
     setTimeout(() => setSent(true), 600);
   }
 
