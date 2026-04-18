@@ -124,11 +124,11 @@ export default function Navbar() {
                       </p>
                     </div>
                     <a
-                      href="/download"
+                      href="/authorize"
                       className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-charcoal hover:bg-cream-dark transition-colors"
                     >
                       <LayoutDashboard size={15} />
-                      Open in Desktop App
+                      Open Desktop App
                     </a>
                     <button
                       onClick={handleSignOut}

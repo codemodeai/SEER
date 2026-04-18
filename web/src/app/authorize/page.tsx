@@ -40,6 +40,7 @@ function AuthorizeContent() {
   const [user, setUser] = useState<UserRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [authorizing, setAuthorizing] = useState(false);
+  const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -48,7 +49,6 @@ function AuthorizeContent() {
       const { data: sessionData } = await supabase.auth.getSession();
       const session = sessionData.session;
       if (!session?.user) {
-        // Middleware should have caught this, but guard anyway.
         window.location.href = `/login?redirect=${encodeURIComponent(
           `/authorize?state=${encodeURIComponent(state)}`
         )}`;
@@ -72,23 +72,21 @@ function AuthorizeContent() {
         plan: ((profile?.plan as Plan) ?? "free"),
       });
       setLoading(false);
+
+      // Auto-authorize: the user is already signed in, so hand the session to
+      // the desktop app right away. No extra click.
+      fireCallback(session);
     })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
-  async function handleAuthorize() {
+  function fireCallback(session: {
+    access_token: string;
+    refresh_token: string;
+    expires_in?: number;
+    token_type?: string;
+  }) {
     setAuthorizing(true);
-    setError(null);
-    const supabase = createClient();
-    const { data, error: sessionError } = await supabase.auth.getSession();
-    const session = data.session;
-    if (sessionError || !session) {
-      setError("Session expired. Please log in again.");
-      setAuthorizing(false);
-      return;
-    }
-
-    // Hand tokens to the desktop app via the seer:// protocol handler.
-    // URL fragment (#) is used so tokens never hit any server logs.
     const params = new URLSearchParams({
       access_token: session.access_token,
       refresh_token: session.refresh_token,
@@ -96,7 +94,22 @@ function AuthorizeContent() {
       token_type: session.token_type ?? "bearer",
       state,
     });
+    // Tokens travel in the URL fragment — browsers don't send # to servers.
     window.location.href = `seer://auth/callback#${params.toString()}`;
+    // Give the OS a moment to hand the URL to the desktop app.
+    setTimeout(() => setSent(true), 600);
+  }
+
+  async function handleAuthorize() {
+    setError(null);
+    const supabase = createClient();
+    const { data, error: sessionError } = await supabase.auth.getSession();
+    const session = data.session;
+    if (sessionError || !session) {
+      setError("Session expired. Please log in again.");
+      return;
+    }
+    fireCallback(session);
   }
 
   function handleDeny() {
@@ -178,30 +191,55 @@ function AuthorizeContent() {
           )}
         </div>
 
-        <div className="px-8 pb-8 pt-2 flex gap-3">
-          <button
-            onClick={handleDeny}
-            disabled={authorizing}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-full border border-sand hover:bg-cream-dark text-sm font-medium text-charcoal transition-all disabled:opacity-60"
-          >
-            <X size={15} />
-            Deny
-          </button>
-          <button
-            onClick={handleAuthorize}
-            disabled={authorizing}
-            className="flex-[1.4] flex items-center justify-center gap-2 py-3 rounded-full bg-terracotta hover:bg-terracotta-dark text-white font-semibold text-sm transition-all shadow-md shadow-terracotta/20 disabled:opacity-60"
-          >
-            {authorizing ? (
-              <Loader2 size={15} className="animate-spin" />
-            ) : (
-              <>
-                Authorize
-                <ArrowRight size={15} />
-              </>
-            )}
-          </button>
-        </div>
+        {sent ? (
+          <div className="px-8 pb-8 pt-2 space-y-3 text-center">
+            <p className="text-sm text-charcoal">
+              Credentials sent to the SEER desktop app.
+            </p>
+            <p className="text-xs text-muted">
+              Didn't open? Make sure SEER Desktop is installed, then{" "}
+              <button
+                onClick={handleAuthorize}
+                className="text-terracotta font-medium underline"
+              >
+                try again
+              </button>{" "}
+              or{" "}
+              <Link href="/download" className="text-terracotta font-medium underline">
+                download it here
+              </Link>
+              .
+            </p>
+          </div>
+        ) : (
+          <div className="px-8 pb-8 pt-2 flex gap-3">
+            <button
+              onClick={handleDeny}
+              disabled={authorizing}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-full border border-sand hover:bg-cream-dark text-sm font-medium text-charcoal transition-all disabled:opacity-60"
+            >
+              <X size={15} />
+              Cancel
+            </button>
+            <button
+              onClick={handleAuthorize}
+              disabled={authorizing}
+              className="flex-[1.4] flex items-center justify-center gap-2 py-3 rounded-full bg-terracotta hover:bg-terracotta-dark text-white font-semibold text-sm transition-all shadow-md shadow-terracotta/20 disabled:opacity-60"
+            >
+              {authorizing ? (
+                <>
+                  <Loader2 size={15} className="animate-spin" />
+                  Sending to SEER...
+                </>
+              ) : (
+                <>
+                  Authorize
+                  <ArrowRight size={15} />
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

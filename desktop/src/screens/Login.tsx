@@ -17,8 +17,9 @@ import { onOpenUrl, getCurrent as getCurrentDeepLink } from "@tauri-apps/plugin-
 import { supabase, getApiKey } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 
-// In dev, talk to the local Next.js server; in production builds, use prod.
-const SEER_BASE = import.meta.env.DEV ? "http://localhost:3000" : "https://www.seermcp.com";
+// Always point at the production website so an existing prod session works
+// even when running the desktop in dev mode.
+const SEER_BASE = "https://www.seermcp.com";
 const STATE_KEY = "seer.authorize.state";
 
 interface LoginProps {
@@ -55,12 +56,15 @@ export function Login({ onLogin }: LoginProps) {
         return;
       }
 
-      if (!expectedState || returnedState !== expectedState) {
+      // State check only fires for desktop-initiated flows (we stored a state).
+      // Website-initiated flows (user clicks "Open desktop app" in the nav)
+      // have no local state, so we skip the check in that case.
+      if (expectedState && returnedState !== expectedState) {
         setError("Authorization state mismatch — please try again");
         setWaiting(false);
         return;
       }
-      localStorage.removeItem(STATE_KEY);
+      if (expectedState) localStorage.removeItem(STATE_KEY);
 
       const { data, error: setErr } = await supabase.auth.setSession({
         access_token: accessToken,
