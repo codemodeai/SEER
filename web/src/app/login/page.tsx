@@ -16,7 +16,7 @@ export default function LoginPage() {
 
 function LoginForm() {
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") ?? "/dashboard";
+  const redirect = searchParams.get("redirect") ?? "/";
   const authError = searchParams.get("error");
   const prefillEmail = searchParams.get("email") ?? "";
 
