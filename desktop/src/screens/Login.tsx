@@ -43,14 +43,15 @@ export function Login({ onLogin }: LoginProps) {
 
   useEffect(() => {
     const consumeCallback = async (raw: string) => {
-      // Tokens arrive as query params (Windows strips # from custom-protocol
-      // URLs before delivering them to the app).
-      const queryIdx = raw.indexOf("?");
-      if (queryIdx === -1) {
-        setError("Invalid callback URL");
+      // Tokens may arrive as ? query or # fragment. Windows typically strips
+      // the fragment from custom-protocol URLs, but accept both for safety.
+      const sepIdx = raw.search(/[?#]/);
+      if (sepIdx === -1) {
+        setError(`Empty callback — the browser likely used an old cached page. Hard-refresh /authorize in the browser and try again. (got: ${raw})`);
+        setWaiting(false);
         return;
       }
-      const params = new URLSearchParams(raw.slice(queryIdx + 1));
+      const params = new URLSearchParams(raw.slice(sepIdx + 1));
       const accessToken = params.get("access_token");
       const refreshToken = params.get("refresh_token");
       const returnedState = params.get("state");
