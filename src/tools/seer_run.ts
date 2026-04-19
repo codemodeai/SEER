@@ -812,8 +812,10 @@ export async function seer_run(
   // 7c. Agent JSON envelope — prepended so the SEER Local Agent can parse structured params.
   // The agent extracts { model, mode, tokens, steps } and ignores the rest of the text.
   // Claude Code (old flow) ignores this ```json block and processes the full string.
+  // Execution model is pinned to Haiku — MCP is the "instruction layer", Haiku is cheap
+  // enough for every task, and uniform cost simplifies the agent cache layer.
   const agentEnvelope = {
-    model: modeSwitch.recommendedModel ?? "claude-opus-4",
+    model: "claude-haiku-4-5-20251001",
     mode: modeSwitch.mode ?? "build",
     tokens: complexity.maxTokens,
     steps: parsed?.steps ?? [],

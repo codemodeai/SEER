@@ -6,7 +6,7 @@
 
 import { ipc } from "./ipc.js";
 
-const HEALTH_URL = `${process.env["SEER_MCP_BASE"] ?? "https://www.seermcp.com"}/health`;
+const HEALTH_URL = `${process.env["SEER_MCP_BASE"] ?? "https://mcp.seermcp.com"}/health`;
 const INTERVAL_MS = 30_000;
 const TIMEOUT_MS = 5_000;
 

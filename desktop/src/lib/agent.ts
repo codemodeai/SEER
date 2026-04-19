@@ -27,7 +27,7 @@ export async function startAgent(apiKey: string): Promise<void> {
   const cmd = Command.sidecar("binaries/seer-agent", [], {
     env: {
       SEER_API_KEY: apiKey,
-      SEER_MCP_BASE: "https://www.seermcp.com",
+      SEER_MCP_BASE: "https://mcp.seermcp.com",
       SUPABASE_URL: import.meta.env["VITE_SUPABASE_URL"] as string,
       SUPABASE_ANON_KEY: import.meta.env["VITE_SUPABASE_ANON_KEY"] as string,
       SUPABASE_SERVICE_ROLE_KEY: import.meta.env["VITE_SUPABASE_SERVICE_KEY"] as string,

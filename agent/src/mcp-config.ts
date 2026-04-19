@@ -10,8 +10,8 @@ import { join } from "path";
 import { homedir } from "os";
 import type { AITool } from "./types.js";
 
-const MCP_URL = process.env["SEER_MCP_BASE"] ?? "https://www.seermcp.com";
-const MCP_ENDPOINT = `${MCP_URL}/api/mcp`;
+const MCP_URL = process.env["SEER_MCP_BASE"] ?? "https://mcp.seermcp.com";
+const MCP_ENDPOINT = `${MCP_URL}/mcp`;
 
 function writeJson(path: string, data: unknown): void {
   const dir = path.substring(0, path.lastIndexOf("/") || path.lastIndexOf("\\"));

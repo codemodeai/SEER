@@ -6,8 +6,8 @@
 
 import type { MCPInstruction } from "./types.js";
 
-const MCP_BASE = process.env["SEER_MCP_BASE"] ?? "https://www.seermcp.com";
-const MCP_TOOL_ENDPOINT = `${MCP_BASE}/api/mcp`;
+const MCP_BASE = process.env["SEER_MCP_BASE"] ?? "https://mcp.seermcp.com";
+const MCP_TOOL_ENDPOINT = `${MCP_BASE}/mcp`;
 
 interface MCPToolRequest {
   jsonrpc: "2.0";
@@ -46,6 +46,7 @@ export async function fetchInstruction(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify(body),

@@ -5,11 +5,33 @@
  */
 
 import { spawn } from "child_process";
+import { accessSync } from "fs";
+import { homedir } from "os";
 import { ipc } from "./ipc.js";
 import { switchModel, restoreModel } from "./model-switch.js";
 import type { MCPInstruction } from "./types.js";
 
 const STEP_COMPLETE_RE = /\[STEP\s+(\d+)\s+COMPLETE\]/i;
+
+// Full-system access. The agent is the trusted execution layer for SEER — giving
+// Claude CLI every drive root + skipping interactive permission prompts lets it
+// operate anywhere the OS itself allows. Guardrails (deny list, audit log) live
+// one layer above this spawn, not here.
+const ALL_DRIVES = process.platform === "win32"
+  ? ["C:\\", "D:\\", "E:\\", "F:\\"].filter((d) => {
+      try { accessSync(d); return true; } catch { return false; }
+    })
+  : ["/"];
+
+function buildClaudeArgs(prompt: string): string[] {
+  const addDirs = ALL_DRIVES.flatMap((d) => ["--add-dir", d]);
+  return [
+    ...addDirs,
+    "--dangerously-skip-permissions",
+    "-p",
+    prompt,
+  ];
+}
 
 export interface ExecutionResult {
   output: string;
@@ -29,9 +51,10 @@ export async function executeInstruction(
       ? `${instruction.instruction}\n\nUser task: ${taskText}`
       : taskText;
 
-    const child = spawn("claude", ["-p", fullPrompt], {
+    const child = spawn("claude", buildClaudeArgs(fullPrompt), {
       shell: false,
       env: process.env,
+      cwd: homedir(),
     });
 
     let output = "";
