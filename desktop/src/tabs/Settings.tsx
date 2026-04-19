@@ -90,9 +90,20 @@ export function Settings({ userId, apiKey, onLogout }: SettingsProps) {
   const gaugeColor =
     usagePct >= 90 ? "#ef4444" : usagePct >= 75 ? "#f59e0b" : "#22c55e";
 
-  async function handleLogout() {
-    await supabase.auth.signOut();
-    onLogout();
+  function handleLogout() {
+    console.log("[SEER] Settings: Sign out clicked");
+    // Fire and forget the server-side sign-out.
+    void supabase.auth.signOut({ scope: "local" }).catch(() => { /* ignore */ });
+    // Wipe every Supabase auth key locally plus our own logged-in marker.
+    localStorage.removeItem("seer.loggedIn");
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith("sb-") || k === "seer.authorize.state")
+      .forEach((k) => localStorage.removeItem(k));
+    // Notify parent for cleanup (stops the agent, etc.).
+    try { onLogout(); } catch (e) { console.warn("[SEER] onLogout threw:", e); }
+    // Hard reload — guarantees a clean Login screen regardless of the auth
+    // listener race conditions or any stale in-flight setSession promise.
+    window.location.reload();
   }
 
   return (
@@ -170,21 +181,22 @@ export function Settings({ userId, apiKey, onLogout }: SettingsProps) {
         {view === "account" && (
           <div>
             <h3 style={s.title}>Account</h3>
-            {user && (
-              <div style={s.accountCard}>
-                <p style={s.accountEmail}>{user.email}</p>
-                <p style={s.accountPlan}>Plan: <strong>{user.plan}</strong></p>
-
-                <div style={s.apiKeyRow}>
-                  <span style={s.apiKeyLabel}>API Key</span>
-                  <span style={s.apiKeyValue}>{user.seer_api_key.slice(0, 12)}••••••••</span>
-                </div>
-
-                <p style={s.agentVer}>Agent version: {agentVersion}</p>
-
-                <button style={s.logoutBtn} onClick={handleLogout}>Sign out</button>
-              </div>
-            )}
+            <div style={s.accountCard}>
+              {user ? (
+                <>
+                  <p style={s.accountEmail}>{user.email}</p>
+                  <p style={s.accountPlan}>Plan: <strong>{user.plan}</strong></p>
+                  <div style={s.apiKeyRow}>
+                    <span style={s.apiKeyLabel}>API Key</span>
+                    <span style={s.apiKeyValue}>{user.seer_api_key.slice(0, 12)}••••••••</span>
+                  </div>
+                </>
+              ) : (
+                <p style={s.accountPlan}>Loading account…</p>
+              )}
+              <p style={s.agentVer}>Agent version: {agentVersion}</p>
+              <button style={s.logoutBtn} onClick={handleLogout}>Sign out</button>
+            </div>
           </div>
         )}
       </div>

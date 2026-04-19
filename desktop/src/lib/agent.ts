@@ -17,14 +17,19 @@ export interface AgentResponse {
 }
 
 export async function startAgent(apiKey: string): Promise<void> {
-  if (agentChild) return;
+  if (agentChild) {
+    console.log("[agent] already running");
+    return;
+  }
 
+  console.log("[agent] spawning sidecar...");
   // Tauri sidecar name matches binaries/seer-agent-{target-triple}.exe
   const cmd = Command.sidecar("binaries/seer-agent", [], {
     env: {
       SEER_API_KEY: apiKey,
       SEER_MCP_BASE: "https://www.seermcp.com",
       SUPABASE_URL: import.meta.env["VITE_SUPABASE_URL"] as string,
+      SUPABASE_ANON_KEY: import.meta.env["VITE_SUPABASE_ANON_KEY"] as string,
       SUPABASE_SERVICE_ROLE_KEY: import.meta.env["VITE_SUPABASE_SERVICE_KEY"] as string,
     },
   });
@@ -38,11 +43,31 @@ export async function startAgent(apiKey: string): Promise<void> {
       if (handler) handler(msg);
       for (const h of globalHandlers) h(msg);
     } catch {
-      // Non-JSON line — debug output
+      console.log("[agent:stdout]", trimmed);
     }
   });
 
-  agentChild = await cmd.spawn();
+  cmd.stderr.on("data", (line: string) => {
+    const trimmed = line.trim();
+    if (trimmed) console.warn("[agent:stderr]", trimmed);
+  });
+
+  cmd.on("error", (err) => {
+    console.error("[agent] command error:", err);
+  });
+
+  cmd.on("close", (payload) => {
+    console.warn("[agent] process closed:", payload);
+    agentChild = null;
+  });
+
+  try {
+    agentChild = await cmd.spawn();
+    console.log("[agent] spawned with PID", agentChild.pid);
+  } catch (e) {
+    console.error("[agent] spawn failed:", e);
+    throw e;
+  }
 }
 
 export function onAgentMessage(handler: MessageHandler): () => void {

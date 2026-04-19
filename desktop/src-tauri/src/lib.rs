@@ -4,6 +4,13 @@ use tauri::Manager;
 pub fn run() {
     let mut builder = tauri::Builder::default();
 
+    // IMPORTANT: deep-link MUST be registered before single-instance.
+    // When a second instance is launched with a seer:// URL in argv, the
+    // single-instance plugin (built with the `deep-link` feature) forwards
+    // that URL to the deep-link plugin's onOpenUrl emitter — but only if
+    // deep-link was initialized first.
+    builder = builder.plugin(tauri_plugin_deep_link::init());
+
     #[cfg(desktop)]
     {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
@@ -17,7 +24,6 @@ pub fn run() {
     }
 
     builder
-        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
             #[cfg(any(windows, target_os = "linux"))]

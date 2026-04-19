@@ -22,28 +22,30 @@ export function App() {
   const [agentOnline, setAgentOnline] = useState(false);
   const [agentPlan, setAgentPlan] = useState("—");
 
-  // Restore session on launch
+  // Restore session on launch — only if we ourselves previously marked the
+  // user as logged in. We deliberately do NOT attach supabase.auth.onAuthStateChange
+  // here because its background emissions can re-install a session even after
+  // the user has signed out (race with an in-flight setSession promise).
   useEffect(() => {
+    if (localStorage.getItem("seer.loggedIn") !== "1") {
+      console.log("[SEER] App: no seer.loggedIn flag — staying on Login");
+      return;
+    }
     supabase.auth.getSession().then(async ({ data }) => {
-      if (data.session) {
-        const key = await getApiKey(data.session.user.id);
-        if (key) {
-          setSession(data.session);
-          setApiKey(key);
-        }
+      if (!data.session) {
+        console.log("[SEER] App: getSession returned null");
+        return;
       }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, s) => {
-      if (s) {
-        const key = await getApiKey(s.user.id);
-        if (key) { setSession(s); setApiKey(key); }
+      const key = await getApiKey(data.session.user.id, data.session.access_token);
+      if (key) {
+        console.log("[SEER] App: restored session for", data.session.user.id);
+        setSession(data.session);
+        setApiKey(key);
       } else {
-        setSession(null);
-        setApiKey(null);
+        console.log("[SEER] App: session present but no API key, forcing re-login");
+        localStorage.removeItem("seer.loggedIn");
       }
     });
-    return () => subscription.unsubscribe();
   }, []);
 
   // Start agent when authenticated
@@ -70,14 +72,25 @@ export function App() {
   }, [apiKey]);
 
   function handleLogin(newSession: Session, newApiKey: string) {
+    localStorage.setItem("seer.loggedIn", "1");
     setSession(newSession);
     setApiKey(newApiKey);
   }
 
   function handleLogout() {
-    setSession(null);
-    setApiKey(null);
-    stopAgent();
+    console.log("[SEER] logging out");
+    try { stopAgent(); } catch { /* ignore */ }
+    // Fire-and-forget the server-side sign-out — don't await it, the Supabase
+    // lock can hang in WebView2 and we must not block logout on that.
+    void supabase.auth.signOut({ scope: "local" }).catch(() => { /* ignore */ });
+    // Wipe every auth-related localStorage key so the next load stays on Login.
+    localStorage.removeItem("seer.loggedIn");
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith("sb-") || k === "seer.authorize.state")
+      .forEach((k) => localStorage.removeItem(k));
+    // Hard reload guarantees a clean Login screen regardless of any stale
+    // React state, hanging promises, or HMR-cached module instances.
+    window.location.reload();
   }
 
   if (!session || !apiKey) {
