@@ -80,7 +80,7 @@ function LoginForm() {
         <div className="relative z-10 max-w-md">
           <div className="flex items-center gap-3 mb-8">
             <img src="/seer-logo.png" alt="SEER" className="w-11 h-11 rounded-xl" style={{ boxShadow: "0 4px 16px rgba(244,123,94,0.35)" }} />
-            <span className="font-display text-2xl tracking-tight" style={{ color: "#F47B5E" }}>
+            <span className="font-display text-2xl text-white tracking-tight">
               SEER
             </span>
           </div>
@@ -100,7 +100,7 @@ function LoginForm() {
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-2.5 mb-10">
             <img src="/seer-logo.png" alt="SEER" className="w-8 h-8 rounded-lg" />
-            <span className="font-display text-xl tracking-tight" style={{ color: "#F47B5E" }}>
+            <span className="font-display text-xl text-charcoal tracking-tight">
               SEER
             </span>
           </div>
