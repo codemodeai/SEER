@@ -1,10 +1,14 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle, ArrowRight, Sparkles, Building2 } from "lucide-react";
+import { CheckCircle, ArrowRight, Sparkles, Building2, MonitorDown, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase-browser";
+
+type AppState = "idle" | "trying" | "launched" | "not-installed";
 
 function SuccessContent() {
   const searchParams = useSearchParams();
@@ -12,6 +16,52 @@ function SuccessContent() {
   const price = searchParams.get("price") ?? "19";
   const agencySlug = searchParams.get("agency");
   const isAgency = plan.toLowerCase() === "agency";
+
+  const [appState, setAppState] = useState<AppState>("idle");
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clean up timer on unmount
+  useEffect(() => () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); }, []);
+
+  async function openInApp() {
+    setAppState("trying");
+
+    // Get the user's live session tokens so the desktop app can log in directly
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+
+    let deepLink: string;
+    if (session?.access_token && session?.refresh_token) {
+      const p = new URLSearchParams({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      });
+      deepLink = `seer://auth/callback?${p.toString()}`;
+    } else {
+      // Fallback — open app without tokens; user will see the login screen
+      deepLink = "seer://open";
+    }
+
+    // Listen for the page going hidden — reliable signal that the OS
+    // switched focus to the desktop app that just opened.
+    const onHide = () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      setAppState("launched");
+      document.removeEventListener("visibilitychange", onHide);
+    };
+    document.addEventListener("visibilitychange", onHide);
+
+    // Fire the deep link
+    window.location.href = deepLink;
+
+    // Fallback: if the page is still visible after 2.5s, the app isn't installed
+    timeoutRef.current = setTimeout(() => {
+      document.removeEventListener("visibilitychange", onHide);
+      if (document.visibilityState === "visible") {
+        setAppState("not-installed");
+      }
+    }, 2500);
+  }
 
   return (
     <div className="min-h-screen bg-cream flex items-center justify-center px-4">
@@ -62,12 +112,8 @@ function SuccessContent() {
               <Sparkles size={20} className="text-terracotta" />
             </div>
             <div>
-              <p className="text-xs text-muted font-semibold tracking-widest uppercase">
-                Active Plan
-              </p>
-              <p className="font-display text-xl text-charcoal capitalize">
-                {plan}
-              </p>
+              <p className="text-xs text-muted font-semibold tracking-widest uppercase">Active Plan</p>
+              <p className="font-display text-xl text-charcoal capitalize">{plan}</p>
             </div>
           </div>
           <div className="flex items-baseline gap-1 mb-4">
@@ -77,27 +123,23 @@ function SuccessContent() {
           <div className="h-px bg-sand/60 mb-4" />
           <ul className="space-y-2 text-sm text-warm-brown-light">
             <li className="flex items-center gap-2">
-              <CheckCircle size={14} className="text-accent-sage" />
-              Payment confirmed
+              <CheckCircle size={14} className="text-accent-sage" /> Payment confirmed
             </li>
             <li className="flex items-center gap-2">
-              <CheckCircle size={14} className="text-accent-sage" />
-              API key activated
+              <CheckCircle size={14} className="text-accent-sage" /> API key activated
             </li>
             <li className="flex items-center gap-2">
-              <CheckCircle size={14} className="text-accent-sage" />
-              Dashboard unlocked
+              <CheckCircle size={14} className="text-accent-sage" /> Dashboard unlocked
             </li>
             {isAgency && (
               <li className="flex items-center gap-2">
-                <CheckCircle size={14} className="text-accent-sage" />
-                Agency portal created
+                <CheckCircle size={14} className="text-accent-sage" /> Agency portal created
               </li>
             )}
           </ul>
         </motion.div>
 
-        {/* CTA */}
+        {/* CTAs */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -123,19 +165,60 @@ function SuccessContent() {
             </>
           ) : (
             <>
-              <Link
-                href="/dashboard"
-                className="flex items-center justify-center gap-2 py-4 rounded-full bg-terracotta hover:bg-terracotta-dark text-white font-semibold text-sm transition-all shadow-lg shadow-terracotta/20"
+              {/* Primary: open desktop app */}
+              <button
+                onClick={openInApp}
+                disabled={appState === "trying" || appState === "launched"}
+                className="flex items-center justify-center gap-2 py-4 rounded-full bg-terracotta hover:bg-terracotta-dark disabled:opacity-70 text-white font-semibold text-sm transition-all shadow-lg shadow-terracotta/20"
               >
-                Go to Dashboard
-                <ArrowRight size={16} />
-              </Link>
-              <Link
-                href="/dashboard/install"
-                className="flex items-center justify-center gap-2 py-3 rounded-full bg-cream-dark hover:bg-sand text-charcoal font-medium text-sm transition-all border border-sand"
-              >
-                Install SEER
-              </Link>
+                {appState === "trying" ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Opening SEER…
+                  </>
+                ) : appState === "launched" ? (
+                  <>
+                    <CheckCircle size={16} />
+                    SEER is open
+                  </>
+                ) : (
+                  <>
+                    Open in SEER
+                    <ArrowRight size={16} />
+                  </>
+                )}
+              </button>
+
+              {/* Not-installed fallback — shown after timeout */}
+              {appState === "not-installed" ? (
+                <Link
+                  href="/dashboard/install"
+                  className="flex items-center justify-center gap-2 py-3 rounded-full bg-charcoal hover:bg-charcoal/90 text-white font-semibold text-sm transition-all"
+                >
+                  <MonitorDown size={16} />
+                  Install SEER Desktop
+                </Link>
+              ) : (
+                <Link
+                  href="/dashboard"
+                  className="flex items-center justify-center gap-2 py-3 rounded-full bg-cream-dark hover:bg-sand text-charcoal font-medium text-sm transition-all border border-sand"
+                >
+                  Go to Dashboard
+                </Link>
+              )}
+
+              {/* Hint line */}
+              {appState === "not-installed" && (
+                <p className="text-xs text-muted mt-1">
+                  SEER app wasn&apos;t detected.{" "}
+                  <button
+                    onClick={openInApp}
+                    className="underline underline-offset-2 hover:text-charcoal transition-colors"
+                  >
+                    Try again
+                  </button>
+                </p>
+              )}
             </>
           )}
         </motion.div>
