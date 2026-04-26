@@ -79,10 +79,8 @@ function LoginForm() {
         </div>
         <div className="relative z-10 max-w-md">
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-terracotta flex items-center justify-center">
-              <span className="text-white font-display font-bold text-lg">S</span>
-            </div>
-            <span className="font-display text-2xl text-white tracking-tight">
+            <img src="/seer-logo.png" alt="SEER" className="w-11 h-11 rounded-xl" style={{ boxShadow: "0 4px 16px rgba(244,123,94,0.35)" }} />
+            <span className="font-display text-2xl tracking-tight" style={{ color: "#F47B5E" }}>
               SEER
             </span>
           </div>
@@ -90,8 +88,8 @@ function LoginForm() {
             Welcome back.
           </h2>
           <p className="mt-4 text-white/50 leading-relaxed">
-            Pick up where you left off. Your optimized workflows and project
-            memory are waiting.
+            Pick up where you left off. Your projects, plans, and Claude
+            pipelines are ready when you are.
           </p>
         </div>
       </div>
@@ -101,10 +99,8 @@ function LoginForm() {
         <div className="max-w-sm w-full">
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-2.5 mb-10">
-            <div className="w-8 h-8 rounded-lg bg-terracotta flex items-center justify-center">
-              <span className="text-white font-display font-bold text-sm">S</span>
-            </div>
-            <span className="font-display text-xl text-charcoal tracking-tight">
+            <img src="/seer-logo.png" alt="SEER" className="w-8 h-8 rounded-lg" />
+            <span className="font-display text-xl tracking-tight" style={{ color: "#F47B5E" }}>
               SEER
             </span>
           </div>

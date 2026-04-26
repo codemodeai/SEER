@@ -110,34 +110,31 @@ function SignupForm() {
         </div>
         <div className="relative z-10 max-w-md">
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-terracotta flex items-center justify-center">
-              <span className="text-white font-display font-bold text-lg">S</span>
-            </div>
-            <span className="font-display text-2xl text-white tracking-tight">
+            <img src="/seer-logo.png" alt="SEER" className="w-11 h-11 rounded-xl shadow-lg" style={{ boxShadow: "0 4px 16px rgba(244,123,94,0.35)" }} />
+            <span className="font-display text-2xl tracking-tight" style={{ color: "#F47B5E" }}>
               SEER
             </span>
           </div>
           <h2 className="font-display text-4xl text-white leading-tight">
-            Every prompt,
+            Your AI coding
             <br />
-            <span className="text-terracotta-light">perfected.</span>
+            <span style={{ color: "#F47B5E" }}>co-pilot.</span>
           </h2>
           <p className="mt-4 text-white/50 leading-relaxed">
-            Optimize prompts, generate workflows, inject project memory — all
-            before Claude Code starts thinking.
+            Plan your project, build with Claude, and ship faster — SEER routes
+            every task through the right model so nothing gets missed.
           </p>
-          <div className="mt-10 flex items-center gap-4">
-            <div className="flex -space-x-2">
-              {[...Array(4)].map((_, i) => (
-                <div
-                  key={i}
-                  className="w-8 h-8 rounded-full bg-white/10 border-2 border-charcoal"
-                />
-              ))}
-            </div>
-            <p className="text-xs text-white/40">
-              Join developers saving 40% on tokens
-            </p>
+          <div className="mt-10 flex flex-col gap-3">
+            {[
+              "Multi-step Claude pipelines",
+              "Per-project plan & memory",
+              "Haiku · Sonnet · Opus auto-routing",
+            ].map((feat) => (
+              <div key={feat} className="flex items-center gap-2.5">
+                <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#F47B5E" }} />
+                <span className="text-sm text-white/50">{feat}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -147,10 +144,8 @@ function SignupForm() {
         <div className="max-w-sm w-full">
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-2.5 mb-10">
-            <div className="w-8 h-8 rounded-lg bg-terracotta flex items-center justify-center">
-              <span className="text-white font-display font-bold text-sm">S</span>
-            </div>
-            <span className="font-display text-xl text-charcoal tracking-tight">
+            <img src="/seer-logo.png" alt="SEER" className="w-8 h-8 rounded-lg" />
+            <span className="font-display text-xl tracking-tight" style={{ color: "#F47B5E" }}>
               SEER
             </span>
           </div>
