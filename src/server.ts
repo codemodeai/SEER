@@ -12,6 +12,9 @@ import {
   seer_memory_run,
   seer_tools,
   seer_space,
+  memory_select_nodes,
+  memory_fetch_aspects,
+  memory_expand,
 } from "./tools/index.js";
 import { sanitizeInput, logSecurityIncident, isAllowedTool, isAllowedMethod } from "./lib/security.js";
 import { checkRateLimit } from "./lib/rate-limit.js";
@@ -349,6 +352,36 @@ After receiving the SEER tool response, execute the optimized instructions retur
     { input: z.string().describe("Everything after 'seer space' — the action and arguments") },
     async ({ input }) => ({
       content: [{ type: "text" as const, text: await secureToolCall("seer_space", input, () => seer_space(input, apiKey, surface)) }],
+    })
+  );
+
+  // --- memory_select_nodes: pick the most relevant graph nodes for a request ---
+  server.tool(
+    "memory_select_nodes",
+    "Pick the most relevant Memory Base nodes for a user request. Returns ranked node ids + label + summary (compact, prompt-ready). Use this before answering any question that depends on project context.",
+    { args: z.string().describe('JSON: { "request": "...", "projectId"?: "uuid", "limit"?: 5 }') },
+    async ({ args }) => ({
+      content: [{ type: "text" as const, text: await secureToolCall("memory_select_nodes", args, () => memory_select_nodes(args, apiKey)) }],
+    })
+  );
+
+  // --- memory_fetch_aspects: bulk-fetch fields for selected node ids ---
+  server.tool(
+    "memory_fetch_aspects",
+    "Fetch the chosen fields for a list of node ids returned by memory_select_nodes. Default fields: label + summary. Pass fields:['aspects'] only when you need the full structured payload.",
+    { args: z.string().describe('JSON: { "nodeIds": ["uuid", ...], "fields"?: ["label","summary","aspects",...] }') },
+    async ({ args }) => ({
+      content: [{ type: "text" as const, text: await secureToolCall("memory_fetch_aspects", args, () => memory_fetch_aspects(args, apiKey)) }],
+    })
+  );
+
+  // --- memory_expand: full aspect blob for one node, on-demand ---
+  server.tool(
+    "memory_expand",
+    "Return the full aspect blob for a single node. Optionally include immediate children. Use this only when label+summary from memory_select_nodes wasn't enough.",
+    { args: z.string().describe('JSON: { "nodeId": "uuid", "includeChildren"?: true }') },
+    async ({ args }) => ({
+      content: [{ type: "text" as const, text: await secureToolCall("memory_expand", args, () => memory_expand(args, apiKey)) }],
     })
   );
 

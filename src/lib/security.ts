@@ -109,6 +109,9 @@ const ALLOWED_TOOLS = new Set([
   "seer_memory_run",
   "seer_tools",
   "seer_space",
+  "memory_select_nodes",
+  "memory_fetch_aspects",
+  "memory_expand",
 ]);
 
 export function isAllowedTool(toolName: string): boolean {
